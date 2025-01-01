@@ -1,5 +1,6 @@
 from decoder import decode
 
+
 class Cpu:
     def __init__(self, memory):
         self.memory = memory
@@ -23,7 +24,7 @@ class Cpu:
         while runState:
             # read instruction from memory
             memValue = self.memory.read(self.PC)
-            self.PC = self.PC + 1
+            self.PC = self.PC + 1  
 
             # Decode instruction
             instruction = decode(memValue)
@@ -31,7 +32,20 @@ class Cpu:
 
 
             # execute instruction
-            runState = False
+            match instruction[0]:
+                case 11:    # HALT 
+                    self.PC = self.PC - 1
+                    runState = False
+                case 31:    # LDI
+                    self.registers[instruction[1]] = instruction[2]
+                case 32:    # LDM
+                    self.registers[instruction[1]] = int(self.memory.read(instruction[2]))
+                case 40:    # STO
+                    self.memory.write(instruction[2], str(self.registers[instruction[1]]))
+                case 50:    # ADD
+                    self.registers[instruction[1]] = self.registers[instruction[1]] + self.registers[instruction[2]]
+                case _:
+                    exit("Invalid instruction")
 
 
 
