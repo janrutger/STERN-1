@@ -12,6 +12,7 @@ class Cpu:
                     
         self.PC = 0                      # init PC
         self.SP = self.memory.MEMmax()   # init SP
+        self.statusbit = 0
 
 
 
@@ -27,23 +28,23 @@ class Cpu:
             self.PC = self.PC + 1  
 
             # Decode instruction
-            instruction = decode(memValue)
-            print(instruction)
+            inst, op1, op2 = decode(memValue)
+            print(inst, op1, op2)
 
 
             # execute instruction
-            match instruction[0]:
+            match inst:
                 case 11:    # HALT 
                     self.PC = self.PC - 1
                     runState = False
                 case 31:    # LDI
-                    self.registers[instruction[1]] = instruction[2]
+                    self.registers[op1] = op2
                 case 32:    # LDM
-                    self.registers[instruction[1]] = int(self.memory.read(instruction[2]))
+                    self.registers[op1] = int(self.memory.read(op2))
                 case 40:    # STO
-                    self.memory.write(instruction[2], str(self.registers[instruction[1]]))
+                    self.memory.write(op2, str(self.registers[op1]))
                 case 50:    # ADD
-                    self.registers[instruction[1]] = self.registers[instruction[1]] + self.registers[instruction[2]]
+                    self.registers[op1] = self.registers[op1] + self.registers[op2]
                 case _:
                     exit("Invalid instruction")
 
