@@ -8,7 +8,7 @@ class Memory:
         self.validAddress(address)
         self.memory[address] = value
 
-    def read(self, address: int):
+    def read(self, address: int) -> str:
         self.validAddress(address)
         return self.memory[address]
 

@@ -1,4 +1,4 @@
-
+from decoder import decode
 
 class Cpu:
     def __init__(self, memory):
@@ -22,15 +22,16 @@ class Cpu:
         self.PC = startAdres
         while runState:
             # read instruction from memory
-            instruction = self.memory.read(self.PC)
+            memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1
 
-
             # Decode instruction
+            instruction = decode(memValue)
+            print(instruction)
 
 
             # execute instruction
-            pass
+            runState = False
 
 
 
