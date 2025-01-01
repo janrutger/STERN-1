@@ -1,17 +1,36 @@
 
 
-class CPU:
+class Cpu:
     def __init__(self, memory):
         self.memory = memory
         
-        self.registers = [0] * 12   # 11 registers
+        self.registers = [0] * 11   # 10 registers
                                     # 0      index register
                                     # 1 .. 9 General registers
-                                    # 10     PC, programcounter
-                                    # 11     SP, Stack pointer
-                    
-        self.registers[10] = 0                      # init PC
-        self.registers[11] = self.memory.MEMmax()   # init SP
 
-        
+                    
+        self.PC = 0                      # init PC
+        self.SP = self.memory.MEMmax()   # init SP
+
+
+
+    def run(self, startAdres: int):
+        # the CPU starts running from PC
+        # ends running after the HALT instruction
+
+        runState = True
+        self.PC = startAdres
+        while runState:
+            # read instruction from memory
+            instruction = self.memory.read(self.PC)
+            self.PC = self.PC + 1
+
+
+            # Decode instruction
+
+
+            # execute instruction
+            pass
+
+
 

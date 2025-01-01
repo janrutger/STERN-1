@@ -4,7 +4,7 @@ class Memory:
     def __init__(self, size: int):
         self.memory = [None] * size
 
-    def write(self, address, value) -> None:
+    def write(self, address: int, value: str) -> None:
         self.validAddress(address)
         self.memory[address] = value
 
