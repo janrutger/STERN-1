@@ -12,4 +12,10 @@
 
     ldm C $loc
 
+    jmp @program
+
+    ldi I 8
+    stx A $loc
+
+    jmpx Z
     halt

@@ -2,6 +2,18 @@ from readFile import readFile
 
 
 def assembler(sourcefile: str, pgr_start: int, var_start: int):
+    instructions = {"nop"  : '10', "halt" : '11', "ret"  : '12',
+                    "jmpf" : '20', "jmpt" : '21', "jmp"  : '22', "jmpx" : '23', "call" : '24',
+                    "ld"   : '30', "ldi"  : '31', "ldm"  : '32', "ldx"  : '33',
+                    "sto"  : '40', "stx"  : '41',
+                    "add"  : '50', "addi" : '51', "sub"  : '52', "subi" : '53', "subr" : '54',
+                    "mul"  : '60', "muli" : '61', "div"  : '62', "divi" : '63', "divr" : '64',
+                    "tst"  : '70', "tste" : '71', "tstg" : '72',
+                    "inc"  : '80', "dec"  : '81',
+                    "read" : '98', "write": '99'}
+    
+    registers = {"I":'0', "A":'1', "B":'2', "C":'3', "K":'4', "L":'5', "M":'6', "X":'7', "Y":8, "Z":'9'}
+        
     source = readFile(sourcefile, 1)
 
     assembly = []
@@ -13,7 +25,6 @@ def assembler(sourcefile: str, pgr_start: int, var_start: int):
 
     print(assembly)
 
-    labels = dict()
     symbols = dict()
     varcount = 0
 
@@ -21,12 +32,7 @@ def assembler(sourcefile: str, pgr_start: int, var_start: int):
     vars = var_start
 
     for line in assembly:
-        if line[0] == ":":
-            if line not in labels.keys():
-                labels[line] = pc
-            else:
-                exit("ERROR Label already used: " + line)
-        elif line[0] == "@":
+        if line[0] == "@":
             if line not in symbols.keys():
                 symbols[line] = pc
             else:
@@ -38,28 +44,12 @@ def assembler(sourcefile: str, pgr_start: int, var_start: int):
                 varcount = varcount + int(_line[2])  # +1 if lenght must be stored
             else:
                 exit("ERROR address already used : " + _line[1])
-        # elif line[0] == "%":
-        #     _line = line.split()
-        #     if _line[1] in symbols.keys():
-        #         i = 0
-        #         for char in _line[2]:
-        #             if char in myASCII.keys():
-        #                 newline = symbols[_line[1]] + i, myASCII[char]
-        #             else:
-        #                 newline = symbols[_line[1]] + i, myASCII["#"]
-        #             binProgram.append(newline)
-        #             i = i + 1
-        #         newline = symbols[_line[1]] + i, myASCII["null"]
-        #         binProgram.append(newline)
-
-        #     else:
-        #         exit("ERROR address undefined : " + _line[1])
         else:
             pc = pc +1
 
-    print(symbols, labels)
+    print(symbols, labels, varcount)
 
-
+    binary = []
     pc = pgr_start
     for line in assembly:
         instruction = line.split()
@@ -67,6 +57,33 @@ def assembler(sourcefile: str, pgr_start: int, var_start: int):
 
         if instruction[0][0] in ["@", ".", ":", "%"]:
             pass
+        elif instruction[0] in ['nop', 'halt', 'ret']:
+            newLine = (instructions[instruction[0]])
+            binary.append(newLine)
+            pc = pc +1
+        elif instruction[0] in ['ld', 'add', 'sub', 'div', 'tste', 'tstg']:
+            newLine = (instructions[instruction[0]] + registers[instruction[1]] + registers[instruction[2]])
+            binary.append(newLine)
+            pc = pc +1
+        elif instruction[0] in ['ldi', 'addi', 'muli', 'subi', 'divi', 'tst', 'subr', 'divr' ]:
+            newLine = (instructions[instruction[0]] + registers[instruction[1]] + str(instruction[2]))
+            binary.append(newLine)
+            pc = pc +1
+        elif instruction[0] in ['ldm', 'sto', 'inc', 'dec', 'read', 'write', 'stx', 'ldx' ]:
+            newLine = (instructions[instruction[0]] + registers[instruction[1]] + str(symbols[instruction[2]]))
+            binary.append(newLine)
+            pc = pc +1
+        elif instruction[0] in ['jmp', 'jmpt', 'jmpf', 'call' ]:
+            newLine = (instructions[instruction[0]]  + str(symbols[instruction[1]]))
+            binary.append(newLine)
+            pc = pc +1
+        elif instruction[0] in [ 'jmpx' ]:
+            newLine = (instructions[instruction[0]] + registers[instruction[1]])
+            binary.append(newLine)
+        
+
+    
+    print(binary)
 
 
 
