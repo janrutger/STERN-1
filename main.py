@@ -1,14 +1,16 @@
 from memory import Memory
 from CPU import Cpu
-from readFile import readFile
+from FileIO import readFile
 
 def main():
     memory = Memory(1024 * 16)   
-    CPU = Cpu(memory)  
+    VmemSize = 32*64
     progStart = 0 
 
+    CPU = Cpu(memory, VmemSize) 
+
     # load a file into memory
-    program = readFile("test.bin", 0)
+    program = readFile("out.bin", 0)
     adres = progStart
     for value in program:
         memory.write(adres, value)

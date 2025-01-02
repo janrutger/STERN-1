@@ -2,7 +2,7 @@ from decoder import decode
 
 
 class Cpu:
-    def __init__(self, memory):
+    def __init__(self, memory, Vmem):
         self.memory = memory
         
         self.registers = [0] * 11   # 10 registers
@@ -10,8 +10,8 @@ class Cpu:
                                     # 1 .. 9 General registers
 
                     
-        self.PC = 0                      # init PC
-        self.SP = self.memory.MEMmax()   # init SP
+        self.PC = 0                                 # init PC
+        self.SP = self.memory.MEMmax() - Vmem   # init SP
         self.statusbit = 0
 
 

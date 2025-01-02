@@ -1,4 +1,4 @@
-from readFile import readFile
+from FileIO import readFile, writeBin
 
 
 def assembler(sourcefile: str, pgr_start: int, var_start: int):
@@ -47,13 +47,13 @@ def assembler(sourcefile: str, pgr_start: int, var_start: int):
         else:
             pc = pc +1
 
-    print(symbols, labels, varcount)
+    print(symbols,  varcount)
 
     binary = []
     pc = pgr_start
     for line in assembly:
         instruction = line.split()
-        print(instruction)
+        #print(instruction)
 
         if instruction[0][0] in ["@", ".", ":", "%"]:
             pass
@@ -82,7 +82,7 @@ def assembler(sourcefile: str, pgr_start: int, var_start: int):
             binary.append(newLine)
         
 
-    
+    writeBin(binary)
     print(binary)
 
 

@@ -17,3 +17,9 @@ def readFile(filename: str, filetype: int):
         file.close()
         return(assembly)
 
+def writeBin(binary):
+    with open("./bin/out.bin", "w") as file:
+        for line in binary:
+            file.write(line + "\n")
+    
+
