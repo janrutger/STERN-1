@@ -8,18 +8,29 @@ def main():
     VmemSize = 32*64
     progStart = 0 
     varStart  = 32
+    fontStart = 50
 
     CPU = Cpu(memory, VmemSize) 
-    
+
+    # load fonts into memory
+    font = readFile("standard.font", 2)
+    adres = fontStart
+    for value in font:
+        memory.write(adres, value)
+        adres =  adres + 1
+
+
+
     A = Assembler(varStart)
     A.assemble("test.asm", 0, "out.bin")
 
-    # load a file into memory
+    # load bin into memory
     program = readFile("out.bin", 0)
     adres = progStart
     for value in program:
         memory.write(adres, value)
         adres =  adres + 1
+
 
     # make the CPU runnig
     # must be a Thread when main wil serve the display

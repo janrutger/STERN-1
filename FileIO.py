@@ -18,8 +18,8 @@ def readFile(filename: str, filetype: int):
         return(assembly)
     elif filetype == 2: # 2 is formatted as font
         font = []
-        file = open("/bin/" + flename, "r")
-        for line in files:
+        file = open("./bin/" + filename, "r")
+        for line in file:
             for n in line.split():
                 font.append(n)
         file.close()
