@@ -3,47 +3,47 @@ from CPU import Cpu
 from assembler import Assembler
 from display import Display
 from FileIO import readFile
-import threading
-from time import sleep
 
 def main():
-    MainMem = Memory(1024 * 16)  
-    Vh = 32
-    Vw = 64 
-    VideoSize = Vw * Vh
+    memory = Memory(1024 * 16)   
+    VideoSize = 32*64
     progStart = 0 
     varStart  = 32
     fontStart = 50
 
-    CPU = Cpu(MainMem, VideoSize) 
-    screen = Display(Vw, Vh, MainMem)
+    CPU = Cpu(memory, VideoSize) 
+    screen = Display(64, 32, 10, memory)
 
-    # load fonts into MainMem
+    # load fonts into memory
     font = readFile("standard.font", 2)
     adres = fontStart
     for value in font:
-        MainMem.write(adres, value)
+        memory.write(adres, value)
         adres =  adres + 1
+
+    screen.display.mainloop()
 
     A = Assembler(varStart)
     A.assemble("test.asm", progStart, "out.bin")
 
-    # load bin into MainMem
+    # load bin into memory
     program = readFile("out.bin", 0)
     adres = progStart
     for value in program:
-        MainMem.write(adres, value)
+        memory.write(adres, value)
         adres =  adres + 1
 
-    # Start the CPU thread
-    cpu_thread = threading.Thread(target=CPU.run, args=(progStart,))
-    cpu_thread.start()
-    sleep(1)
 
-    # Start the screen main loop (tK)
-    screen.display.mainloop()
+    # make the CPU runnig
+    # must be a Thread when main wil serve the display
+    # CPU stops at HALT instruction
+    CPU.run(progStart)
+    
 
     print("SYSTEM HALTED")
+
+
+
 
 if __name__ == "__main__":
     main()
