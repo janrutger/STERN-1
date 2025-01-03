@@ -4,6 +4,10 @@
 . $loc 1
 . $jrk 1
 
+; % @FONTS 512
+; % 1 1 0 1 0 0 0 0
+; % 0 1 0 1 0 1 0 1
+
 @program
     ldi A 12
     ldi B 30

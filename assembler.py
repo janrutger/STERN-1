@@ -26,6 +26,7 @@ class Assembler:
         self.source = readFile(sourcefile, 1)
 
     def parse_source(self):
+        self.assembly = []
         for line in self.source:
             if line == "" or line[0] == "#" or line[0] == ";":
                 continue
@@ -53,10 +54,11 @@ class Assembler:
         print(self.symbols, self.NextVarPointer)
 
     def generate_binary(self, prg_start, output_file):
+        self.binary = []
         pc = prg_start
         for line in self.assembly:
             instruction = line.split()
-            if instruction[0][0] in ["@", ".", ":", "%"]:
+            if instruction[0][0] in ["@", ".", ":"]:
                 continue
             elif instruction[0] in ['nop', 'halt', 'ret']:
                 newLine = self.instructions[instruction[0]]
