@@ -16,7 +16,7 @@ def main():
     fontStart = 50
 
     CPU = Cpu(MainMem, VideoSize) 
-    screen = Display(Vw, Vh, MainMem)
+    screen = Display(Vw, Vh, MainMem, 5)
 
     # load fonts into MainMem
     font = readFile("standard.font", 2)
