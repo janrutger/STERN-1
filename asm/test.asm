@@ -2,6 +2,7 @@
 # this an be ingord
 
 . $loc 1
+. $jrk 1
 
 @program
     ldi A 12
@@ -19,3 +20,6 @@
 
     jmpx Z
     halt
+
+@do
+    sto B $jrk

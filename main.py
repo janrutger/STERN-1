@@ -1,13 +1,18 @@
 from memory import Memory
 from CPU import Cpu
+from assembler import Assembler
 from FileIO import readFile
 
 def main():
     memory = Memory(1024 * 16)   
     VmemSize = 32*64
     progStart = 0 
+    varStart  = 32
 
     CPU = Cpu(memory, VmemSize) 
+    
+    A = Assembler(varStart)
+    A.assemble("test.asm", 0, "out.bin")
 
     # load a file into memory
     program = readFile("out.bin", 0)
