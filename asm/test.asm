@@ -1,10 +1,10 @@
-
+jmp @program
 # this an be ingord
 
 . $loc 1
 . $jrk 1
 
-; % @FONTS 512
+@FONTS
 ; % 1 1 0 1 0 0 0 0
 ; % 0 1 0 1 0 1 0 1
 
