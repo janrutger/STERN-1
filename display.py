@@ -1,7 +1,7 @@
 from tkinter import *
 
 class Display():
-    def __init__(self, width, height, scale, memory):
+    def __init__(self, width, height, memory, scale=10):
         self.width  = width
         self.height = height
         self.scale  = scale
@@ -23,7 +23,7 @@ class Display():
         for i in range(self.width * self.height):
             videoMemory.append(self.memory.read(self.videoadres + i))   
         self.draw_screen(videoMemory)
-        self.display.after(1000, self.update_videoMemory) 
+        self.display.after(5000, self.update_videoMemory) 
 
     def draw_pixel(self, x, y, s):
         x1 =  x * self.scale
