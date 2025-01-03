@@ -10,7 +10,7 @@ def makechars():
     chars[">"] = 5
     chars["+"] = 6
     chars["-"] = 7
-    chars["*"] = 9
+    chars["*"] = 8
 
     chars["0"] = 10
     chars["1"] = 11
