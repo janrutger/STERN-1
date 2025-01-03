@@ -1,4 +1,4 @@
-jmp @program
+;jmp @program
 # this an be ingord
 
 . $loc 1

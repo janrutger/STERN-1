@@ -1,16 +1,18 @@
 from memory import Memory
 from CPU import Cpu
 from assembler import Assembler
+from display import Display
 from FileIO import readFile
 
 def main():
     memory = Memory(1024 * 16)   
-    VmemSize = 32*64
+    VideoSize = 32*64
     progStart = 0 
     varStart  = 32
     fontStart = 50
 
-    CPU = Cpu(memory, VmemSize) 
+    CPU = Cpu(memory, VideoSize) 
+    screen = Display(64, 32, 10, memory)
 
     # load fonts into memory
     font = readFile("standard.font", 2)
@@ -19,10 +21,10 @@ def main():
         memory.write(adres, value)
         adres =  adres + 1
 
-
+    screen.display.mainloop()
 
     A = Assembler(varStart)
-    A.assemble("test.asm", 0, "out.bin")
+    A.assemble("test.asm", progStart, "out.bin")
 
     # load bin into memory
     program = readFile("out.bin", 0)
