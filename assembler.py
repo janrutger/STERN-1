@@ -35,7 +35,7 @@ class Assembler:
             if line == "" or line[0] == "#" or line[0] == ";":
                 continue
             self.assembly.append(line)
-        print(self.assembly)
+        print(self.assembly, len(self.assembly))
 
     def parse_symbols(self, prg_start):
         pc = prg_start
@@ -60,7 +60,7 @@ class Assembler:
                     exit("ERROR address already used : " + _line[1])
             else:
                 pc += 1
-        print(self.symbols, self.labels, self.NextVarPointer)
+        print(self.symbols, self.labels, self.NextVarPointer, pc)
 
     def get_adres(self, label: str) -> str:
         if label in self.symbols.keys():
@@ -68,7 +68,7 @@ class Assembler:
         elif label in self.labels.keys():
             return str(self.labels[label])
         else:
-            exit("ERROR Unkown Symbol of Label, check for typeo")
+            exit("ERROR Unkown Symbol of Label, check for typeo " + label)
     
     def get_value(self, label: str) -> str:
         if label.isdigit():
@@ -109,7 +109,7 @@ class Assembler:
                 newLine = self.instructions[instruction[0]] + self.registers[instruction[1]]
                 self.binary.append(newLine)
         writeBin(self.binary, output_file)
-        print(self.binary)
+        print(self.binary, len(self.binary))
 
     def assemble(self, filename, prog_start, output="out.bin"):
         self.read_source(filename)
@@ -119,6 +119,6 @@ class Assembler:
 
 if __name__ == "__main__":
     prog_start = 0
-    val_pointer = 32
-    assembler = Assembler(val_pointer)
+    varPointer = 512
+    assembler = Assembler(varPointer)
     assembler.assemble("loader.asm", prog_start)

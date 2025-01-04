@@ -13,7 +13,7 @@ def main():
     Vw = 64 
     VideoSize = Vw * Vh
     progStart = 0 
-    varStart  = 32
+    varStart  = 512
     fontStart = 1024
 
     MainMem = Memory(1024 * 16)  

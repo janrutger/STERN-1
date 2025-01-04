@@ -9,6 +9,7 @@ class Display():
         self.videoadres = self.memory.MEMmax() - (self.width * self.height) + 1
 
         self.display = Tk()
+        self.display.title("STERN I")
         self.canvas = Canvas(self.display, width=self.width * self.scale, height=self.height * self.scale)
         self.canvas.pack()
         self.canvas.config(bg="black")
@@ -19,7 +20,6 @@ class Display():
     def update_videoMemory(self):
         videoMemory = [self.memory.read(self.videoadres + i) for i in range(self.width * self.height)]
         self.draw_screen(videoMemory)
-        print(videoMemory[:6])
         self.display.after(5000, self.update_videoMemory)  # Reduced delay for smoother updates
 
     def draw_pixel(self, x, y, s):
@@ -35,7 +35,6 @@ class Display():
 
     def draw_screen(self, memory):
         mem_pointer = 0
-        print("Drawscreen")
         for y in range(self.height):
             for x in range(self.width):
                 self.draw_pixel(x, y, memory[mem_pointer])

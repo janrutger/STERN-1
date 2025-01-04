@@ -2,7 +2,7 @@ from typing import List
 
 class Memory:
     def __init__(self, size: int):
-        self.memory = [0] * size
+        self.memory = ["Not set"] * size
 
     def write(self, address: int, value: str) -> None:
         self.validAddress(address)
