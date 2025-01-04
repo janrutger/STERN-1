@@ -14,11 +14,11 @@ def main():
     VideoSize = Vw * Vh
     progStart = 0 
     varStart  = 32
-    fontStart = 50
+    fontStart = 1024
 
     MainMem = Memory(1024 * 16)  
     CPU = Cpu(MainMem, VideoSize) 
-    screen = Display(Vw, Vh, MainMem, 5)
+    screen = Display(Vw, Vh, MainMem, 10)
 
     # load fonts into MainMem
     font = readFile("standard.font", 2)
@@ -28,7 +28,7 @@ def main():
         adres =  adres + 1
 
     A = Assembler(varStart)
-    A.assemble("test.asm", progStart, "out.bin")
+    A.assemble("loader.asm", progStart, "out.bin")
 
     # load bin into MainMem
     program = readFile("out.bin", 0)
@@ -41,6 +41,7 @@ def main():
     cpu_thread = threading.Thread(target=CPU.run, args=(progStart,))
     cpu_thread.start()
     sleep(1)
+
 
     # Start the screen main loop (tK)
     screen.display.mainloop()

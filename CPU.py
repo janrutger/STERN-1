@@ -1,4 +1,5 @@
 from decoder import decode
+from time import sleep
 
 
 class Cpu:
@@ -23,6 +24,7 @@ class Cpu:
         runState = True
         self.PC = startAdres
         while runState:
+            sleep(.01)
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  
@@ -37,15 +39,31 @@ class Cpu:
                 case 11:    # HALT 
                     self.PC = self.PC - 1
                     runState = False
-                case 31:    # LDI
+                case 20:    # JMPF adres 		jump when statusbit is false 0
+                    if self.statusbit == 0:
+                        self.PC = op1
+                case 31:    # LDI r val
                     self.registers[op1] = op2
-                case 32:    # LDM
+                case 32:    # LDM r mem
                     self.registers[op1] = int(self.memory.read(op2))
-                case 40:    # STO
+                case 40:    # STO r mem
                     self.memory.write(op2, str(self.registers[op1]))
-                case 50:    # ADD
+                case 41:    # STX r mem + ri
+                    adres = int(self.memory.read(op2)) + self.registers[0]
+                    self.memory.write(adres, str(self.registers[op1]))
+                case 50:    # ADD r1 r2
                     self.registers[op1] = self.registers[op1] + self.registers[op2]
+                case 71:     # r1 = r2 set status bit when equal
+                    if self.registers[op1] == self.registers[op2]:
+                        self.statusbit = 1
+                    else:
+                        self.statusbit = 0
+                case 80:    # INC r mem
+                    x = int(self.memory.read(op2))
+                    self.registers[op1] = x
+                    self.memory.write(op2, str(x + 1))
                 case _:
+                    print("Invalid instruction")
                     exit("Invalid instruction")
 
 

@@ -23,7 +23,7 @@ class Display():
         for i in range(self.width * self.height):
             videoMemory.append(self.memory.read(self.videoadres + i))   
         self.draw_screen(videoMemory)
-        self.display.after(5000, self.update_videoMemory) 
+        self.display.after(1000/60, self.update_videoMemory) 
 
     def draw_pixel(self, x, y, s):
         x1 =  x * self.scale

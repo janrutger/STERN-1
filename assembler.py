@@ -94,7 +94,6 @@ class Assembler:
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['ldi', 'addi', 'muli', 'subi', 'divi', 'tst', 'subr', 'divr']:
-                #newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + str(instruction[2])
                 newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_value(instruction[2])
                 self.binary.append(newLine)
                 pc += 1
@@ -122,4 +121,4 @@ if __name__ == "__main__":
     prog_start = 0
     val_pointer = 32
     assembler = Assembler(val_pointer)
-    assembler.assemble("test.asm", prog_start)
+    assembler.assemble("loader.asm", prog_start)
