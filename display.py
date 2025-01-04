@@ -31,7 +31,7 @@ class Display():
 
     def draw_screen(self, memory):
         mem_pointer = 0
-        print("Drawsreen")
+        print("Drawscreen")
         for y in range(self.height):
             for x in range(self.width):
                 self.draw_pixel(x, y, memory[mem_pointer])
