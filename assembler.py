@@ -1,4 +1,5 @@
 from FileIO import readFile, writeBin
+from stringtable import makechars
 
 class Assembler:
     def __init__(self,  var_pointer: int):
@@ -18,7 +19,10 @@ class Assembler:
         self.registers = {
             "I": '0', "A": '1', "B": '2', "C": '3', "K": '4', "L": '5', "M": '6', "X": '7', "Y": '8', "Z": '9'
         }
+        self.myASCII = makechars()
+
         self.symbols = {}
+        self.labels = {}
         self.assembly = []
         self.binary = []
 
@@ -42,6 +46,11 @@ class Assembler:
                     self.symbols[line] = pc
                 else:
                     exit("ERROR Symbol already used : " + line)
+            elif line[0] == ":":
+                if line not in self.labels:
+                    self.labels[line] = pc
+                else:
+                    exit("ERROR Label already used : " + line)
             elif line[0] == ".":
                 _line = line.split()
                 if _line[1] not in self.symbols:
@@ -51,7 +60,23 @@ class Assembler:
                     exit("ERROR address already used : " + _line[1])
             else:
                 pc += 1
-        print(self.symbols, self.NextVarPointer)
+        print(self.symbols, self.labels, self.NextVarPointer)
+
+    def get_adres(self, label: str) -> str:
+        if label in self.symbols.keys():
+            return str(self.symbols[label])
+        elif label in self.labels.keys():
+            return str(self.labels[label])
+        else:
+            exit("ERROR Unkown Symbol of Label, check for typeo")
+    
+    def get_value(self, label: str) -> str:
+        if label.isdigit():
+            return(str(label))
+        elif label[0] == "\\":
+            return(str(self.myASCII[label[1:]]))
+        else:
+            exit("ERROR Not a correct value, check for typeo")
 
     def generate_binary(self, prg_start, output_file):
         self.binary = []
@@ -69,15 +94,16 @@ class Assembler:
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['ldi', 'addi', 'muli', 'subi', 'divi', 'tst', 'subr', 'divr']:
-                newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + str(instruction[2])
+                #newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + str(instruction[2])
+                newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_value(instruction[2])
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['ldm', 'sto', 'inc', 'dec', 'read', 'write', 'stx', 'ldx']:
-                newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + str(self.symbols[instruction[2]])
+                newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_adres(instruction[2])
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['jmp', 'jmpt', 'jmpf', 'call']:
-                newLine = self.instructions[instruction[0]] + str(self.symbols[instruction[1]])
+                newLine = self.instructions[instruction[0]] + self.get_adres(instruction[1])
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['jmpx']:

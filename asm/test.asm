@@ -12,15 +12,15 @@
     add A B
 
     sto A $loc
-
+:label
     ldm C $loc
 
     jmp @program
 
-    ldi I 8
+    ldi I \a
     stx A $loc
 
-    jmpx Z
+    jmp :label
     halt
 
 @do

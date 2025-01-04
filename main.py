@@ -3,11 +3,12 @@ from CPU import Cpu
 from assembler import Assembler
 from display import Display
 from FileIO import readFile
+
 import threading
 from time import sleep
 
 def main():
-    MainMem = Memory(1024 * 16)  
+
     Vh = 32
     Vw = 64 
     VideoSize = Vw * Vh
@@ -15,6 +16,7 @@ def main():
     varStart  = 32
     fontStart = 50
 
+    MainMem = Memory(1024 * 16)  
     CPU = Cpu(MainMem, VideoSize) 
     screen = Display(Vw, Vh, MainMem, 5)
 
