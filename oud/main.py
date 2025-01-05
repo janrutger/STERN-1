@@ -1,5 +1,5 @@
 from memory import Memory
-from CPU import Cpu
+from cpu import Cpu
 from assembler import Assembler
 from display import Display
 from FileIO import readFile

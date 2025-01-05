@@ -64,7 +64,7 @@ ret
 
     ldi Y 25
     ldi X 25
-    ldi C \f 
+    ldi C \d 
     call @do_draw
 ret
 
