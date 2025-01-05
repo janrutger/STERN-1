@@ -24,14 +24,14 @@ class Cpu:
         runState = True
         self.PC = startAdres
         while runState:
-            sleep(.00001)
+            sleep(.0001)
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  
 
             # Decode instruction
             inst, op1, op2 = decode(memValue)
-            print(inst, op1, op2)
+            print(self.PC, inst, op1, op2)
 
 
             # execute instruction

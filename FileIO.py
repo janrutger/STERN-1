@@ -1,6 +1,6 @@
 
 
-def readFile(filename: str, filetype: int):
+def readFile(filename: str, filetype: int) -> list:
     if filetype == 0:   # 0 is filetype binary
         binary = []
         file = open("./bin/" + filename, "r")

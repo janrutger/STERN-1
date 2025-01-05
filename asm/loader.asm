@@ -11,7 +11,8 @@ sto M $FONTS
 ldi M 14336
 sto M $VIDEO_MEM
 
-ldi M 2048
+# 2k - 1 = 2047
+ldi M 2047
 sto M $VIDEO_SIZE
 
 
@@ -21,13 +22,15 @@ sto M $VIDEO_SIZE
 # call the start routine
 @program
     call @draw_char
+    call @fill_screen
     halt
 
 
 # some exampels
 
-@clear_screen
+@fill_screen
 . $VIDEO_POINTER 1
+
 sto Z $VIDEO_POINTER
 
     :loop
@@ -42,55 +45,41 @@ ret
 
 
 # draw char example
-. $font_pointer 1
+
 @draw_char
-    ldi Y 5
+    ldi Y 25
     ldi X 10
-
-
-    #char x 40 pixels
-    ldi C \a 
-    muli C 40
-    ldm M $FONTS
-    add C M
-    sto C $font_pointer
-
+    ldi C \a
     call @do_draw
-;ret
 
-@draw_char2
-    ldi Y 5
+    ldi Y 25
     ldi X 15
-
-
-    #char x 40 pixels
-    ldi C \b 
-    muli C 40
-    ldm M $FONTS
-    add C M
-    sto C $font_pointer
-
+    ldi C \b
     call @do_draw
 
-@draw_char3
-    ldi Y 5
-    ldi X 10
-
-
-    #char x 40 pixels
-    ldi C \3
-    muli C 40
-    ldm M $FONTS
-    add C M
-    sto C $font_pointer
-
+    ldi Y 25
+    ldi X 20
+    ldi C \c 
     call @do_draw
 
+    ldi Y 25
+    ldi X 25
+    ldi C \f 
+    call @do_draw
 ret
 
 
-. $row_pointer 1
 @do_draw
+. $font_pointer 1
+. $row_pointer 1
+
+    # calc the pointer to the font
+    # 1 char = 40 pixels + Font start adres
+    muli C 40
+    ldm M $FONTS
+    add C M
+    sto C $font_pointer
+
 # Start of row loop
     ldi A 0
     :row_loop
@@ -104,8 +93,7 @@ ret
         sto M $row_pointer
        
         . $row 1
-        . $pxl 1
-        # start of pixel loop
+        # start of row pixel loop
         ldi I 0
         sto I $row
         :pxl_loop
