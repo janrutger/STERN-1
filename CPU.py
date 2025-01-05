@@ -6,7 +6,7 @@ class Cpu:
     def __init__(self, memory, Vmem):
         self.memory = memory
         
-        self.registers = [0] * 11   # 10 registers
+        self.registers = [0] * 10   # 10 registers
                                     # 0      index register
                                     # 1 .. 9 General registers
 
@@ -24,7 +24,7 @@ class Cpu:
         runState = True
         self.PC = startAdres
         while runState:
-            sleep(.0001)
+            sleep(.01)
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  
@@ -57,6 +57,9 @@ class Cpu:
                     self.registers[op1] = op2
                 case 32:    # LDM r mem
                     self.registers[op1] = int(self.memory.read(op2))
+                case 33:    # LDX Ra adres 	adres + R(i)
+                    adres = int(self.memory.read(op2)) + self.registers[0]
+                    self.registers[op1] = int(self.memory.read(adres))
                 case 40:    # STO r mem
                     self.memory.write(op2, str(self.registers[op1]))
                 case 41:    # STX r mem + ri

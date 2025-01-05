@@ -1,7 +1,7 @@
 . $FONTS 1
 . $VIDEO_MEM 1
 . $VIDEO_SIZE 1
-. $VIDEO_POINTER 1
+
 
 ldi Z 0
 
@@ -14,7 +14,7 @@ sto M $VIDEO_MEM
 ldi M 2048
 sto M $VIDEO_SIZE
 
-sto Z $VIDEO_POINTER
+
 
 
 # After init
@@ -23,8 +23,13 @@ sto Z $VIDEO_POINTER
     call @draw_char
     halt
 
+
 # some exampels
+
 @clear_screen
+. $VIDEO_POINTER 1
+sto Z $VIDEO_POINTER
+
     :loop
         inc I $VIDEO_POINTER
         ldi M 1
@@ -35,49 +40,59 @@ sto Z $VIDEO_POINTER
     jmpf :loop
 ret
 
-# draw a char to the screen
+
+# draw char example
+. $font_pointer 1
 @draw_char
     ldi Y 5
     ldi X 10
 
-    ldm C $FONTS
-    addi C \a
+
+    #char x 40 pixels
+    ldi C \a 
+    muli C 40
+    ldm M $FONTS
+    add C M
+    sto C $font_pointer
 
     call @do_draw
-
 ret
 
 
-. $row 1
-. $pxl 1
+. $row_pointer 1
 @do_draw
-    # Start of row loop
-    sto Z $row
+# Start of row loop
+    ldi A 0
     :row_loop
-    inc A $row
-        ld I Y
-        add I A 
-        muli I 64
-        add I X
 
+        ld M Y
+        add M A 
+        muli M 64
+        add M X
+        ldm L $VIDEO_MEM
+        add M L
+        sto M $row_pointer
+       
+        . $row 1
+        . $pxl 1
         # start of pixel loop
-        sto Z $pxl
+        ldi I 0
+        sto I $row
         :pxl_loop
-        inc B $pxl
- 
-
-        tst B 8
+            # draw pixel here
+            ldi I 0
+            ldx C $font_pointer
+            inc I $font_pointer
+            
+            inc I $row              
+            stx C $row_pointer
+            
+        # end of pxl loop
+        tst I 7
         jmpf :pxl_loop
+
+    # end of row loop
+    addi A 1
     tst A 5
     jmpf :row_loop
-
 ret
-
-
-# def draw_mem(x, y, sprite, memory, rows):
-#        print("Draw Sprite in memory")
-#        for i in range(rows):
-#            mem_pointer = (y+i) * 64 + x
-#            for n in range(8):
-#                memory[mem_pointer+n] = sprite[n + (i*8)]
-#        return(memory)

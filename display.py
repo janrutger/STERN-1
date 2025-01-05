@@ -20,7 +20,7 @@ class Display():
     def update_videoMemory(self):
         videoMemory = [self.memory.read(self.videoadres + i) for i in range(self.width * self.height)]
         self.draw_screen(videoMemory)
-        self.display.after(5000, self.update_videoMemory)  # Reduced delay for smoother updates
+        self.display.after(16, self.update_videoMemory)  # Reduced delay for smoother updates
 
     def draw_pixel(self, x, y, s):
         x1 =  x * self.scale
@@ -39,4 +39,5 @@ class Display():
             for x in range(self.width):
                 self.draw_pixel(x, y, memory[mem_pointer])
                 mem_pointer += 1
+        self.display.update_idletasks()
         self.display.update()

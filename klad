@@ -1,0 +1,58 @@
+# draw a char to the screen
+@draw_char
+    ldi Y 5
+    ldi X 10
+
+    ldm C $FONTS
+    addi C \a
+
+    call @do_draw
+
+ret
+
+. $mem_pointer 1
+
+@do_draw
+    # Start of row loop
+    ldi A 0
+    :row_loop
+
+        ld M Y
+        add M A 
+        muli M 64
+        add M X
+        sto M $mem_pointer
+       
+        # start of pixel loop
+        ldi B 0
+        :pxl_loop
+        inc B $pxl
+            # drwaw pixel here
+
+
+           
+
+            
+
+        # end of pxl loop
+        addi B 1
+        tst B 8
+        jmpf :pxl_loop
+
+    # end of row loop
+    addi A 1
+    tst A 5
+    jmpf :row_loop
+
+ret
+
+
+# def draw_mem(x, y, sprite, memory, rows):
+#        print("Draw Sprite in memory")
+#        for i in range(rows):
+#            mem_pointer = (y+i) * 64 + x
+#            for n in range(8):
+#                memory[mem_pointer+n] = sprite[n + (i*8)]
+#        return(memory)
+
+

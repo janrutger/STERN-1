@@ -49,7 +49,13 @@ def makefont():
         0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0,
     ] # blank
-    font[31] = generic
+    font[31] = generic = [
+        0, 1, 0, 0, 0, 0, 0, 0,
+        1, 0, 1, 0, 0, 0, 0, 0,
+        1, 1, 1, 0, 0, 0, 0, 0,
+        1, 0, 1, 0, 0, 0, 0, 0,
+        1, 0, 1, 0, 0, 0, 0, 0,
+    ] #  'A': [0x4, 0xa, 0xe, 0xa, 0xa]
     font[32] = generic
     font[33] = generic
     font[34] = generic
