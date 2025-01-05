@@ -56,6 +56,36 @@ ret
     sto C $font_pointer
 
     call @do_draw
+;ret
+
+@draw_char2
+    ldi Y 5
+    ldi X 15
+
+
+    #char x 40 pixels
+    ldi C \b 
+    muli C 40
+    ldm M $FONTS
+    add C M
+    sto C $font_pointer
+
+    call @do_draw
+
+@draw_char3
+    ldi Y 5
+    ldi X 10
+
+
+    #char x 40 pixels
+    ldi C \3
+    muli C 40
+    ldm M $FONTS
+    add C M
+    sto C $font_pointer
+
+    call @do_draw
+
 ret
 
 
