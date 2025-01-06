@@ -18,7 +18,7 @@ def main():
 
     MainMem = Memory(1024 * 16)  
     CPU = Cpu(MainMem, VideoSize) 
-    screen = Display(Vw, Vh, MainMem, 5)
+    screen = Display(Vw, Vh, MainMem, 10)
 
     # load fonts into MainMem
     font = readFile("standard.font", 2)

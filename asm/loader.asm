@@ -16,25 +16,47 @@ ldi M 2047
 sto M $VIDEO_SIZE
 
 
-
-
 # After init
 # call the start routine
 @program
+    ldi Y 25
+    ldi X 10
+    ldi C \a
     call @draw_char
+
+    ldi Y 25
+    ldi X 15
+    ldi C \b
+    call @draw_char
+
+    ldi Y 25
+    ldi X 20
+    ldi C \c 
+    call @draw_char
+
+    ldi Y 25
+    ldi X 25
+    ldi C \d 
+    call @draw_char
+
+    ldi Y 25
+    ldi X 30
+    ldi C \w 
+    call @draw_char
+
     call @fill_screen
-    halt
+halt
 
 
-# some exampels
+# some example calls
 
 @fill_screen
-. $VIDEO_POINTER 1
+. $video_pointer 1
 
-sto Z $VIDEO_POINTER
+sto Z $video_pointer
 
     :loop
-        inc I $VIDEO_POINTER
+        inc I $video_pointer
         ldi M 1
         stx M $VIDEO_MEM
 
@@ -44,35 +66,18 @@ sto Z $VIDEO_POINTER
 ret
 
 
-# draw char example
+
+
 
 @draw_char
-    ldi Y 25
-    ldi X 10
-    ldi C \a
-    call @do_draw
-
-    ldi Y 25
-    ldi X 15
-    ldi C \b
-    call @do_draw
-
-    ldi Y 25
-    ldi X 20
-    ldi C \c 
-    call @do_draw
-
-    ldi Y 25
-    ldi X 25
-    ldi C \d 
-    call @do_draw
-ret
-
-
-@do_draw
+# Needs
 . $font_pointer 1
-. $row_pointer 1
-
+. $pxl_pointer 1
+. $pxl 1
+#expects:
+# Reg X = X-pos on screen
+# Reg Y = Y-pos on screen
+# Reg C =  char to draw
     # calc the pointer to the font
     # 1 char = 40 pixels + Font start adres
     muli C 40
@@ -90,20 +95,22 @@ ret
         add M X
         ldm L $VIDEO_MEM
         add M L
-        sto M $row_pointer
+        sto M $pxl_pointer
        
-        . $row 1
         # start of row pixel loop
         ldi I 0
-        sto I $row
+        sto I $pxl
         :pxl_loop
             # draw pixel here
+            
+            # get value from FONT
             ldi I 0
             ldx C $font_pointer
             inc I $font_pointer
-            
-            inc I $row              
-            stx C $row_pointer
+
+            # draw pixel in video mem
+            inc I $pxl              
+            stx C $pxl_pointer
             
         # end of pxl loop
         tst I 7

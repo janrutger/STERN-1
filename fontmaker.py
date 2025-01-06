@@ -89,7 +89,13 @@ def makefont():
     font[50] = generic
     font[51] = generic
     font[52] = generic
-    font[53] = generic
+    font[53] = [
+        1,0,0,1,0,0,0,0,
+        1,0,0,1,0,0,0,0,
+        1,1,1,1,0,0,0,0,
+        1,1,1,1,0,0,0,0,
+        1,0,0,1,0,0,0,0
+    ] # W
     font[54] = generic
     font[55] = generic
     font[56] = generic
