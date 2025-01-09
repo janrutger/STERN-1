@@ -63,6 +63,11 @@ ei
     ldi C \w 
     int 1
 
+    ldi Y 25
+    ldi X 25
+    ldi C 30 
+    int 1
+
     int 0
 
 halt
@@ -121,8 +126,8 @@ rti
     di
 
     # calc the pointer to the font
-    # a char = 40 pixels
-    muli C 40
+    # a char = 20 pixels
+    muli C 20
     sto C $font_pointer
 
 # Start of row loop
@@ -152,7 +157,7 @@ rti
             stx C $row_pointer
             
         # end of pxl loop
-        tst I 7
+        tst I 3
         jmpf :pxl_loop
 
     # end of row loop
