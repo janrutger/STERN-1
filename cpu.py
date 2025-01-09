@@ -3,19 +3,36 @@ from time import sleep
 
 
 class Cpu:
-    def __init__(self, memory, Vmem):
-        self.memory = memory
+    def __init__(self, memory, interrupts, SP, intVectors):
+        self.memory     = memory
+        self.interrupts = interrupts
         
         self.registers = [0] * 10   # 10 registers
                                     # 0      index register
                                     # 1 .. 9 General registers
 
                     
-        self.PC = 0                             # init PC
-        self.SP = self.memory.MEMmax() - Vmem   # init SP
-        self.statusbit = 0
+        self.PC = 0    # init PC
+        self.SP = SP   # init SP
+        self.statusbit  = 0
+        self.intVectors = intVectors
+        self.interruptEnable = True
+        self.saved_state = {}
 
 
+    def save_state(self):
+        self.saved_state = {
+            'registers': self.registers.copy(),
+            'PC': self.PC,
+            'statusbit': self.statusbit}
+        
+    def restore_state(self):
+        if self.saved_state:
+            self.registers = self.saved_state['registers'].copy()
+            self.PC = self.saved_state['PC']
+            self.statusbit = self.saved_state['statusbit']
+        else:
+            print("No state state to restore.")
 
     def run(self, startAdres: int):
         # the CPU starts running from PC
@@ -42,6 +59,12 @@ class Cpu:
                 case 12:    # RET
                     self.SP = self.SP + 1
                     self.PC = self.memory.read(self.SP)
+                case 13:    # EI
+                    self.interruptEnable = True
+                case 14:    # DI
+                    self.interruptEnable = False
+                case 15:    # RTI              return from interrupt 
+                    self.restore_state()
                 case 20:    # JMPF adres 		jump when statusbit is false 0
                     if self.statusbit == 0:
                         self.PC = op1
@@ -51,6 +74,15 @@ class Cpu:
                     self.memory.write(self.SP, self.PC) # store PC at stackpointer
                     self.SP = self.SP - 1               # update stackpointer
                     self.PC = op1                       #load PC wirh jump adres
+                case 25:    # CALLX	adres 		calls the adres stored in adres + R(i), stores return adres n stack, dec stack
+                    adres = int(self.memory.read(int(self.memory.read(op1)) + self.registers[0]))
+                    self.memory.write(self.SP, self.PC) # store PC at stackpointer
+                    self.SP = self.SP - 1               # update stackpointer
+                    self.PC = adres                       #load PC wirh jump adres
+                case 26:    # INT integer		calls interrupt integer, first saves systemstate
+                    adres = int(self.memory.read(self.intVectors + op1))
+                    self.save_state()
+                    self.PC = adres
                 case 30:    # LD r1 r2 
                     self.registers[op1] = self.registers[op2]
                 case 31:    # LDI r val
@@ -86,8 +118,18 @@ class Cpu:
                     self.registers[op1] = x
                     self.memory.write(op2, str(x + 1))
                 case _:
-                    print("Invalid instruction")
+                    print("CPU: Invalid instruction")
                     exit("Invalid instruction")
+            
+
+            #check for interrupts
+            if self.interruptEnable:
+                if self.interrupts.pending():
+                    # get interruption and execute
+                    pass
+                else:
+                    print("No interruption")
+
 
 
 

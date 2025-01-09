@@ -1,21 +1,33 @@
 . $FONTS 1
 . $VIDEO_MEM 1
 . $VIDEO_SIZE 1
-
-
+. $INT_VECTORS 5
+di
 ldi Z 0
 
 ldi M 1024
 sto M $FONTS
 
 ldi M 14336
-mil A B
 sto M $VIDEO_MEM
+
+ldi M 4096
+sto M $INT_VECTORS
 
 # 2k - 1 = 2047
 ldi M 2047
 sto M $VIDEO_SIZE
 
+# set the ISR vectors
+ldi M @fill_screen
+ldi I 0
+stx M $INT_VECTORS
+
+ldi M @draw_char
+ldi I 1
+stx M $INT_VECTORS
+
+ei
 
 # After init
 # call the start routine
@@ -23,29 +35,38 @@ sto M $VIDEO_SIZE
     ldi Y 25
     ldi X 10
     ldi C \a
-    call @draw_char
+    ;call @draw_char
+    int 1
 
     ldi Y 25
     ldi X 15
     ldi C \b
-    call @draw_char
+    ;call @draw_char
+    int 1
 
     ldi Y 25
     ldi X 20
     ldi C \c 
-    call @draw_char
+    ;call @draw_char
+    int 1
 
     ldi Y 25
     ldi X 25
     ldi C \d 
-    call @draw_char
+    ;call @draw_char
+    int 1
 
     ldi Y 25
     ldi X 30
     ldi C \w 
-    call @draw_char
+    ;call @draw_char
+    int 1
 
-    call @fill_screen
+    ;call @fill_screen
+    ;ldi I 0
+    ;callx $INT_VECTORS
+    int 0
+
 halt
 
 
@@ -53,7 +74,7 @@ halt
 
 @fill_screen
 . $video_pointer 1
-
+di
 sto Z $video_pointer
 
     :loop
@@ -64,7 +85,9 @@ sto Z $video_pointer
         ldm L $VIDEO_SIZE
         tste I L
     jmpf :loop
-ret
+;ret
+ei
+rti
 
 
 
@@ -79,6 +102,8 @@ ret
 # Reg X = X-pos on screen
 # Reg Y = Y-pos on screen
 # Reg C =  char to draw
+    di
+
     # calc the pointer to the font
     # a char = 40 pixels
     muli C 40
@@ -118,4 +143,6 @@ ret
     addi A 1
     tst A 5
     jmpf :row_loop
-ret
+;ret
+ei
+rti

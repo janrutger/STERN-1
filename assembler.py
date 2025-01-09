@@ -6,8 +6,8 @@ class Assembler:
         
         self.NextVarPointer = var_pointer
         self.instructions = {
-            "nop": '10', "halt": '11', "ret": '12',
-            "jmpf": '20', "jmpt": '21', "jmp": '22', "jmpx": '23', "call": '24',
+            "nop": '10', "halt": '11', "ret": '12',"ei": '13', "di": '14', "rti": '15',
+            "jmpf": '20', "jmpt": '21', "jmp": '22', "jmpx": '23', "call": '24', "callx":'25', "int": '26',
             "ld": '30', "ldi": '31', "ldm": '32', "ldx": '33',
             "sto": '40', "stx": '41',
             "add": '50', "addi": '51', "sub": '52', "subi": '53', "subr": '54',
@@ -75,6 +75,8 @@ class Assembler:
             return(str(label))
         elif label[0] == "\\":
             return(str(self.myASCII[label[1:]]))
+        elif label[0] in ["@", ":"]:
+            return(str(self.symbols[label]))
         else:
             exit("ERROR Not a correct value, check for typeo")
 
@@ -85,7 +87,7 @@ class Assembler:
             instruction = line.split()
             if instruction[0][0] in ["@", ".", ":"]:
                 continue
-            elif instruction[0] in ['nop', 'halt', 'ret']:
+            elif instruction[0] in ['nop', 'halt', 'ret', 'rti', 'ei', 'di']:
                 newLine = self.instructions[instruction[0]]
                 self.binary.append(newLine)
                 pc += 1
@@ -101,12 +103,12 @@ class Assembler:
                 newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_adres(instruction[2])
                 self.binary.append(newLine)
                 pc += 1
-            elif instruction[0] in ['jmp', 'jmpt', 'jmpf', 'call']:
+            elif instruction[0] in ['jmp', 'jmpt', 'jmpf', 'call', 'jmpx', 'callx']:
                 newLine = self.instructions[instruction[0]] + self.get_adres(instruction[1])
                 self.binary.append(newLine)
                 pc += 1
-            elif instruction[0] in ['jmpx']:
-                newLine = self.instructions[instruction[0]] + self.registers[instruction[1]]
+            elif instruction[0] in ['int']:
+                newLine = self.instructions[instruction[0]] + self.get_value(instruction[1])
                 self.binary.append(newLine)
             else:
                 raise ValueError("ERROR Unkown instruction " + instruction[0])
