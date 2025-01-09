@@ -29,7 +29,9 @@ class Display():
         y2 = y1 + self.scale
 
         if s == "1":
-            self.canvas.create_rectangle(x1, y1, x2, y2, fill="white")
+            self.canvas.create_rectangle(x1, y1, x2, y2, fill="gray")
+        elif s == "0":
+            self.canvas.create_rectangle(x1, y1, x2, y2, fill="lightgray")
         else:
             self.canvas.create_rectangle(x1, y1, x2, y2, fill="black")
 

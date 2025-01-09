@@ -3,7 +3,7 @@ from time import sleep
 
 
 class Cpu:
-    def __init__(self, memory, interrupts, SP, intVectors):
+    def __init__(self, memory, interrupts, SP, intVector):
         self.memory     = memory
         self.interrupts = interrupts
         
@@ -15,7 +15,7 @@ class Cpu:
         self.PC = 0    # init PC
         self.SP = SP   # init SP
         self.statusbit  = 0
-        self.intVectors = intVectors
+        self.intVector = intVector
         self.interruptEnable = True
         self.saved_state = {}
 
@@ -80,7 +80,7 @@ class Cpu:
                     self.SP = self.SP - 1               # update stackpointer
                     self.PC = adres                       #load PC wirh jump adres
                 case 26:    # INT integer		calls interrupt integer, first saves systemstate
-                    adres = int(self.memory.read(self.intVectors + op1))
+                    adres = int(self.memory.read(self.intVector + op1))
                     self.save_state()
                     self.PC = adres
                 case 30:    # LD r1 r2 
@@ -124,11 +124,12 @@ class Cpu:
 
             #check for interrupts
             if self.interruptEnable:
+                print("Interrupts enabled")
                 if self.interrupts.pending():
                     # get interruption and execute
                     pass
-                else:
-                    print("No interruption")
+                # else:
+                #     print("No interruption")
 
 
 

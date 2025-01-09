@@ -27,44 +27,42 @@ ldi M @draw_char
 ldi I 1
 stx M $INT_VECTORS
 
+ldi M @clear_screen
+ldi I 2
+stx M $INT_VECTORS
+
 ei
 
 # After init
 # call the start routine
 @program
+    int 2
+
     ldi Y 25
     ldi X 10
     ldi C \a
-    ;call @draw_char
     int 1
 
     ldi Y 25
     ldi X 15
     ldi C \b
-    ;call @draw_char
     int 1
 
     ldi Y 25
     ldi X 20
     ldi C \c 
-    ;call @draw_char
     int 1
 
     ldi Y 25
     ldi X 25
     ldi C \d 
-    ;call @draw_char
     int 1
 
     ldi Y 25
     ldi X 30
     ldi C \w 
-    ;call @draw_char
     int 1
 
-    ;call @fill_screen
-    ;ldi I 0
-    ;callx $INT_VECTORS
     int 0
 
 halt
@@ -85,6 +83,24 @@ sto Z $video_pointer
         ldm L $VIDEO_SIZE
         tste I L
     jmpf :loop
+;ret
+ei
+rti
+
+
+@clear_screen
+; $video_pointer 1
+di
+sto Z $video_pointer
+
+    :loop_clear
+        inc I $video_pointer
+        ldi M 0
+        stx M $VIDEO_MEM
+
+        ldm L $VIDEO_SIZE
+        tste I L
+    jmpf :loop_clear
 ;ret
 ei
 rti

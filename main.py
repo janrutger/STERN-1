@@ -49,8 +49,6 @@ def main():
     # Start the CPU thread
     cpu_thread = threading.Thread(target=CPU.run, args=(start_prog,))
     cpu_thread.start()
-    sleep(1)
-
 
     # Start the screen main loop (tK)
     screen.display.mainloop()
