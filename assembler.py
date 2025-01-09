@@ -109,7 +109,7 @@ class Assembler:
                 newLine = self.instructions[instruction[0]] + self.registers[instruction[1]]
                 self.binary.append(newLine)
             else:
-                exit("ERROR Unkown instruction " + instruction[0])
+                raise ValueError("ERROR Unkown instruction " + instruction[0])
         writeBin(self.binary, output_file)
         print(self.binary, len(self.binary))
 

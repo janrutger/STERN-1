@@ -9,6 +9,7 @@ ldi M 1024
 sto M $FONTS
 
 ldi M 14336
+mil A B
 sto M $VIDEO_MEM
 
 # 2k - 1 = 2047
@@ -72,17 +73,15 @@ ret
 @draw_char
 # Needs
 . $font_pointer 1
-. $pxl_pointer 1
+. $row_pointer 1
 . $pxl 1
 #expects:
 # Reg X = X-pos on screen
 # Reg Y = Y-pos on screen
 # Reg C =  char to draw
     # calc the pointer to the font
-    # 1 char = 40 pixels + Font start adres
+    # a char = 40 pixels
     muli C 40
-    ldm M $FONTS
-    add C M
     sto C $font_pointer
 
 # Start of row loop
@@ -95,22 +94,21 @@ ret
         add M X
         ldm L $VIDEO_MEM
         add M L
-        sto M $pxl_pointer
+        sto M $row_pointer
        
-        # start of row pixel loop
+        # start of pixel loop
         ldi I 0
         sto I $pxl
         :pxl_loop
-            # draw pixel here
-            
+            # draw pixels here
+
             # get value from FONT
-            ldi I 0
-            ldx C $font_pointer
             inc I $font_pointer
+            ldx C $FONTS
 
             # draw pixel in video mem
             inc I $pxl              
-            stx C $pxl_pointer
+            stx C $row_pointer
             
         # end of pxl loop
         tst I 7
