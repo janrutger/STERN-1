@@ -16,7 +16,7 @@ class Cpu:
         self.SP = SP   # init SP
         self.statusbit  = 0
         self.intVector = intVector
-        self.interruptEnable = True
+        self.interruptEnable = False
         self.saved_state = {}
 
 
@@ -41,7 +41,7 @@ class Cpu:
         runState = True
         self.PC = startAdres
         while runState:
-            sleep(.0000001)
+            #sleep(.0000001)
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  

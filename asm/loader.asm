@@ -2,7 +2,8 @@
 . $VIDEO_MEM 1
 . $VIDEO_SIZE 1
 . $INT_VECTORS 1
-di
+
+;di
 ldi Z 0
 
 ldi M 1024
@@ -31,6 +32,7 @@ ldi M @fill_screen
 ldi I 2
 stx M $INT_VECTORS
 
+# don't forget to enable Interrupts
 int 1
 
 
@@ -59,7 +61,8 @@ int 1
 # Interrupts
 @draw_interrupt
     tst A \Return
-    jmpt :end
+    jmpt :a_blank
+    :back
     tst A \q
     jmpt :done
     ldi Y 25
@@ -68,6 +71,9 @@ int 1
     call @draw_char
 :end
     rti
+:a_blank
+    ldi A \space
+    jmp :back
 
 
 
@@ -79,7 +85,6 @@ sto Z $video_pointer
 ldi M 1
     :loop
         inc I $video_pointer
-        ;ldi M 1
         stx M $VIDEO_MEM
 
         ldm L $VIDEO_SIZE
@@ -94,7 +99,6 @@ sto Z $video_pointer
 ldi M 0
     :loop_clear
         inc I $video_pointer
-        ;ldi M 0
         stx M $VIDEO_MEM
 
         ldm L $VIDEO_SIZE
