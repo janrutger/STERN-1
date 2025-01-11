@@ -60,12 +60,3 @@ class Display():
             self.int.interrupt(0, value)
         else:
             print("Unkown key ", event.keysym)
-
-        
-        # # Function to be triggered on key press
-        # print(f"Key pressed: {event.keysym}")
-        # # Handle Enter key as a normal keystroke and clear the buffer
-        # if event.keysym == "Return":
-        #     print("Enter pressed")
-        #     self.input_var.set("")  # Clear the input buffer
-        # # Add your key press handling logic here

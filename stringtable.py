@@ -32,7 +32,7 @@ def makechars():
     chars[':'] = 26
     chars['@'] = 27
 
-    chars[" "] = 30
+    chars["space"] = 30
     chars["a"] = 31
     chars["b"] = 32
     chars["c"] = 33

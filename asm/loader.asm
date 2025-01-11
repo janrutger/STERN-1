@@ -19,7 +19,6 @@ ldi M 2047
 sto M $VIDEO_SIZE
 
 # set the ISR vectors
-;ldi M @fill_screen
 ldi M @draw_interrupt
 ldi I 0
 stx M $INT_VECTORS
@@ -30,6 +29,10 @@ stx M $INT_VECTORS
 
 ldi M @clear_screen
 ldi I 2
+stx M $INT_VECTORS
+
+ldi M @fill_screen
+ldi I 3
 stx M $INT_VECTORS
 
 ei
@@ -48,7 +51,7 @@ ei
 # Interrupts
 @draw_interrupt
 di
-    tst A 99
+    tst A \Return
     jmpt :end
     tst A \q
     jmpt :done
