@@ -41,14 +41,14 @@ class Cpu:
         runState = True
         self.PC = startAdres
         while runState:
-            sleep(.000001)
+            sleep(.0000001)
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  
 
             # Decode instruction
             inst, op1, op2 = decode(memValue)
-            print(self.PC, inst, op1, op2)
+            print(self.PC-1, inst, op1, op2)
 
 
             # execute instruction
@@ -65,6 +65,7 @@ class Cpu:
                     self.interruptEnable = False
                 case 15:    # RTI              return from interrupt 
                     self.restore_state()
+                    self.interruptEnable = True
                 case 20:    # JMPF adres 		jump when statusbit is false 0
                     if self.statusbit == 0:
                         self.PC = op1
@@ -84,6 +85,7 @@ class Cpu:
                     self.PC = adres                       #load PC wirh jump adres
                 case 26:    # INT integer		calls interrupt integer, first saves systemstate
                     adres = int(self.memory.read(self.intVector + op1))
+                    self.interruptEnable = False
                     self.save_state()
                     self.PC = adres
                 case 30:    # LD r1 r2 
@@ -127,19 +129,18 @@ class Cpu:
 
             #check for interrupts
             if self.interruptEnable:
-                print("Interrupts enabled")
+                # print("Interrupts enabled")
                 if self.interrupts.pending():
                     # get interruption and execute
                     # print(self.interrupts.get())
                     interrupt, value = self.interrupts.get()
                     adres = int(self.memory.read(self.intVector + interrupt))
                     self.save_state()
+                    self.interruptEnable = False
                     self.registers[1] = value
                     self.PC = adres
 
 
-                # else:
-                #     print("No interruption")
 
 
 

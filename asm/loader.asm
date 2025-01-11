@@ -1,7 +1,7 @@
 . $FONTS 1
 . $VIDEO_MEM 1
 . $VIDEO_SIZE 1
-. $INT_VECTORS 5
+. $INT_VECTORS 1
 di
 ldi Z 0
 
@@ -23,34 +23,41 @@ ldi M @draw_interrupt
 ldi I 0
 stx M $INT_VECTORS
 
-ldi M @draw_char
+ldi M @clear_screen
 ldi I 1
 stx M $INT_VECTORS
 
-ldi M @clear_screen
+ldi M @fill_screen
 ldi I 2
 stx M $INT_VECTORS
 
-ldi M @fill_screen
-ldi I 3
-stx M $INT_VECTORS
+int 1
 
-ei
 
 # After init
 # call the start routine
 @program
-    int 2
+    
     :endless
+        ldi Y 25
+        ldi X 50
+        ldi C \x 
+        call @draw_char
+        call @draw_char
 
+        ldi Y 25
+        ldi X 50
+        ldi C \space 
+        call @draw_char
+        
     jmp :endless
 
 :done 
+    int 2
     halt
 
 # Interrupts
 @draw_interrupt
-di
     tst A \Return
     jmpt :end
     tst A \q
@@ -58,9 +65,8 @@ di
     ldi Y 25
     ldi X 10
     ld C A
-    int 1
+    call @draw_char
 :end
-    ei
     rti
 
 
@@ -69,7 +75,6 @@ di
 
 @fill_screen
 . $video_pointer 1
-di
 sto Z $video_pointer
 ldi M 1
     :loop
@@ -80,14 +85,11 @@ ldi M 1
         ldm L $VIDEO_SIZE
         tste I L
     jmpf :loop
-;ret
-ei
 rti
 
 
 @clear_screen
 ; $video_pointer 1
-di
 sto Z $video_pointer
 ldi M 0
     :loop_clear
@@ -98,9 +100,8 @@ ldi M 0
         ldm L $VIDEO_SIZE
         tste I L
     jmpf :loop_clear
-;ret
-ei
 rti
+
 
 
 
@@ -156,6 +157,5 @@ rti
     addi A 1
     tst A 5
     jmpf :row_loop
-;ret
 ei
-rti
+ret
