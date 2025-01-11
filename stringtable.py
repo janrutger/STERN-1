@@ -61,6 +61,6 @@ def makechars():
     chars["z"] = 56
 
 
-    chars["nl"] = 99    # newline
+    chars["Return"] = 99    # newline
 
     return chars

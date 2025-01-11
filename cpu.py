@@ -41,7 +41,7 @@ class Cpu:
         runState = True
         self.PC = startAdres
         while runState:
-            sleep(.000001)
+            #sleep(.001)
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  
@@ -67,6 +67,9 @@ class Cpu:
                     self.restore_state()
                 case 20:    # JMPF adres 		jump when statusbit is false 0
                     if self.statusbit == 0:
+                        self.PC = op1
+                case 21:    # JMPT adres 		jump when statusbit is false 1
+                    if self.statusbit == 1:
                         self.PC = op1
                 case 22:    # jmp adres         Jump alwys
                     self.PC = op1
@@ -127,7 +130,14 @@ class Cpu:
                 print("Interrupts enabled")
                 if self.interrupts.pending():
                     # get interruption and execute
-                    pass
+                    # print(self.interrupts.get())
+                    interrupt, value = self.interrupts.get()
+                    adres = int(self.memory.read(self.intVector + interrupt))
+                    self.save_state()
+                    self.registers[1] = value
+                    self.PC = adres
+
+
                 # else:
                 #     print("No interruption")
 

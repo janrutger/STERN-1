@@ -19,8 +19,7 @@ ldi M 2047
 sto M $VIDEO_SIZE
 
 # set the ISR vectors
-;ldi M @fill_screen
-ldi M @draw_interrupt
+ldi M @fill_screen
 ldi I 0
 stx M $INT_VECTORS
 
@@ -37,29 +36,46 @@ ei
 # After init
 # call the start routine
 @program
-    int 2
+    ;int 2
     :endless
-
+    ei
     jmp :endless
 
-:done 
-    halt
-
-# Interrupts
-@draw_interrupt
-di
-    tst A 99
-    jmpt :end
-    tst A \q
-    jmpt :done
     ldi Y 25
     ldi X 10
-    ld C A
+    ldi C \a
     int 1
-:end
-    ei
-    rti
 
+    ldi Y 25
+    ldi X 15
+    ldi C \b
+    int 1
+
+    ldi Y 25
+    ldi X 20
+    ldi C \c 
+    int 1
+
+    ldi Y 25
+    ldi X 25
+    ldi C \d 
+    int 1
+
+    ldi Y 25
+    ldi X 30
+    ldi C \w 
+    int 1
+
+    ldi Y 25
+    ldi X 25
+    ldi C 30 
+    int 1
+
+    ;int 2
+
+    
+
+halt
 
 
 # some example calls

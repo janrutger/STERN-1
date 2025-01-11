@@ -10,7 +10,7 @@ class Interrupts:
         self.pendingInterrupts.append((int, value))
 
     def get(self) -> tuple:
-        return(self.pendingInterrupts.pop())
+        return(self.pendingInterrupts.pop(0))
     
     def pending(self) -> bool:
         if len(self.pendingInterrupts) != 0:

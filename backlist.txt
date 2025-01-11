@@ -4,8 +4,6 @@ memory typing
 split loader.asm and program.asm 
     * cpu.py
 
-Font format to 4x5 instedad 8x5
-    * fontmaker.py, loader.asm
 
 memory adres in Binary
     * assembler.pyt, main.py

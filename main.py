@@ -1,9 +1,10 @@
 from memory import Memory
 from cpu import Cpu
 from assembler import Assembler
-from display import Display
+from display2 import Display
 from interrupts import Interrupts
 from FileIO import readFile
+from stringtable import makechars
 
 import threading
 from time import sleep
@@ -14,20 +15,20 @@ def main():
     Vw = 64 
     VideoSize = Vw * Vh
 
+    myASCII = makechars()
+    interrupts = Interrupts()
+
     MainMem = Memory(1024 * 16) 
     StackPointer = MainMem.MEMmax() - VideoSize
     start_mem  = 0
-    start_prog = 0 
+    start_prog = start_mem
     start_var  = StackPointer - 1024
     start_font = 1024
     intVectors = 4096
 
-    
-
-    interrupts = Interrupts()
 
     CPU = Cpu(MainMem, interrupts, StackPointer, intVectors) 
-    screen = Display(Vw, Vh, MainMem, 10)
+    screen = Display(myASCII, interrupts, Vw, Vh, MainMem, 10)
 
     # load fonts into MainMem
     font = readFile("standard.font", 2)
