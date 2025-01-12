@@ -75,10 +75,10 @@ class Assembler:
             return(str(label))
         elif label[0] == "\\":
             return(str(self.myASCII[label[1:]]))
-        elif label[0] in ["@", ":"]:
+        elif label[0] in ["@", "$"]:
             return(str(self.symbols[label]))
         else:
-            exit("ERROR Not a correct value, check for typeo")
+            exit("ERROR Not a correct value, check for typeo " + label)
 
     def generate_binary(self, prg_start, output_file):
         self.binary = []
@@ -123,6 +123,6 @@ class Assembler:
 
 if __name__ == "__main__":
     prog_start = 0
-    varPointer = 512
+    varPointer = 1024
     assembler = Assembler(varPointer)
-    assembler.assemble("test.asm", prog_start)
+    assembler.assemble("loader.asm", prog_start)

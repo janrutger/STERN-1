@@ -3,37 +3,124 @@
 . $VIDEO_SIZE 1
 . $INT_VECTORS 1
 
-;di
+# 0 .. 15 is length 16
+. $KBD_BUFFER 16
+. $KBD_BUFFER_ADRES 1
+. $KBD_READ_PNTR 1
+. $KBD_WRITE_PNTR 1
+
+
 ldi Z 0
 
+# init keyboard buffer
+sto Z $KBD_READ_PNTR
+sto Z $KBD_WRITE_PNTR
+ldi M $KBD_BUFFER
+sto M $KBD_BUFFER_ADRES
+
+
+# init Fonts and Display memory pointer
 ldi M 1024
 sto M $FONTS
 
 ldi M 14336
 sto M $VIDEO_MEM
 
-ldi M 4096
-sto M $INT_VECTORS
-
 # 2k - 1 = 2047
 ldi M 2047
 sto M $VIDEO_SIZE
 
+# init interrupt vectors
+# Memory location where int vectors are stored
+ldi M 4096
+sto M $INT_VECTORS
+
 # set the ISR vectors
-ldi M @draw_interrupt
 ldi I 0
+;ldi M @draw_interrupt
+ldi M @KBD_WRITE
 stx M $INT_VECTORS
 
-ldi M @clear_screen
 ldi I 1
+ldi M @clear_screen
 stx M $INT_VECTORS
 
-ldi M @fill_screen
 ldi I 2
+ldi M @fill_screen
 stx M $INT_VECTORS
 
 # don't forget to enable Interrupts
+# int 1, clears the screen, 
+# return from interrupt (rti)  enbles interrupts
 int 1
+jmp @program
+
+
+
+## keyboard ISR handler
+## Register A containts the keyboard value
+@KBD_WRITE 
+    # check for full buffer
+    ldm M $KBD_WRITE_PNTR
+    addi M 1
+    andi M 15
+    ldm L $KBD_READ_PNTR
+    tste M L 
+
+    # when true, the buffer is full, do nothing
+    jmpt :end_kbd_write
+
+    # otherwise store value in buffer
+    inc I $KBD_WRITE_PNTR
+    stx A $KBD_BUFFER_ADRES
+
+    # check for last adres in buffer
+    # check modulo
+    ldm M $KBD_WRITE_PNTR
+    andi M 15
+    # cycle to 0 when mod = 0
+    tste M Z
+    jmpf :end_kbd_write
+        sto Z $KBD_WRITE_PNTR
+:end_kbd_write    
+rti
+
+
+@KBD_READ 
+    # It's a subroutine
+    # returns kbd value in A 
+    # returns \null when empty
+    di
+    # check for empty buffer
+    ldm I $KBD_READ_PNTR
+    ldm M $KBD_WRITE_PNTR
+    tste I M 
+    jmpt :empty_kbd_buffer
+        # when not empty, read buffer to a
+        ldx A $KBD_BUFFER_ADRES
+
+    addi I 1
+    sto I $KBD_READ_PNTR
+
+    # check for last adres in buffer
+    # check modulo
+    ldm M $KBD_READ_PNTR
+    andi M 15
+    # cycle to 0 when mod = 0
+    tste M Z
+    jmpf :end_kbd_read
+        sto Z $KBD_READ_PNTR 
+        jmp :end_kbd_read  
+    
+
+    :empty_kbd_buffer
+        ldi A \null
+
+:end_kbd_read 
+ei   
+ret
+
+## END keyboard ISR
 
 
 # After init
@@ -47,6 +134,23 @@ int 1
         call @draw_char
         call @draw_char
 
+        ;di
+        call @KBD_READ
+        ;ei
+        tst A \null
+        jmpt :no_input
+
+            tst A \Return
+            jmpt :a_blank
+            :back
+            tst A \q
+            jmpt :done
+            ldi Y 25
+            ldi X 10
+            ld C A
+            call @draw_char
+
+    :no_input
         ldi Y 25
         ldi X 50
         ldi C \space 
@@ -58,22 +162,26 @@ int 1
     int 2
     halt
 
-# Interrupts ISR
-@draw_interrupt
-    tst A \Return
-    jmpt :a_blank
-    :back
-    tst A \q
-    jmpt :done
-    ldi Y 25
-    ldi X 10
-    ld C A
-    call @draw_char
-:end
-    rti
 :a_blank
     ldi A \space
     jmp :back
+
+# Interrupts ISR
+;@draw_interrupt
+;    tst A \Return
+;    jmpt :a_blank
+;    :back
+;    tst A \q
+;    jmpt :done
+;    ldi Y 25
+;    ldi X 10
+;    ld C A
+;    call @draw_char
+;:end
+;    rti
+;:a_blank
+;    ldi A \space
+;    jmp :back
 
 
 
@@ -120,7 +228,7 @@ rti
 # Reg X = X-pos on screen
 # Reg Y = Y-pos on screen
 # Reg C =  char to draw
-    di
+    ;di
 
     # calc the pointer to the font
     # a char = 20 pixels
@@ -161,5 +269,5 @@ rti
     addi A 1
     tst A 5
     jmpf :row_loop
-ei
+;ei
 ret
