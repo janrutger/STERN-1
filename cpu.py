@@ -122,6 +122,8 @@ class Cpu:
                     x = int(self.memory.read(op2))
                     self.registers[op1] = x
                     self.memory.write(op2, str(x + 1))
+                case 90:    # ANDI r val
+                    self.registers[op1] = self.registers[op1] & op2
                 case _:
                     print("CPU: Invalid instruction")
                     exit("Invalid instruction")

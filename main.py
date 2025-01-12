@@ -38,7 +38,7 @@ def main():
         adres =  adres + 1
 
     A = Assembler(start_var)
-    A.assemble("loader.asm", start_prog, "out.bin")
+    A.assemble("test.asm", start_prog, "out.bin")
 
     # load bin into MainMem
     program = readFile("out.bin", 0)
