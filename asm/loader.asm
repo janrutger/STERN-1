@@ -3,11 +3,18 @@
 . $VIDEO_SIZE 1
 . $INT_VECTORS 1
 
-# 0 .. 15 is length 16
 . $KBD_BUFFER 16
 . $KBD_BUFFER_ADRES 1
 . $KBD_READ_PNTR 1
 . $KBD_WRITE_PNTR 1
+
+. $DSP_X_POS 1
+. $DSP_Y_POS 1
+. $DSP_CHAR_WIDTH 1
+. $DSp_MAX_WIDTH 1
+. $DSP_CHAR_HEIGHT 1
+. $DSP_MAX_HEIGHT 1
+
 
 
 ldi Z 0
@@ -17,6 +24,23 @@ sto Z $KBD_READ_PNTR
 sto Z $KBD_WRITE_PNTR
 ldi M $KBD_BUFFER
 sto M $KBD_BUFFER_ADRES
+
+
+
+# init display parameters
+# in total 12 chars on 1 line
+# 5 lines on the display
+ld M Z
+sto M $DSP_X_POS
+sto M $DSP_Y_POS
+ldi M 5
+sto M $DSP_CHAR_WIDTH
+ldi M 6
+sto M $DSP_CHAR_HEIGHT
+ldi M 30
+sto M $DSP_MAX_HEIGHT
+ldi M 60
+sto M $DSp_MAX_WIDTH
 
 
 # init Fonts and Display memory pointer
@@ -55,7 +79,43 @@ stx M $INT_VECTORS
 int 1
 jmp @program
 
+## draw on screen calls
+@draw_char_on_screen
+    # expects new X- and Y- pos in memory
+    # gets input value in A 
+    tst A \Return
+    jmpf :other_char
+        ldm Y $DSP_Y_POS
+        addi Y 1
+        sto Y $DSP_Y_POS
+        sto Z $DSP_X_POS
+        jmp :draw_char_on_screen_done
+    :other_char
+        # draw the char
+        ldm Y $DSP_Y_POS
+        ldm X $DSP_X_POS
+        ld C A 
+        call @draw_char
 
+        # Update X-Y pointers
+        ldm M $DSP_CHAR_HEIGHT
+        add Y M 
+        ldm M $DSP_CHAR_WIDTH
+        add X M 
+
+        ldm M $DSP_MAX_HEIGHT
+        tstg Y M 
+
+
+
+
+        
+
+
+
+
+:draw_char_on_screen_done
+ret
 
 ## keyboard ISR handler
 ## Register A containts the keyboard value
@@ -75,7 +135,7 @@ jmp @program
     stx A $KBD_BUFFER_ADRES
 
     # check for last adres in buffer
-    # check modulo
+    # check modulo 16, by andi 15
     ldm M $KBD_WRITE_PNTR
     andi M 15
     # cycle to 0 when mod = 0
