@@ -113,8 +113,13 @@ class Cpu:
                         self.statusbit = 1
                     else:
                         self.statusbit = 0
-                case 71:     # r1 = r2 set status bit when equal
+                case 71:     # TSTE r1 r2       set status bit when equal
                     if self.registers[op1] == self.registers[op2]:
+                        self.statusbit = 1
+                    else:
+                        self.statusbit = 0
+                case 72:     # TSTG r1 r2       set status bit when r1 > r2
+                    if self.registers[op1] > self.registers[op2]:
                         self.statusbit = 1
                     else:
                         self.statusbit = 0

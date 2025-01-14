@@ -37,9 +37,11 @@ ldi M 5
 sto M $DSP_CHAR_WIDTH
 ldi M 6
 sto M $DSP_CHAR_HEIGHT
-ldi M 30
+
+ldi M 24
 sto M $DSP_MAX_HEIGHT
-ldi M 60
+
+ldi M 55
 sto M $DSP_MAX_WITDH
 
 
@@ -73,6 +75,10 @@ ldi I 2
 ldi M @fill_screen
 stx M $INT_VECTORS
 
+ldi I 3
+ldi M @draw_char
+stx M $INT_VECTORS
+
 # don't forget to enable Interrupts
 # int 1, clears the screen, 
 # return from interrupt (rti)  enbles interrupts
@@ -86,8 +92,7 @@ jmp @program
     tst A \Return
     jmpf :other_char
         ldm Y $DSP_Y_POS
-        ldm M $DSP_MAX_HEIGHT
-        add Y M
+        ldm M $DSP_CHAR_HEIGHT
         add Y M
         sto Y $DSP_Y_POS
         sto Z $DSP_X_POS
@@ -97,33 +102,33 @@ jmp @program
         ldm Y $DSP_Y_POS
         ldm X $DSP_X_POS
         ld C A 
-        call @draw_char
+        ;call @draw_char
+        int 3
 
-        # Update X-Y pointers
-        ldm M $DSP_CHAR_HEIGHT
-        add Y M 
-        sto M $DSP_Y_POS
-        add Y M
-
+        # Update X pointer
         ldm M $DSP_CHAR_WIDTH
         add X M 
-        sto M $DSP_X_POS
-        add X M
+        sto X $DSP_X_POS
+
 
     :draw_char_on_screen_check
-    # Check if the last pixel, of the next char fits on screen
+    # Check if next char fits on screen
         #check X > widht
         ldm M $DSP_MAX_WITDH
-        tstg X M 
+        tstg X M
         jmpf :check_height
-            ldm Z $DSP_X_POS 
-                
+            sto Z $DSP_X_POS 
+            # Update Y pointer
+            ldm M $DSP_CHAR_HEIGHT
+            add Y M 
+            sto M $DSP_Y_POS
+              
         # check Y > height 
         :check_height
         ldm M $DSP_MAX_HEIGHT
-        tstg Y M
+        tstg Y M 
         jmpf :draw_char_on_screen_done
-            ldm Z $DSP_Y_POS
+            sto Z $DSP_Y_POS
 
 :draw_char_on_screen_done
 ret
@@ -199,11 +204,11 @@ ret
 @program
     
     :endless
-        ldi Y 25
-        ldi X 50
-        ldi C \x 
-        call @draw_char
-        call @draw_char
+        ;ldi Y 25
+        ;ldi X 50
+        ;ldi C \x 
+        ;call @draw_char
+        ;int 3
 
         ;di
         call @KBD_READ
@@ -224,10 +229,11 @@ ret
             call @draw_char_on_screen
 
     :no_input
-        ldi Y 25
-        ldi X 50
-        ldi C \space 
-        call @draw_char
+        ;ldi Y 25
+        ;ldi X 50
+        ;ldi C \space 
+        ;call @draw_char
+        ;int 3
         
     jmp :endless
 
@@ -343,4 +349,5 @@ rti
     tst A 5
     jmpf :row_loop
 ;ei
-ret
+;ret
+rti
