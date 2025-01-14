@@ -75,7 +75,7 @@ ldi M @fill_screen
 stx M $INT_VECTORS
 
 ldi I 3
-ldi M @DRAW_CHAR
+ldi M @draw_char
 stx M $INT_VECTORS
 
 # don't forget to enable Interrupts
@@ -119,7 +119,7 @@ jmp @program
             # Update Y pointer
             ldm M $DSP_CHAR_HEIGHT
             add Y M 
-            sto Y $DSP_Y_POS
+            sto M $DSP_Y_POS
               
         # check Y > height 
         :check_height
@@ -207,8 +207,8 @@ ret
         tst A \null
         jmpt :no_input
             call @draw_char_on_screen
-            tst A \q
-            jmpt :done
+            ;tst A \q
+            ;jmpt :done
     :no_input
     jmp :endless
 
@@ -245,7 +245,7 @@ ldi M 0
 rti
 
 
-@DRAW_CHAR 
+@draw_char
 # Needs
 . $font_pointer 1
 . $row_pointer 1
@@ -295,4 +295,6 @@ rti
     addi A 1
     tst A 5
     jmpf :row_loop
+;ei
+;ret
 rti
