@@ -11,7 +11,7 @@
 . $DSP_X_POS 1
 . $DSP_Y_POS 1
 . $DSP_CHAR_WIDTH 1
-. $DSp_MAX_WIDTH 1
+. $DSP_MAX_WITDH 1
 . $DSP_CHAR_HEIGHT 1
 . $DSP_MAX_HEIGHT 1
 
@@ -40,7 +40,7 @@ sto M $DSP_CHAR_HEIGHT
 ldi M 30
 sto M $DSP_MAX_HEIGHT
 ldi M 60
-sto M $DSp_MAX_WIDTH
+sto M $DSP_MAX_WITDH
 
 
 # init Fonts and Display memory pointer
@@ -86,10 +86,12 @@ jmp @program
     tst A \Return
     jmpf :other_char
         ldm Y $DSP_Y_POS
-        addi Y 1
+        ldm M $DSP_MAX_HEIGHT
+        add Y M
+        add Y M
         sto Y $DSP_Y_POS
         sto Z $DSP_X_POS
-        jmp :draw_char_on_screen_done
+        jmp :draw_char_on_screen_check
     :other_char
         # draw the char
         ldm Y $DSP_Y_POS
@@ -100,19 +102,28 @@ jmp @program
         # Update X-Y pointers
         ldm M $DSP_CHAR_HEIGHT
         add Y M 
+        sto M $DSP_Y_POS
+        add Y M
+
         ldm M $DSP_CHAR_WIDTH
         add X M 
+        sto M $DSP_X_POS
+        add X M
 
+    :draw_char_on_screen_check
+    # Check if the last pixel, of the next char fits on screen
+        #check X > widht
+        ldm M $DSP_MAX_WITDH
+        tstg X M 
+        jmpf :check_height
+            ldm Z $DSP_X_POS 
+                
+        # check Y > height 
+        :check_height
         ldm M $DSP_MAX_HEIGHT
-        tstg Y M 
-
-
-
-
-        
-
-
-
+        tstg Y M
+        jmpf :draw_char_on_screen_done
+            ldm Z $DSP_Y_POS
 
 :draw_char_on_screen_done
 ret
@@ -200,15 +211,17 @@ ret
         tst A \null
         jmpt :no_input
 
-            tst A \Return
-            jmpt :a_blank
-            :back
-            tst A \q
-            jmpt :done
-            ldi Y 25
-            ldi X 10
-            ld C A
-            call @draw_char
+            ;tst A \Return
+            ;jmpt :a_blank
+            ;:back
+            ;tst A \q
+            ;jmpt :done
+            ;ldi Y 25
+            ;ldi X 10
+            ;ld C A
+            ;call @draw_char
+
+            call @draw_char_on_screen
 
     :no_input
         ldi Y 25
@@ -222,9 +235,9 @@ ret
     int 2
     halt
 
-:a_blank
-    ldi A \space
-    jmp :back
+;:a_blank
+;    ldi A \space
+;    jmp :back
 
 # Interrupts ISR
 ;@draw_interrupt
