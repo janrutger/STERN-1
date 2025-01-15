@@ -5,6 +5,7 @@ def makechars():
     chars["null"] = 0
     chars["."] = 1
     chars["!"] = 2
+    chars["exclam"] = 2
     chars["="] = 3
     chars["<"] = 4
     chars[">"] = 5
@@ -32,7 +33,7 @@ def makechars():
     chars[':'] = 26
     chars['@'] = 27
 
-    chars["space"] = 30
+    chars[" "] = 30
     chars["a"] = 31
     chars["b"] = 32
     chars["c"] = 33

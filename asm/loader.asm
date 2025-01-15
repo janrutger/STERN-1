@@ -11,9 +11,9 @@
 . $DSP_X_POS 1
 . $DSP_Y_POS 1
 . $DSP_CHAR_WIDTH 1
-. $DSP_MAX_WITDH 1
+. $DSP_LAST_CHAR 1
 . $DSP_CHAR_HEIGHT 1
-. $DSP_MAX_HEIGHT 1
+. $DSP_LAST_LINE 1
 
 
 
@@ -39,10 +39,10 @@ ldi M 6
 sto M $DSP_CHAR_HEIGHT
 
 ldi M 24
-sto M $DSP_MAX_HEIGHT
+sto M $DSP_LAST_LINE
 
 ldi M 55
-sto M $DSP_MAX_WITDH
+sto M $DSP_LAST_CHAR
 
 
 # init Fonts and Display memory pointer
@@ -112,7 +112,7 @@ jmp @program
     :draw_char_on_screen_check
     # Check if next char fits on screen
         #check X > widht
-        ldm M $DSP_MAX_WITDH
+        ldm M $DSP_LAST_CHAR
         tstg X M
         jmpf :check_height
             sto Z $DSP_X_POS 
@@ -123,7 +123,7 @@ jmp @program
               
         # check Y > height 
         :check_height
-        ldm M $DSP_MAX_HEIGHT
+        ldm M $DSP_LAST_LINE
         tstg Y M 
         jmpf :draw_char_on_screen_done
             sto Z $DSP_Y_POS
@@ -197,24 +197,6 @@ ret
 
 ## END keyboard ISR
 
-
-# After init
-# call the start routine
-@program
-    
-    :endless
-        call @KBD_READ
-        tst A \null
-        jmpt :no_input
-            call @draw_char_on_screen
-            tst A \q
-            jmpt :done
-    :no_input
-    jmp :endless
-
-:done 
-    int 2
-    halt
 
 
 @fill_screen
@@ -296,3 +278,23 @@ rti
     tst A 5
     jmpf :row_loop
 rti
+
+
+
+# MAIN program
+# After init
+@program
+    
+    :endless
+        call @KBD_READ
+        tst A \null
+        jmpt :no_input
+            call @draw_char_on_screen
+            tst A \q
+            jmpt :done
+    :no_input
+    jmp :endless
+
+:done 
+    int 2
+    halt

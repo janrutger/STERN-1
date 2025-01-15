@@ -51,12 +51,25 @@ class Display():
         self.display.update_idletasks()
         self.display.update()
 
+    # def key_pressed(self, event):
+    #     if event.keysym in self.ASCII.keys():
+    #         value = self.ASCII[event.keysym]
+    #         if event.keysym == "Return":
+    #             self.input_var.set("") #clear imputbox
+    #         #print("key value ", value)
+    #         self.int.interrupt(0, value)
+    #     else:
+    #         print("Unkown key ", event.keysym)
+
     def key_pressed(self, event):
-        if event.keysym in self.ASCII.keys():
-            value = self.ASCII[event.keysym]
-            if event.keysym == "Return":
-                self.input_var.set("")
-            #print("key value ", value)
+        if event.char in self.ASCII.keys():
+            value = self.ASCII[event.char]
             self.int.interrupt(0, value)
         else:
-            print("Unkown key ", event.keysym)
+            if event.keysym == "Return":
+                self.input_var.set("") #clear imputbox
+                value = self.ASCII["Return"]
+                self.int.interrupt(0, value)
+            else:
+                print("Unkown key ", event.keysym)
+            
