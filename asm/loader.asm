@@ -37,10 +37,8 @@ ldi M 5
 sto M $DSP_CHAR_WIDTH
 ldi M 6
 sto M $DSP_CHAR_HEIGHT
-
 ldi M 24
 sto M $DSP_LAST_LINE
-
 ldi M 55
 sto M $DSP_LAST_CHAR
 
