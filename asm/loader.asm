@@ -76,6 +76,10 @@ ldi I 3
 ldi M @DRAW_CHAR
 stx M $INT_VECTORS
 
+ldi I 4
+ldi M @scroll_screen
+stx M $INT_VECTORS
+
 # don't forget to enable Interrupts
 # int 1, clears the screen, 
 # return from interrupt (rti)  enbles interrupts
@@ -122,12 +126,11 @@ jmp @program
         # check Y > height 
         :check_height
         ldm M $DSP_LAST_LINE
-        nop
         tstg Y M 
         jmpf :draw_char_on_screen_done
             sto M $DSP_Y_POS
-            call @scroll_screen
-
+            ;call @scroll_screen
+            int 4
 
 :draw_char_on_screen_done
 ret
@@ -305,12 +308,7 @@ rti
 
 ### MOVE memory block n positions
 @scroll_screen
-    ;    // memoryBlock: The array/block of memory
-    ;    // startPoint: The starting index for the shift
-    ;    // N: The number of positions to shift
-    ;    // blockSize: The total size of the memory block
-
-    
+  
 . $screen_start 1
 . $read_pointer 1
 . $pxls_to_shift 1
@@ -319,7 +317,7 @@ rti
 ldm M $VIDEO_MEM
 sto M $screen_start
 
-# pixels to shift
+# pixels to scroll line
 # 6 lines x 64 pixels = 384
 addi M 384
 # pointer to read adres
@@ -344,6 +342,17 @@ sto I $shifting
     tste K L 
 jmpf :shift_loop
 
+# fill with zero 
+ld M Z
+:fill_zero
+    inc I $shifting
+    stx Z $screen_start
 
-ret
+    addi M 1
+    # 6 lines x 64 pixels = 384
+    tst M 384
+jmpf :fill_zero    
+
+rti
+;ret
 
