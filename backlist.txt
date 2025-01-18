@@ -7,3 +7,7 @@ split loader.asm and program.asm
 
 memory adres in Binary
     * assembler.pyt, main.py
+
+
+assembler
+    variables in asm language

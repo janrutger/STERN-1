@@ -122,9 +122,12 @@ jmp @program
         # check Y > height 
         :check_height
         ldm M $DSP_LAST_LINE
+        nop
         tstg Y M 
         jmpf :draw_char_on_screen_done
-            sto Z $DSP_Y_POS
+            sto M $DSP_Y_POS
+            call @scroll_screen
+
 
 :draw_char_on_screen_done
 ret
@@ -280,7 +283,7 @@ rti
 
 
 # MAIN program
-# After init
+# runs after init
 @program
     
     :endless
@@ -296,3 +299,51 @@ rti
 :done 
     int 2
     halt
+
+
+
+
+### MOVE memory block n positions
+@scroll_screen
+    ;    // memoryBlock: The array/block of memory
+    ;    // startPoint: The starting index for the shift
+    ;    // N: The number of positions to shift
+    ;    // blockSize: The total size of the memory block
+
+    
+. $screen_start 1
+. $read_pointer 1
+. $pxls_to_shift 1
+. $shifting 1
+
+ldm M $VIDEO_MEM
+sto M $screen_start
+
+# pixels to shift
+# 6 lines x 64 pixels = 384
+addi M 384
+# pointer to read adres
+sto M $read_pointer
+
+# number of shifts
+# total lenght of block - pixels to shift
+ldm M $VIDEO_SIZE
+subi M 384 
+sto M $pxls_to_shift
+
+ldi I 0
+sto I $shifting
+
+:shift_loop
+    inc I $shifting
+    ldx M $read_pointer
+    stx M $screen_start
+
+    ldm K $shifting
+    ldm L $pxls_to_shift
+    tste K L 
+jmpf :shift_loop
+
+
+ret
+

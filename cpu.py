@@ -53,6 +53,8 @@ class Cpu:
 
             # execute instruction
             match inst:
+                case 10:    # NOP 
+                    continue
                 case 11:    # HALT 
                     self.PC = self.PC - 1
                     runState = False
@@ -106,6 +108,10 @@ class Cpu:
                     self.registers[op1] = self.registers[op1] + self.registers[op2]
                 case 51:    # ADDI r val
                     self.registers[op1] = self.registers[op1] + op2
+                case 52:    # SUB r1 r2
+                    self.registers[op1] = self.registers[op1] - self.registers[op2]
+                case 53:    # SUBI r val
+                    self.registers[op1] = self.registers[op1] - op2
                 case 61:    # MULI r val
                     self.registers[op1] = self.registers[op1] * op2
                 case 70:    # TST Ra integer 	set statusbit when equal 
@@ -127,6 +133,11 @@ class Cpu:
                     x = int(self.memory.read(op2))
                     self.registers[op1] = x
                     self.memory.write(op2, str(x + 1))
+                case 81:    # DEC r mem
+                    x = int(self.memory.read(op2))
+                    x = x - 1
+                    self.registers[op1] = x
+                    self.memory.write(op2, str(x))
                 case 90:    # ANDI r val
                     self.registers[op1] = self.registers[op1] & op2
                 case _:
