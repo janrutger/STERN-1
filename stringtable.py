@@ -12,26 +12,49 @@ def makechars():
     chars["-"] = 7
     chars["*"] = 8
 
-    chars["0"] = 10
-    chars["1"] = 11
-    chars["2"] = 12
-    chars["3"] = 13
-    chars["4"] = 14
-    chars["5"] = 15  
-    chars["6"] = 16
-    chars["7"] = 17
-    chars["8"] = 18
-    chars["9"] = 19
+    chars["$"] = 9
+    chars["#"] = 10 
+    chars["/"] = 11
+    chars["%"] = 12
+    chars["'"] = 13
+    chars['"'] = 14
+    chars[':'] = 15
+    chars['@'] = 16
+    chars['_'] = 17
 
-    chars["$"] = 20
-    chars["#"] = 21
-    chars["/"] = 22
-    chars["%"] = 23
-    chars["'"] = 24
-    chars['"'] = 25
-    chars[':'] = 26
-    chars['@'] = 27
-    chars['_'] = 28
+
+
+    # chars["0"] = 10
+    # chars["1"] = 11
+    # chars["2"] = 12
+    # chars["3"] = 13
+    # chars["4"] = 14
+    # chars["5"] = 15  
+    # chars["6"] = 16
+    # chars["7"] = 17
+    # chars["8"] = 18
+    # chars["9"] = 19
+
+    # chars["$"] = 20
+    # chars["#"] = 21
+    # chars["/"] = 22
+    # chars["%"] = 23
+    # chars["'"] = 24
+    # chars['"'] = 25
+    # chars[':'] = 26
+    # chars['@'] = 27
+    # chars['_'] = 28
+
+    chars["0"] = 20
+    chars["1"] = 21
+    chars["2"] = 22
+    chars["3"] = 23
+    chars["4"] = 24
+    chars["5"] = 25  
+    chars["6"] = 26
+    chars["7"] = 27
+    chars["8"] = 28
+    chars["9"] = 29   
 
     chars["space"] = 30
     chars["a"] = 31

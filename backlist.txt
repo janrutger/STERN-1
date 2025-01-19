@@ -6,7 +6,7 @@ split loader.asm and program.asm
 
 
 memory adres in Binary
-    * assembler.pyt, main.py
+    * assembler.py, main.py
 
 
 assembler

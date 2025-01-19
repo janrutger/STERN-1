@@ -80,6 +80,8 @@ ldi I 4
 ldi M @scroll_screen
 stx M $INT_VECTORS
 
+## Done interrupt factors
+
 # don't forget to enable Interrupts
 # int 1, clears the screen, 
 # return from interrupt (rti)  enbles interrupts
@@ -306,9 +308,9 @@ rti
 
 
 
-### MOVE memory block n positions
+
 @scroll_screen
-  
+### MOVE memory block n positions
 . $screen_start 1
 . $read_pointer 1
 . $pxls_to_shift 1
@@ -317,7 +319,7 @@ rti
 ldm M $VIDEO_MEM
 sto M $screen_start
 
-# pixels to scroll line
+# n postions to move
 # 6 lines x 64 pixels = 384
 addi M 384
 # pointer to read adres
