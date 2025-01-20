@@ -11,8 +11,8 @@ def makechars():
     chars["+"] = 6
     chars["-"] = 7
     chars["*"] = 8
-
     chars["$"] = 9
+    
     chars["#"] = 10 
     chars["/"] = 11
     chars["%"] = 12
@@ -21,29 +21,6 @@ def makechars():
     chars[':'] = 15
     chars['@'] = 16
     chars['_'] = 17
-
-
-
-    # chars["0"] = 10
-    # chars["1"] = 11
-    # chars["2"] = 12
-    # chars["3"] = 13
-    # chars["4"] = 14
-    # chars["5"] = 15  
-    # chars["6"] = 16
-    # chars["7"] = 17
-    # chars["8"] = 18
-    # chars["9"] = 19
-
-    # chars["$"] = 20
-    # chars["#"] = 21
-    # chars["/"] = 22
-    # chars["%"] = 23
-    # chars["'"] = 24
-    # chars['"'] = 25
-    # chars[':'] = 26
-    # chars['@'] = 27
-    # chars['_'] = 28
 
     chars["0"] = 20
     chars["1"] = 21

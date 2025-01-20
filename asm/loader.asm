@@ -292,6 +292,7 @@ rti
 @program
     
     :endless
+        call @cursor
         call @KBD_READ
         tst A \null
         jmpt :no_input
@@ -306,7 +307,12 @@ rti
     halt
 
 
-
+@cursor
+    ldm X $DSP_X_POS
+    ldm Y $DSP_Y_POS
+    ldi C \_ 
+    int 3
+ret
 
 
 @scroll_screen
