@@ -5,7 +5,7 @@ def readFile(filename: str, filetype: int) -> list:
         binary = []
         file = open("./bin/" + filename, "r")
         for line in file:
-            binary.append(line.strip())
+            binary.append(line.strip().split())
         file.close()
         return(binary)
     
@@ -28,6 +28,6 @@ def readFile(filename: str, filetype: int) -> list:
 def writeBin(binary, output_file: str):
     with open("./bin/" + output_file, "w") as file:
         for line in binary:
-            file.write(line + "\n")
+            file.write(str(line[0])+ " " + line[1] + "\n")
     
 

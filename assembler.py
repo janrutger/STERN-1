@@ -88,28 +88,29 @@ class Assembler:
             if instruction[0][0] in ["@", ".", ":"]:
                 continue
             elif instruction[0] in ['nop', 'halt', 'ret', 'rti', 'ei', 'di']:
-                newLine = self.instructions[instruction[0]]
+                newLine = (pc, self.instructions[instruction[0]])
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['ld', 'add', 'sub', 'div', 'tste', 'tstg']:
-                newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + self.registers[instruction[2]]
+                newLine = (pc, self.instructions[instruction[0]] + self.registers[instruction[1]] + self.registers[instruction[2]])
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['ldi', 'addi', 'muli', 'subi', 'divi', 'tst', 'subr', 'divr','andi']:
-                newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_value(instruction[2])
+                newLine = (pc, self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_value(instruction[2]))
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['ldm', 'sto', 'inc', 'dec', 'read', 'write', 'stx', 'ldx']:
-                newLine = self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_adres(instruction[2])
+                newLine = (pc, self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_adres(instruction[2]))
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['jmp', 'jmpt', 'jmpf', 'call', 'jmpx', 'callx']:
-                newLine = self.instructions[instruction[0]] + self.get_adres(instruction[1])
+                newLine = (pc, self.instructions[instruction[0]] + self.get_adres(instruction[1]))
                 self.binary.append(newLine)
                 pc += 1
             elif instruction[0] in ['int']:
-                newLine = self.instructions[instruction[0]] + self.get_value(instruction[1])
+                newLine = (pc, self.instructions[instruction[0]] + self.get_value(instruction[1]))
                 self.binary.append(newLine)
+                pc += 1
             else:
                 raise ValueError("ERROR Unkown instruction " + instruction[0])
         writeBin(self.binary, output_file)

@@ -42,9 +42,9 @@ def main():
 
     # load bin into MainMem
     program = readFile("out.bin", 0)
-    adres = start_prog
-    for value in program:
-        MainMem.write(adres, value)
+    #adres = start_prog
+    for line in program:
+        MainMem.write(int(line[0]), line[1])
         adres =  adres + 1
 
     # Start the CPU thread
