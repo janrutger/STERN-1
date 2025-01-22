@@ -16,77 +16,77 @@
 . $DSP_LAST_LINE 1
 
 
+@init_stern
+    ldi Z 0
 
-ldi Z 0
-
-# init keyboard buffer
-sto Z $KBD_READ_PNTR
-sto Z $KBD_WRITE_PNTR
-ldi M $KBD_BUFFER
-sto M $KBD_BUFFER_ADRES
-
-
-
-# init display parameters
-# in total 12 chars on 1 line
-# 5 lines on the display
-ld M Z
-sto M $DSP_X_POS
-sto M $DSP_Y_POS
-ldi M 5
-sto M $DSP_CHAR_WIDTH
-ldi M 6
-sto M $DSP_CHAR_HEIGHT
-ldi M 24
-sto M $DSP_LAST_LINE
-ldi M 55
-sto M $DSP_LAST_CHAR
+    # init keyboard buffer
+    sto Z $KBD_READ_PNTR
+    sto Z $KBD_WRITE_PNTR
+    ldi M $KBD_BUFFER
+    sto M $KBD_BUFFER_ADRES
 
 
-# init Fonts and Display memory pointer
-ldi M 1024
-sto M $FONTS
 
-ldi M 14336
-sto M $VIDEO_MEM
+    # init display parameters
+    # in total 12 chars on 1 line
+    # 5 lines on the display
+    ld M Z
+    sto M $DSP_X_POS
+    sto M $DSP_Y_POS
+    ldi M 5
+    sto M $DSP_CHAR_WIDTH
+    ldi M 6
+    sto M $DSP_CHAR_HEIGHT
+    ldi M 24
+    sto M $DSP_LAST_LINE
+    ldi M 55
+    sto M $DSP_LAST_CHAR
 
-# 2k - 1 = 2047
-ldi M 2047
-sto M $VIDEO_SIZE
 
-# init interrupt vectors
-# Memory location where int vectors are stored
-ldi M 4096
-sto M $INT_VECTORS
+    # init Fonts and Display memory pointer
+    ldi M 2024
+    sto M $FONTS
 
-# set the ISR vectors
-ldi I 0
-ldi M @KBD_WRITE
-stx M $INT_VECTORS
+    ldi M 14336
+    sto M $VIDEO_MEM
 
-ldi I 1
-ldi M @clear_screen
-stx M $INT_VECTORS
+    # 2k - 1 = 2047
+    ldi M 2047
+    sto M $VIDEO_SIZE
 
-ldi I 2
-ldi M @fill_screen
-stx M $INT_VECTORS
+    # init interrupt vectors
+    # Memory location where int vectors are stored
+    ldi M 4096
+    sto M $INT_VECTORS
 
-ldi I 3
-ldi M @DRAW_CHAR
-stx M $INT_VECTORS
+    # set the ISR vectors
+    ldi I 0
+    ldi M @KBD_WRITE
+    stx M $INT_VECTORS
 
-ldi I 4
-ldi M @scroll_screen
-stx M $INT_VECTORS
+    ldi I 1
+    ldi M @clear_screen
+    stx M $INT_VECTORS
 
-## Done interrupt factors
+    ldi I 2
+    ldi M @fill_screen
+    stx M $INT_VECTORS
 
-# don't forget to enable Interrupts
-# int 1, clears the screen, 
-# return from interrupt (rti)  enbles interrupts
-int 1
-jmp @program
+    ldi I 3
+    ldi M @DRAW_CHAR
+    stx M $INT_VECTORS
+
+    ldi I 4
+    ldi M @scroll_screen
+    stx M $INT_VECTORS
+
+    ## Done interrupt factors
+
+    # don't forget to enable Interrupts
+    # int 1, clears the screen, 
+    # return from interrupt (rti)  enbles interrupts
+    int 1
+ret
 
 ## draw on screen calls
 @draw_char_on_screen
@@ -286,33 +286,6 @@ rti
 rti
 
 
-
-# MAIN program
-# runs after init
-@program
-    
-    :endless
-        call @cursor
-        call @KBD_READ
-        tst A \null
-        jmpt :no_input
-            call @draw_char_on_screen
-            tst A \q
-            jmpt :done
-    :no_input
-    jmp :endless
-
-:done 
-    int 2
-    halt
-
-
-@cursor
-    ldm X $DSP_X_POS
-    ldm Y $DSP_Y_POS
-    ldi C \_ 
-    int 3
-ret
 
 
 @scroll_screen
