@@ -1,12 +1,6 @@
 memory typing
     * memory.py, cpu.py, display.py
 
-split loader.asm and program.asm 
-    * cpu.py
-
-
-memory adres in Binary
-    * assembler.py, main.py
 
 
 assembler

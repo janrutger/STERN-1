@@ -28,31 +28,29 @@ def main():
     start_prog = intVectors + 512
 
 
-    CPU = Cpu(MainMem, interrupts, StackPointer, intVectors) 
+    CPU    = Cpu(MainMem, interrupts, StackPointer, intVectors) 
     screen = Display(myASCII, interrupts, Vw, Vh, MainMem, 10)
 
     # load fonts into MainMem
-    font = readFile("standard.font", 2)
+    font  = readFile("standard.font", 2)
     adres = start_font
     for value in font:
         MainMem.write(adres, value)
         adres =  adres + 1
 
     A = Assembler(start_var)
-    A.assemble("loader.asm", start_mem, "loader.bin")
+    A.assemble("loader.asm",  start_mem,  "loader.bin")
     A.assemble("program.asm", start_prog, "program.bin")
 
     # load bin into MainMem
     program = readFile("loader.bin", 0)
     for line in program:
         MainMem.write(int(line[0]), line[1])
-        adres =  adres + 1
 
     # program bin into MainMem
     program = readFile("program.bin", 0)
     for line in program:
         MainMem.write(int(line[0]), line[1])
-        adres =  adres + 1
 
     # Start the CPU thread
     cpu_thread = threading.Thread(target=CPU.run, args=(start_prog,))
