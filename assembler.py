@@ -127,3 +127,6 @@ if __name__ == "__main__":
     varPointer = 1024
     assembler = Assembler(varPointer)
     assembler.assemble("loader.asm", prog_start)
+
+    prog_start = 5*1024
+    assembler.assemble("program.asm", prog_start)
