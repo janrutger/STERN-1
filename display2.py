@@ -22,11 +22,14 @@ class Display():
         self.input_bar.pack()
         self.input_bar.bind("<Key>", self.key_pressed)
 
+        self.prev_mem = []
         self.update_videoMemory()
 
     def update_videoMemory(self):
         videoMemory = [self.memory.read(self.videoadres + i) for i in range(self.width * self.height)]
-        self.draw_screen(videoMemory)
+        if self.prev_mem != videoMemory:
+            self.draw_screen(videoMemory)
+            self.prev_mem = videoMemory
         self.display.after(100, self.update_videoMemory)  # Reduced delay for smoother updates
         
     def draw_pixel(self, x, y, s):
