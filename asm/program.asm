@@ -18,11 +18,10 @@ call @init_stern
     int 2
     halt
 
-# returns token value in A 
-# returns token type in B 
-#   0=operator, 1=number, 2=string
-# returns the value of type 0 and 1
-# returns a pointer to the string type 2 
+# Function to get a token from input
+# Returns:
+#   - Token value in A, is an pointer in case of a string type
+#   - Token type in B (0=operator, 1=number, 2=string)
 @get_token
     :get_input
         call @KBD_READ
@@ -89,14 +88,54 @@ call @init_stern
 
 
     :string_type
-        # not yet implemented
+        . $input_string 16
+        . $input_string_pntr 1
+        . $input_string_index 1
+
         ldi M \z
         tstg A M 
         jmpt :operator_type
 
-        # ignore string input, so startover
-        ;jmp :get_token_done
-        jmp :get_input
+        # first char
+        call @draw_char_on_screen
+
+        ldi I 0
+        sto I $input_string_index
+        ldi M $input_string
+        sto M $input_string_pntr
+        
+        inc I $input_string_index
+        stx A $input_string_pntr
+        :string_input_loop
+            call @KBD_READ
+            tst A \null
+            jmpt :string_input_loop
+
+            tst A \Return
+            jmpt :end_string_token
+            tst A \space
+            jmpt :end_string_token
+
+            inc I $input_string_index
+            stx A $input_string_pntr
+
+            call @draw_char_on_screen
+            jmp :string_input_loop
+
+
+        :end_string_token
+            # terminate
+            call @draw_char_on_screen
+            ldi M \null
+            inc I $input_string_index
+            stx M $input_string_pntr
+
+
+            ldi A $input_string_pntr
+            ldi B 2
+         
+        jmp :get_token_done
+
 
 
     :operator_type
