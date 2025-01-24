@@ -124,9 +124,12 @@ class Assembler:
 
 if __name__ == "__main__":
     prog_start = 0
-    varPointer = 1024
+    varPointer = 1024 * 8
     assembler = Assembler(varPointer)
     assembler.assemble("loader.asm", prog_start)
+
+    prog_start = 2*1024
+    assembler.assemble("kernel.asm", prog_start)
 
     prog_start = 5*1024
     assembler.assemble("program.asm", prog_start)

@@ -22,7 +22,8 @@ def main():
     StackPointer = MainMem.MEMmax() - VideoSize
     start_var  = StackPointer - 2024
 
-    start_mem  = 0
+    start_loader  = 0
+    start_kernel  = start_loader + 512
     start_font = 2024
     intVectors = 4096
     start_prog = intVectors + 512
@@ -39,15 +40,21 @@ def main():
         adres =  adres + 1
 
     A = Assembler(start_var)
-    A.assemble("loader.asm",  start_mem,  "loader.bin")
-    A.assemble("program.asm", start_prog, "program.bin")
+    A.assemble("loader.asm",  start_loader, "loader.bin")
+    A.assemble("kernel.asm",  start_kernel, "kernel.bin")
+    A.assemble("program.asm", start_prog,   "program.bin")
 
-    # load bin into MainMem
+    # Loader bin into MainMem
     program = readFile("loader.bin", 0)
     for line in program:
         MainMem.write(int(line[0]), line[1])
 
-    # program bin into MainMem
+    # Kernel bin into MainMem
+    program = readFile("kernel.bin", 0)
+    for line in program:
+        MainMem.write(int(line[0]), line[1])
+
+    # Program bin into MainMem
     program = readFile("program.bin", 0)
     for line in program:
         MainMem.write(int(line[0]), line[1])

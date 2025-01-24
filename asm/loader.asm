@@ -88,54 +88,7 @@
     int 1
 ret
 
-## draw on screen calls
-@draw_char_on_screen
-    # expects new X- and Y- pos in memory
-    # gets input value in A 
-    tst A \Return
-    jmpf :other_char
-        ldm Y $DSP_Y_POS
-        ldm M $DSP_CHAR_HEIGHT
-        add Y M
-        sto Y $DSP_Y_POS
-        sto Z $DSP_X_POS
-        jmp :draw_char_on_screen_check
-    :other_char
-        # draw the char
-        ldm Y $DSP_Y_POS
-        ldm X $DSP_X_POS
-        ld C A 
-        int 3
 
-        # Update X pointer
-        ldm M $DSP_CHAR_WIDTH
-        add X M 
-        sto X $DSP_X_POS
-
-
-    :draw_char_on_screen_check
-    # Check if next char fits on screen
-        #check X > widht
-        ldm M $DSP_LAST_CHAR
-        tstg X M
-        jmpf :check_height
-            sto Z $DSP_X_POS 
-            # Update Y pointer
-            ldm M $DSP_CHAR_HEIGHT
-            add Y M 
-            sto Y $DSP_Y_POS
-              
-        # check Y > height 
-        :check_height
-        ldm M $DSP_LAST_LINE
-        tstg Y M 
-        jmpf :draw_char_on_screen_done
-            sto M $DSP_Y_POS
-            ;call @scroll_screen
-            int 4
-
-:draw_char_on_screen_done
-ret
 
 # Interrupts ISR
 ## keyboard ISR handler
