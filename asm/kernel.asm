@@ -5,12 +5,16 @@
     . $datastack 16
     . $datastack_pntr 1
     . $datastack_index 1
-
-
     ldi M $datastack
     sto M $datastack_pntr
     ldi M 0
     sto M $datastack_index
+
+    . $BCDstring 16
+    . $BCDstring_pntr 1
+    . $BCDstring_index 1
+    ldi M $BCDstring
+    sto M $BCDstring_pntr
 ret
 
 
@@ -233,4 +237,48 @@ ret
     ldm Y $DSP_Y_POS
     ldi C \space 
     int 3
+ret
+
+###############
+@printBCD
+
+ldi M 0
+sto M $BCDstring_index
+
+# expects the number value to print in A 
+    :get_bcd_string_val
+        ldi K 10
+        dmod A K
+
+        addi K 20
+        inc I $BCDstring_index
+        stx K $BCDstring_pntr
+
+        tst A 0
+        jmpf :get_bcd_string_val
+
+    # print in reverse order
+    :print_values_reverse
+        dec I $BCDstring_index
+        ldx A $BCDstring_pntr
+
+        call @draw_char_on_screen
+
+        tst I 0
+        jmpf :print_values_reverse
+    ldi A \space
+    call @draw_char_on_screen
+
+ret
+
+###############
+@pushDataStack
+    inc I $datastack_index
+    stx A $datastack_pntr
+ret
+
+
+@popDataStack
+    dec I $datastack_index
+    ldx A $datastack_pntr
 ret
