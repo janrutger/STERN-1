@@ -1,3 +1,19 @@
+# Kernel init
+@init_kernel
+    # datastack operations
+    # push / pop A to/from stack
+    . $datastack 16
+    . $datastack_pntr 1
+    . $datastack_index 1
+
+
+    ldi M $datastack
+    sto M $datastack_pntr
+    ldi M 0
+    sto M $datastack_index
+ret
+
+
 # Function to get a token from input
 # Returns:
 #   - Token value in A, is an pointer in case of a string type

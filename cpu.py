@@ -114,6 +114,10 @@ class Cpu:
                     self.registers[op1] = self.registers[op1] - op2
                 case 61:    # MULI r val
                     self.registers[op1] = self.registers[op1] * op2
+                case 65:    # DMOD	Ra	Rb	    divmod Ra Rb, returns quotiënt in Ra, remainder in Rb
+                    quotient, remainder = divmod(self.registers[op1], self.registers[op2])
+                    self.registers[op1] = quotient
+                    self.registers[op2] = remainder
                 case 70:    # TST Ra integer 	set statusbit when equal 
                     if self.registers[op1] == op2:
                         self.statusbit = 1

@@ -11,7 +11,7 @@ class Assembler:
              "ld": '30', "ldi": '31', "ldm": '32', "ldx": '33',
             "sto": '40', "stx": '41',
             "add": '50', "addi": '51', "sub": '52', "subi": '53', "subr": '54',
-            "mul": '60', "muli": '61', "div": '62', "divi": '63', "divr": '64',
+            "mul": '60', "muli": '61', "div": '62', "divi": '63', "divr": '64', "dmod": '65',
             "tst": '70', "tste": '71', "tstg": '72',
             "inc": '80', "dec": '81',
             "andi":'90', "read": '98', "write": '99'
@@ -91,7 +91,7 @@ class Assembler:
                 newLine = (pc, self.instructions[instruction[0]])
                 self.binary.append(newLine)
                 pc += 1
-            elif instruction[0] in ['ld', 'add', 'sub', 'div', 'tste', 'tstg']:
+            elif instruction[0] in ['ld', 'add', 'sub', 'div', 'tste', 'tstg', 'dmod']:
                 newLine = (pc, self.instructions[instruction[0]] + self.registers[instruction[1]] + self.registers[instruction[2]])
                 self.binary.append(newLine)
                 pc += 1
