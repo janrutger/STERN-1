@@ -91,6 +91,8 @@ ret
         ldi M \z
         tstg A M 
         jmpt :operator_type
+        tst A \space
+        jmpt :operator_type
 
         # first char
         call @draw_char_on_screen

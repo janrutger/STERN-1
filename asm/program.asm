@@ -57,13 +57,29 @@ ret
         call @popDataStack
         add A M 
         call @pushDataStack
-        call @printBCD
+        ;call @printBCD
         jmp :end_handle_operator
 
     :tst_!_operator
     tst A \!
-    jmpf :tst_next_operator
+    jmpf :tst_dot_operator
         jmp :end_handle_operator
+
+    :tst_dot_operator
+    tst A \.
+    jmpf :tst_return_operator
+        call @popDataStack
+        call @pushDataStack
+        call @printBCD
+        jmp :end_handle_operator
+
+    :tst_return_operator
+    tst A \Return
+    jmpf :tst_next_operator
+        ldm A $datastack_index
+        call @printBCD
+        jmp :end_handle_operator
+
 
 
     :tst_next_operator
@@ -76,7 +92,7 @@ ret
 . $BCDstring 16
 . $BCDstring_pntr 1
 . $BCDstring_index 1
-nop
+
 ldi M $BCDstring
 sto M $BCDstring_pntr
 ldi M 0
@@ -103,6 +119,8 @@ sto M $BCDstring_index
 
         tst I 0
         jmpf :print_values_reverse
+    ldi A \space
+    call @draw_char_on_screen
 
 ret
 
