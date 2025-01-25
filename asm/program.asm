@@ -47,7 +47,7 @@ call @init_kernel
 ret
 
 @handle_operator_token
-# supports / * + - ! \Return tokens   
+# supports / * + - ! ?  tokens   
 
     # check for + operator
     tst A \+
@@ -66,14 +66,14 @@ ret
 
     :tst_dot_operator
     tst A \.
-    jmpf :tst_return_operator
+    jmpf :tst_?_operator
         call @popDataStack
         call @pushDataStack
         call @printBCD
         jmp :end_handle_operator
 
-    :tst_return_operator
-    tst A \Return
+    :tst_?_operator
+    tst A \?
     jmpf :tst_next_operator
         ldm A $datastack_index
         call @printBCD
@@ -89,4 +89,4 @@ ret
 
 
 
-###############
+###### helpers ######

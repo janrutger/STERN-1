@@ -21,6 +21,7 @@ def makechars():
     chars[':'] = 15
     chars['@'] = 16
     chars['_'] = 17
+    chars['?'] = 18
 
     chars["0"] = 20
     chars["1"] = 21
