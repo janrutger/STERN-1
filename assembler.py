@@ -91,7 +91,7 @@ class Assembler:
                 newLine = (pc, self.instructions[instruction[0]])
                 self.binary.append(newLine)
                 pc += 1
-            elif instruction[0] in ['ld', 'add', 'sub', 'div', 'tste', 'tstg', 'dmod']:
+            elif instruction[0] in ['ld', 'add', 'mul', 'sub', 'div', 'tste', 'tstg', 'dmod']:
                 newLine = (pc, self.instructions[instruction[0]] + self.registers[instruction[1]] + self.registers[instruction[2]])
                 self.binary.append(newLine)
                 pc += 1

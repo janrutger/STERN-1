@@ -24,16 +24,17 @@ call @init_kernel
         tst B 0
         jmpf :check_for_string
             call @handle_operator_token
-            jmp :end_token
+            jmp :check_for_done
 
 
         :check_for_string
 
-    :end_token
+    :check_for_done
         ;nop
         tst A \!
         jmpt :done
 
+    :end_token
     jmp :endless
 
 :done 
@@ -50,14 +51,48 @@ ret
 # supports / * + - ! ?  tokens   
 
     # check for + operator
+
+    :tst_add_operation
     tst A \+
-    jmpf :tst_!_operator
+    jmpf :tst_mull_operator
         call @popDataStack
         ld M A
         call @popDataStack
         add A M 
         call @pushDataStack
         jmp :end_handle_operator
+
+    :tst_mull_operator
+    tst A \*
+    jmpf :tst_minus_operator
+        call @popDataStack
+        ld M A
+        call @popDataStack
+        mul A M 
+        call @pushDataStack
+        jmp :end_handle_operator
+
+    :tst_minus_operator
+    tst A \-
+    jmpf :tst_div_operator
+        call @popDataStack
+        ld M A
+        call @popDataStack
+        sub A M 
+        call @pushDataStack
+        jmp :end_handle_operator
+
+    :tst_div_operator
+    tst A \/
+    jmpf :tst_!_operator
+        call @popDataStack
+        ld M A
+        call @popDataStack
+        div A M 
+        call @pushDataStack
+        jmp :end_handle_operator
+
+
 
     :tst_!_operator
     tst A \!
@@ -78,6 +113,8 @@ ret
         ldm A $datastack_index
         call @printBCD
         jmp :end_handle_operator
+    
+    
 
 
 
