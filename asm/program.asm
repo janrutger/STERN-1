@@ -7,7 +7,7 @@ call @init_kernel
 @program
     
     :endless
-        call @cursor
+        ;call @cursor
         call @get_token
         # Get_token, value in A, token type in B 
         # 0=operator, 1=number, 2=string
@@ -31,7 +31,7 @@ call @init_kernel
 
     :check_for_done
         ;nop
-        tst A \!
+        tst A \null
         jmpt :done
 
     :end_token
@@ -92,11 +92,10 @@ ret
         call @pushDataStack
         jmp :end_handle_operator
 
-
-
     :tst_!_operator
     tst A \!
     jmpf :tst_dot_operator
+        ldi A \null
         jmp :end_handle_operator
 
     :tst_dot_operator

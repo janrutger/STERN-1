@@ -23,6 +23,7 @@ ret
 #   - Token value in A, is an pointer in case of a string type
 #   - Token type in B (0=operator, 1=number, 2=string)
 @get_token
+    call @cursor
     :get_input
         call @KBD_READ
         tst A \null
@@ -144,6 +145,7 @@ ret
         # like + = / -  space return
 
         ld B A
+        call @no_cursor
         call @draw_char_on_screen
 
         # Check for value \space, \Return
