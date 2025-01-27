@@ -15,6 +15,30 @@
     . $BCDstring_index 1
     ldi M $BCDstring
     sto M $BCDstring_pntr
+
+
+    . $DSP_X_POS 1
+    . $DSP_Y_POS 1
+    . $DSP_CHAR_WIDTH 1
+    . $DSP_LAST_CHAR 1
+    . $DSP_CHAR_HEIGHT 1
+    . $DSP_LAST_LINE 1
+    # init display parameters
+    # in total 12 chars on 1 line
+    # 5 lines on the display
+    ld M Z
+    sto M $DSP_X_POS
+    sto M $DSP_Y_POS
+    ldi M 5
+    sto M $DSP_CHAR_WIDTH
+    ldi M 6
+    sto M $DSP_CHAR_HEIGHT
+    ldi M 24
+    sto M $DSP_LAST_LINE
+    ldi M 55
+    sto M $DSP_LAST_CHAR
+
+
 ret
 
 
