@@ -7,8 +7,8 @@
     . $datastack_index 1
     ldi M $datastack
     sto M $datastack_pntr
-    ldi M 0
-    sto M $datastack_index
+    ;ldi M 0
+    sto Z $datastack_index
 
     . $BCDstring 16
     . $BCDstring_pntr 1
@@ -126,8 +126,7 @@ ret
         # first char
         call @draw_char_on_screen
 
-        ldi I 0
-        sto I $input_string_index
+        sto Z $input_string_index
         ldi M $input_string
         sto M $input_string_pntr
         
@@ -170,13 +169,15 @@ ret
 
         ld B A
         call @no_cursor
-        call @draw_char_on_screen
+        ;call @draw_char_on_screen
 
         # Check for value \space, \Return
         tst A \Return
         jmpt :end_operator_token
         tst A \space
         jmpt :end_operator_token
+
+        call @draw_char_on_screen
 
         #next input must be an seperators \space and \Return
         :check_for_seperator

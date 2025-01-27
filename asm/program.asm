@@ -48,7 +48,7 @@ call @init_kernel
 ret
 
 @handle_operator_token
-# supports / * + - ! ?  tokens   
+# supports (/ * + - ! ? \Return)  tokens   
 
     # check for + operator
 
@@ -108,14 +108,18 @@ ret
 
     :tst_?_operator
     tst A \?
-    jmpf :tst_next_operator
+    jmpf :tst_Return_operator
         ldm A $datastack_index
         call @printBCD
         jmp :end_handle_operator
-    
-    
 
-
+    :tst_Return_operator
+    tst A \Return
+    jmpf :tst_next_operator
+        ldi A \Return
+        call @draw_char_on_screen
+        jmp :end_handle_operator
+    
 
     :tst_next_operator
 :end_handle_operator
