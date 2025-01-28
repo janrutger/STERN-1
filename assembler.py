@@ -87,6 +87,19 @@ class Assembler:
             instruction = line.split()
             if instruction[0][0] in ["@", ".", ":"]:
                 continue
+            elif instruction[0][0] in ["%"]:
+                #continue
+                # % $string \a \a \a \null
+                #            @adres or $var
+                if instruction[1] in self.symbols.keys():
+                    adres = int(self.symbols[instruction[1]])
+                    for value in instruction[2:]:
+                        newLine = (adres, self.get_value(value))
+                        self.binary.append(newLine)
+                        adres += 1
+                else:
+                    exit("ERROR Not a correct adres, check for typeo " + instruction[1])
+
             elif instruction[0] in ['nop', 'halt', 'ret', 'rti', 'ei', 'di']:
                 newLine = (pc, self.instructions[instruction[0]])
                 self.binary.append(newLine)
