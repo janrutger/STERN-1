@@ -4,6 +4,9 @@
 call @init_stern
 call @init_kernel
 
+. $test 2
+% $test \j \r
+; nop
 @program
     
     :endless
@@ -30,7 +33,6 @@ call @init_kernel
         :check_for_string
 
     :check_for_done
-        ;nop
         tst A \null
         jmpt :done
 

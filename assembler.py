@@ -58,6 +58,8 @@ class Assembler:
                     self.NextVarPointer += int(_line[2])
                 else:
                     exit("ERROR address already used : " + _line[1])
+            elif line[0] == "%":
+                continue
             else:
                 pc += 1
         print(self.symbols, self.labels, self.NextVarPointer, pc)
@@ -88,7 +90,6 @@ class Assembler:
             if instruction[0][0] in ["@", ".", ":"]:
                 continue
             elif instruction[0][0] in ["%"]:
-                #continue
                 # % $string \a \a \a \null
                 #            @adres or $var
                 if instruction[1] in self.symbols.keys():
