@@ -4,9 +4,7 @@
 call @init_stern
 call @init_kernel
 
-. $test 2
-% $test \j \r
-; nop
+
 @program
     
     :endless
