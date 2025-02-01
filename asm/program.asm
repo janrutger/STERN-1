@@ -6,127 +6,66 @@ call @init_kernel
 
 
 @program
-    
-    :endless
-        ;call @cursor
-        call @get_token
-        # Get_token, value in A, token type in B 
-        # 0=operator, 1=number, 2=string
+    # drawing one pixel from 
+    # left to right
 
-        # test token types, 
-        # first, check for a number
-        tst B 1
-        jmpf :check_for_operator
-            call @handle_number_token
-            jmp :end_token
-        
-        :check_for_operator
-        # test for Operator Token
-        tst B 0
-        jmpf :check_for_string
-            call @handle_operator_token
-            jmp :check_for_done
+    . $x_pixel_max 1
+    . $y_pixel_max 1
+    . $c_pixel 1
+
+    % $x_pixel_max 64
+    % $y_pixel_max 32
+
+    % $c_pixel 1
+
+    int 1
+
+    ldi X 32
+    ldi Y 16
+    ldi C 1
+    call @draw_pixel
+
+    #refresh
+    :end_less
+        ldi Y 16
+        ldi C 0
+        call @draw_pixel
+
+        tst X $x_pixel_max
+        jmpf :draw_next
+            ld X Z 
+            jmp :end_less
+        :draw_next
+            ldi C 1
+            addi X 1
+            call @draw_pixel
+        jmp :end_less
+halt
 
 
-        :check_for_string
-
-    :check_for_done
-        tst A \null
-        jmpt :done
-
-    :end_token
-    jmp :endless
-
-:done 
-    int 2
-    halt
+# helper routines
+. $pxl_mem_adres 1
 
 
-###############
-@handle_number_token
-    call @pushDataStack
+@draw_pixel
+    # expecting x
+    # expecting Y
+    # expecting c
+
+    # calc the memory adres
+    # to write in video
+
+    ldm L $VIDEO_MEM
+
+    ld M Y
+    muli M 64
+    add M X
+
+    add M L
+    sto M $pxl_mem_adres
+
+    ld I Z 
+    stx C $pxl_mem_adres
+
 ret
 
-@handle_operator_token
-# supports (/ * + - ! ? \Return)  tokens   
-
-    # check for + operator
-
-    :tst_add_operation
-    tst A \+
-    jmpf :tst_mull_operator
-        call @popDataStack
-        ld M A
-        call @popDataStack
-        add A M 
-        call @pushDataStack
-        jmp :end_handle_operator
-
-    :tst_mull_operator
-    tst A \*
-    jmpf :tst_minus_operator
-        call @popDataStack
-        ld M A
-        call @popDataStack
-        mul A M 
-        call @pushDataStack
-        jmp :end_handle_operator
-
-    :tst_minus_operator
-    tst A \-
-    jmpf :tst_div_operator
-        call @popDataStack
-        ld M A
-        call @popDataStack
-        sub A M 
-        call @pushDataStack
-        jmp :end_handle_operator
-
-    :tst_div_operator
-    tst A \/
-    jmpf :tst_!_operator
-        call @popDataStack
-        ld M A
-        call @popDataStack
-        div A M 
-        call @pushDataStack
-        jmp :end_handle_operator
-
-    :tst_!_operator
-    tst A \!
-    jmpf :tst_dot_operator
-        ldi A \null
-        jmp :end_handle_operator
-
-    :tst_dot_operator
-    tst A \.
-    jmpf :tst_?_operator
-        call @popDataStack
-        call @pushDataStack
-        call @printBCD
-        jmp :end_handle_operator
-
-    :tst_?_operator
-    tst A \?
-    jmpf :tst_Return_operator
-        ldm A $datastack_index
-        call @printBCD
-        jmp :end_handle_operator
-
-    :tst_Return_operator
-    tst A \Return
-    jmpf :tst_next_operator
-        ldi A \Return
-        call @draw_char_on_screen
-        jmp :end_handle_operator
-    
-
-    :tst_next_operator
-:end_handle_operator
-;nop
-ret
-
-
-
-
-###### helpers ######
