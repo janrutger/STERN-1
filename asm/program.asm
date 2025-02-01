@@ -11,12 +11,10 @@ call @init_kernel
 
     . $x_pixel_max 1
     . $y_pixel_max 1
-    . $c_pixel 1
 
-    % $x_pixel_max 64
+    % $x_pixel_max 62
     % $y_pixel_max 32
 
-    % $c_pixel 1
 
     int 1
 
@@ -30,8 +28,9 @@ call @init_kernel
         ldi Y 16
         ldi C 0
         call @draw_pixel
-
-        tst X $x_pixel_max
+        ;int 1
+        ldm M $x_pixel_max
+        tstg X M
         jmpf :draw_next
             ld X Z 
             jmp :end_less
