@@ -12,8 +12,15 @@ call @init_kernel
     . $x_pixel_max 1
     . $y_pixel_max 1
 
-    % $x_pixel_max 62
+    % $x_pixel_max 63
     % $y_pixel_max 32
+
+    . $sprite 4
+    . $sprite_pntr 1
+    . $sprite_indx 1
+    % $sprite 1 1 1 1
+    % $sprite_pntr $sprite
+    % $sprite_indx 0
 
 
     int 1
@@ -28,9 +35,10 @@ call @init_kernel
         ldi Y 16
         ldi C 0
         call @draw_pixel
-        ;int 1
+
         ldm M $x_pixel_max
-        tstg X M
+        tste X M
+
         jmpf :draw_next
             ld X Z 
             jmp :end_less
@@ -43,7 +51,7 @@ halt
 
 
 # helper routines
-. $pxl_mem_adres 1
+. $pxl_mem_pntr 1
 
 
 @draw_pixel
@@ -61,10 +69,10 @@ halt
     add M X
 
     add M L
-    sto M $pxl_mem_adres
+    sto M $pxl_mem_pntr
 
     ld I Z 
-    stx C $pxl_mem_adres
+    stx C $pxl_mem_pntr
 
 ret
 
