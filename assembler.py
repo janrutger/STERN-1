@@ -39,6 +39,7 @@ class Assembler:
 
     def parse_symbols(self, prg_start):
         pc = prg_start
+        self.labels = {}
         
         for line in self.assembly:
             if line[0] == "@":

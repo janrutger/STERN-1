@@ -4,55 +4,37 @@
 call @init_stern
 call @init_kernel
 
+. $x_indx 1
+% $x_indx 0
 
 @program
-    # drawing one pixel from 
-    # left to right
+    ldi Y 10
+    :loop
+        inc X $x_indx
+        ldi C \b 
+        int 3
 
-    . $x_pixel_max 1
-    . $y_pixel_max 1
+        ldm M $x_indx
+        tst M 63
+        jmpf :next
+            sto Z $x_indx
+        :next
+            ;ldi C \space
+            ;int 3
+            int 1
 
-    % $x_pixel_max 63
-    % $y_pixel_max 32
+        jmp :loop
 
-    . $sprite 4
-    . $sprite_pntr 1
-    . $sprite_indx 1
-    % $sprite 1 1 1 1
-    % $sprite_pntr $sprite
-    % $sprite_indx 0
-
-
-    int 1
-
-    ldi X 32
-    ldi Y 16
-    ldi C 1
-    call @draw_pixel
-
-    #refresh
-    :end_less
-        ldi Y 16
-        ldi C 0
-        call @draw_pixel
-
-        ldm M $x_pixel_max
-        tste X M
-
-        jmpf :draw_next
-            ld X Z 
-            jmp :end_less
-        :draw_next
-            ldi C 1
-            addi X 1
-            call @draw_pixel
-        jmp :end_less
 halt
 
 
 # helper routines
 . $pxl_mem_pntr 1
 
+@draw_sprite
+
+
+ret
 
 @draw_pixel
     # expecting x
