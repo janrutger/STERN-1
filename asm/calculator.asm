@@ -8,7 +8,6 @@ call @init_kernel
 @program
     
     :endless
-        ;call @cursor
         call @get_token
         # Get_token, value in A, token type in B 
         # 0=operator, 1=number, 2=string

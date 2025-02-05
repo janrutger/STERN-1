@@ -8,53 +8,36 @@ call @init_kernel
 % $x_indx 0
 
 @program
-    ldi Y 10
+    ldi Y 0
     :loop
         inc X $x_indx
         ldi C \b 
         int 3
 
+        call @wait
+
         ldm M $x_indx
         tst M 63
         jmpf :next
             sto Z $x_indx
+            addi Y 1
         :next
             ;ldi C \space
-            ;int 3
-            int 1
+            int 3
+            ;int 1
 
         jmp :loop
-
 halt
 
 
 # helper routines
-. $pxl_mem_pntr 1
+@wait
+    ldi L 1500
 
-@draw_sprite
-
-
+    :lus
+        subi L 1
+        tst L 0
+        jmpf :lus
 ret
 
-@draw_pixel
-    # expecting x
-    # expecting Y
-    # expecting c
-
-    # calc the memory adres
-    # to write in video
-
-    ldm L $VIDEO_MEM
-
-    ld M Y
-    muli M 64
-    add M X
-
-    add M L
-    sto M $pxl_mem_pntr
-
-    ld I Z 
-    stx C $pxl_mem_pntr
-
-ret
 

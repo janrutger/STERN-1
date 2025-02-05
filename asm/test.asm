@@ -1,21 +1,25 @@
-. $string 4
-. $stringpointer 1
-. $stringindex 1
+
 
 call @init_stern
 call @init_kernel
 
-% $string 0 1
-% $stringpointer $string
-% $stringindex 0
+@program
+    ldi X 0
+    ldi Y 0
+    ldi C \a 
 
-inc I $stringindex
-ldi K 0
-xorx K $stringpointer
-nop
-inc I $stringindex
-xorx K $stringpointer
-nop
-
-
+    int 3
+    call @wait
+    int 3
 halt
+
+
+@wait
+    ldi L 1500
+
+    :lus
+        subi L 1
+        tst L 0
+        jmpf :lus
+
+ret

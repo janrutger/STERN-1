@@ -47,7 +47,7 @@ ret
 #   - Token value in A, is an pointer in case of a string type
 #   - Token type in B (0=operator, 1=number, 2=string)
 @get_token
-    call @cursor
+    call @toggle_cursor
     :get_input
         call @KBD_READ
         tst A \null
@@ -70,6 +70,7 @@ ret
 
     :number_type    
         # first diget
+        call @toggle_cursor
         call @draw_char_on_screen
         subi A 20
         ld B A 
@@ -124,6 +125,7 @@ ret
         jmpt :operator_type
 
         # first char
+        call @toggle_cursor
         call @draw_char_on_screen
 
         sto Z $input_string_index
@@ -168,8 +170,7 @@ ret
         # like + = / -  space return
 
         ld B A
-        call @no_cursor
-        ;call @draw_char_on_screen
+        call @toggle_cursor
 
         # Check for value \space, \Return
         tst A \Return
@@ -252,19 +253,19 @@ ret
 ret
 
 
-@cursor
+@toggle_cursor
     ldm X $DSP_X_POS
     ldm Y $DSP_Y_POS
     ldi C \_ 
     int 3
 ret
 
-@no_cursor
-    ldm X $DSP_X_POS
-    ldm Y $DSP_Y_POS
-    ldi C \space 
-    int 3
-ret
+#@no_cursor
+#   ldm X $DSP_X_POS
+#   ldm Y $DSP_Y_POS
+#   ldi C \_ 
+#   int 3
+#ret
 
 ###############
 @printBCD
