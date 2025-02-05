@@ -8,13 +8,13 @@ class Assembler:
         self.instructions = {
             "nop": '10', "halt": '11', "ret": '12',"ei": '13', "di": '14', "rti": '15',
             "jmpf":'20', "jmpt": '21', "jmp": '22', "jmpx": '23', "call": '24', "callx":'25', "int": '26',
-             "ld": '30', "ldi": '31', "ldm": '32', "ldx": '33',
-            "sto": '40', "stx": '41',
+             "ld": '30', "ldi" : '31', "ldm": '32', "ldx": '33',
+            "sto": '40', "stx" : '41',
             "add": '50', "addi": '51', "sub": '52', "subi": '53', "subr": '54',
             "mul": '60', "muli": '61', "div": '62', "divi": '63', "divr": '64', "dmod": '65',
             "tst": '70', "tste": '71', "tstg": '72',
-            "inc": '80', "dec": '81',
-            "andi":'90', "read": '98', "write": '99'
+            "inc": '80', "dec" : '81',
+            "andi":'90', "xorx": '91', "read": '98', "write": '99'
         }
         self.registers = {
             "I": '0', "A": '1', "B": '2', "C": '3', "K": '4', "L": '5', "M": '6', "X": '7', "Y": '8', "Z": '9'
@@ -114,7 +114,7 @@ class Assembler:
                 newLine = (pc, self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_value(instruction[2]))
                 self.binary.append(newLine)
                 pc += 1
-            elif instruction[0] in ['ldm', 'sto', 'inc', 'dec', 'read', 'write', 'stx', 'ldx']:
+            elif instruction[0] in ['ldm', 'sto', 'inc', 'dec', 'read', 'write', 'stx', 'ldx', 'xorx']:
                 newLine = (pc, self.instructions[instruction[0]] + self.registers[instruction[1]] + self.get_adres(instruction[2]))
                 self.binary.append(newLine)
                 pc += 1
@@ -147,4 +147,4 @@ if __name__ == "__main__":
     assembler.assemble("kernel.asm", prog_start)
 
     prog_start = 5*1024
-    assembler.assemble("program.asm", prog_start)
+    assembler.assemble("test.asm", prog_start)

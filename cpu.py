@@ -148,6 +148,9 @@ class Cpu:
                     self.memory.write(op2, str(x))
                 case 90:    # ANDI r val
                     self.registers[op1] = self.registers[op1] & op2
+                case 91:    # XORX Ra adres	binary XOR wíth Ra and adres + R(i)
+                    adres = int(self.memory.read(op2)) + self.registers[0]
+                    self.registers[op1] = self.registers[op1] ^ int(self.memory.read(adres))
                 case _:
                     print("CPU: Invalid instruction")
                     exit("Invalid instruction")
