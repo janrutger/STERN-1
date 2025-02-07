@@ -140,11 +140,10 @@ ret
 . $video_pointer 1
 sto Z $video_pointer
 ldi M 1
+ldm L $VIDEO_SIZE
     :loop
         inc I $video_pointer
         stx M $VIDEO_MEM
-
-        ldm L $VIDEO_SIZE
         tste I L
     jmpf :loop
 rti
@@ -154,11 +153,10 @@ rti
 ; $video_pointer 1
 sto Z $video_pointer
 ldi M 0
+ldm L $VIDEO_SIZE
     :loop_clear
         inc I $video_pointer
         stx M $VIDEO_MEM
-
-        ldm L $VIDEO_SIZE
         tste I L
     jmpf :loop_clear
 rti

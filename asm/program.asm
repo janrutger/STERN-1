@@ -11,16 +11,16 @@ call @init_kernel
     ldi Y 0
     :loop
         inc X $x_indx
-        ldi C \b 
+        ldi C \null
         int 3
 
         call @wait
 
         ldm M $x_indx
-        tst M 63
+        tst M 64
         jmpf :next
-            sto Z $x_indx
-            addi Y 1
+            ;sto Z $x_indx
+            ;addi Y 1
         :next
             ;ldi C \space
             int 3
@@ -32,7 +32,7 @@ halt
 
 # helper routines
 @wait
-    ldi L 1500
+    ldi L 500
 
     :lus
         subi L 1
