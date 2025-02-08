@@ -138,6 +138,14 @@ ret
             call @KBD_READ
             tst A \null
             jmpt :string_input_loop
+            tst A \Up
+            jmpt :string_input_loop
+            tst A \Right
+            jmpt :string_input_loop
+            tst A \Down
+            jmpt :string_input_loop
+            tst A \Left
+            jmpt :string_input_loop
 
             tst A \Return
             jmpt :end_string_token
@@ -167,15 +175,24 @@ ret
 
 
     :operator_type
-        # like + = / -  space return
+        # like + = / -  \space \Return 
+        # \Up \Right \Down \Left
 
         ld B A
         call @toggle_cursor
 
-        # Check for value \space, \Return
+        # Check for value \space, \Return \Up \Right \Down \Left
         tst A \Return
         jmpt :end_operator_token
         tst A \space
+        jmpt :end_operator_token
+        tst A \Up
+        jmpt :end_operator_token
+        tst A \Right
+        jmpt :end_operator_token
+        tst A \Down
+        jmpt :end_operator_token
+        tst A \Left
         jmpt :end_operator_token
 
         call @draw_char_on_screen

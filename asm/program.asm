@@ -4,8 +4,6 @@
 call @init_stern
 call @init_kernel
 
-. $x_indx 1
-% $x_indx 0
 
 @program
         ldi X 25
@@ -16,15 +14,47 @@ call @init_kernel
         call @calc_pxl_pntr
         call @toggle_pxl
 
-        call @KBD_READ
-        call @wait
+        :read_kbd
+            call @KBD_READ
+            tst A \null
+        jmpt :read_kbd
+            ldi M \z
+            tstg A M 
+        jmpf :read_kbd
 
+        ;call @wait
+
+        call @calc_pxl_pntr
         call @toggle_pxl
 
-        addi X 1
-        addi Y 1
+        tst A \Up
+        jmpf :Right
+            # Up
+            subi Y 1
+        jmp :loop
+
+        :Right
+        tst A \Right
+        jmpf :Down
+            # Right
+            addi X 1
+        jmp :loop
+
+        :Down
+        tst A \Down
+        jmpf :Left
+            # Down
+            addi Y 1
+        jmp :loop
+
+        :Left
+        tst A \Return
+        jmpt :Return
+            # Left
+            subi X 1
     jmp :loop
-       
+
+:Return      
 halt
 
 

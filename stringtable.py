@@ -62,7 +62,10 @@ def makechars():
     chars["y"] = 55
     chars["z"] = 56
 
-
+    chars["Up"] = 95
+    chars["Right"] = 96
+    chars["Down"] = 97
+    chars["Left"] = 98
     chars["Return"] = 99    # newline
 
     return chars
