@@ -6,55 +6,65 @@ call @init_kernel
 
 
 @program
-        ldi X 25
-        ldi Y 16
+# print a sprite
+# Reg A = sprite widht (X)
+# Reg B = sprite height (Y)
+# Reg C = pointer to sprite array
+# Reg X = X pos of the first pixel
+# Reg Y = Y pos of the first pixel
+
+    . $sprite 4
+    % $sprite 1 1 1 1
+
+    ldi A 2
+    ldi B 2
+    ldi C $sprite
+
+    ldi X 25
+    ldi Y 16
         
     :loop
-        call @check_XY_bounderies
-        call @calc_pxl_pntr
-        call @toggle_pxl
 
-        :read_kbd
-            call @KBD_READ
-            tst A \null
-        jmpt :read_kbd
-            ldi M \z
-            tstg A M 
-        jmpf :read_kbd
+        . $start_x 1
+        . $start_y 1
+        sto X $start_x
+        sto Y $start_y
 
-        ;call @wait
+        . $pixel_w_pntr 1
+        . $pixel_h_pntr 1
+        . $current_sprite 1
+        . $sprite_pntr 1
 
-        call @calc_pxl_pntr
-        call @toggle_pxl
+        sto C $current_sprite
 
-        tst A \Up
-        jmpf :Right
-            # Up
-            subi Y 1
-        jmp :loop
+        sto Z $sprite_pntr
+        sto Z $pixel_h_pntr
+        :row_loop
+            inc K $pixel_h_pntr
+            sto Z $pixel_w_pntr
+            ldm X $start_x
+                :col_loop
+                inc L $pixel_w_pntr
 
-        :Right
-        tst A \Right
-        jmpf :Down
-            # Right
-            addi X 1
-        jmp :loop
+                    inc I $sprite_pntr
+                    ldx C $current_sprite
 
-        :Down
-        tst A \Down
-        jmpf :Left
-            # Down
-            addi Y 1
-        jmp :loop
+                    add X L
+                    ;call @check_XY_bounderies
+                    call @calc_pxl_pntr
+                    call @toggle_pxl
+ 
+                ldm M $pixel_w_pntr
+                tstg A M
+                jmpt :col_loop
+            
+            ldm M $pixel_h_pntr
+            tstg B M
+            jmpt :row_loop     
+    jmp :return
 
-        :Left
-        tst A \Return
-        jmpt :Return
-            # Left
-            subi X 1
-    jmp :loop
 
-:Return      
+:return   
 halt
 
 
