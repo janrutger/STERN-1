@@ -13,11 +13,11 @@ call @init_kernel
 # Reg X = X pos of the first pixel
 # Reg Y = Y pos of the first pixel
 
-    . $sprite 4
-    % $sprite 1 1 1 1
+    . $sprite 9
+    % $sprite 1 0 1 0 1 0 1 0 1 0
 
-    ldi A 2
-    ldi B 2
+    ldi A 3
+    ldi B 3
     ldi C $sprite
 
     ldi X 25
@@ -50,14 +50,19 @@ call @init_kernel
                     ldx C $current_sprite
 
                     add X L
-                    ;call @check_XY_bounderies
+                    add Y K
+                    call @check_XY_bounderies
                     call @calc_pxl_pntr
-                    call @toggle_pxl
+                    call @write_pxl
+
+                    ldm X $start_x
+                    ldm Y $start_y
  
                 ldm M $pixel_w_pntr
+                nop
                 tstg A M
                 jmpt :col_loop
-            
+        
             ldm M $pixel_h_pntr
             tstg B M
             jmpt :row_loop     
@@ -73,7 +78,6 @@ halt
     ldi L 1000
     :lus
         subi L 1
-        nop
         tst L 0
         jmpf :lus
 ret
@@ -96,6 +100,16 @@ ret
 
     # draw the pixel
     ldi C 1
+    xorx C $VIDEO_MEM
+    stx C $VIDEO_MEM
+ret
+
+@write_pxl
+    # Expects Reg I as pxl mem pointer
+    # Toggle pixel Ri mem position
+
+    # draw the pixel
+    ;ldi C 1
     xorx C $VIDEO_MEM
     stx C $VIDEO_MEM
 ret
