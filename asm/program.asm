@@ -14,59 +14,23 @@ call @init_kernel
 # Reg Y = Y pos of the first pixel
 
     . $sprite 9
-    % $sprite 1 0 1 0 1 0 1 0 1 0
+    % $sprite 1 1 1 1 0 1 1 1 1
 
     ldi A 3
     ldi B 3
     ldi C $sprite
 
-    ldi X 25
+    ldi X 33
     ldi Y 16
         
     :loop
+        call @draw_sprite
 
-        . $start_x 1
-        . $start_y 1
-        sto X $start_x
-        sto Y $start_y
+        call @wait
 
-        . $pixel_w_pntr 1
-        . $pixel_h_pntr 1
-        . $current_sprite 1
-        . $sprite_pntr 1
-
-        sto C $current_sprite
-
-        sto Z $sprite_pntr
-        sto Z $pixel_h_pntr
-        :row_loop
-            inc K $pixel_h_pntr
-            sto Z $pixel_w_pntr
-            ldm X $start_x
-                :col_loop
-                inc L $pixel_w_pntr
-
-                    inc I $sprite_pntr
-                    ldx C $current_sprite
-
-                    add X L
-                    add Y K
-                    call @check_XY_bounderies
-                    call @calc_pxl_pntr
-                    call @write_pxl
-
-                    ldm X $start_x
-                    ldm Y $start_y
- 
-                ldm M $pixel_w_pntr
-                nop
-                tstg A M
-                jmpt :col_loop
+        ldi C $sprite
+        call @draw_sprite
         
-            ldm M $pixel_h_pntr
-            tstg B M
-            jmpt :row_loop     
-    jmp :return
 
 
 :return   
@@ -134,4 +98,49 @@ ret
     ldm M $last_y_pos
     dmod Y M
     ld Y M
+ret
+
+
+@draw_sprite
+    . $start_x 1
+    . $start_y 1
+    sto X $start_x
+    sto Y $start_y
+
+    . $pixel_w_pntr 1
+    . $pixel_h_pntr 1
+    . $current_sprite 1
+    . $sprite_pntr 1
+
+    sto C $current_sprite
+
+    sto Z $sprite_pntr
+    sto Z $pixel_h_pntr
+    :row_loop
+        inc K $pixel_h_pntr
+        sto Z $pixel_w_pntr
+        ldm X $start_x
+            :col_loop
+            inc L $pixel_w_pntr
+
+                inc I $sprite_pntr
+                ldx C $current_sprite
+
+                add X L
+                add Y K
+                call @check_XY_bounderies
+                call @calc_pxl_pntr
+                call @write_pxl
+
+                ldm X $start_x
+                ldm Y $start_y
+
+            ldm M $pixel_w_pntr
+            nop
+            tstg A M
+            jmpt :col_loop
+    
+        ldm M $pixel_h_pntr
+        tstg B M
+        jmpt :row_loop     
 ret
