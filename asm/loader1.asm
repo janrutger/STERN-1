@@ -271,6 +271,14 @@ jmpf :fill_zero
 rti
 
 
+
+# print a sprite
+# Reg A = sprite widht (X)
+# Reg B = sprite height (Y)
+# Reg C = pointer to sprite array
+# Reg X = X pos of the first pixel
+# Reg Y = Y pos of the first pixel
+
 @DRAW_SPRITE
     . $start_x 1
     . $start_y 1
@@ -286,12 +294,14 @@ rti
 
     sto Z $sprite_pntr
     sto Z $pixel_h_pntr
+
     :row_loop_sprite
         inc K $pixel_h_pntr
         sto Z $pixel_w_pntr
         ldm X $start_x
+        
             :col_loop
-            inc L $pixel_w_pntr
+                inc L $pixel_w_pntr
 
                 inc I $sprite_pntr
                 ldx C $current_sprite
@@ -306,7 +316,6 @@ rti
                 ldm Y $start_y
 
             ldm M $pixel_w_pntr
-            nop
             tstg A M
             jmpt :col_loop
     

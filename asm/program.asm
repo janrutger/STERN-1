@@ -6,12 +6,6 @@ call @init_kernel
 
 
 @program
-# print a sprite
-# Reg A = sprite widht (X)
-# Reg B = sprite height (Y)
-# Reg C = pointer to sprite array
-# Reg X = X pos of the first pixel
-# Reg Y = Y pos of the first pixel
 
     . $sprite 9
     % $sprite 1 1 1 1 0 1 1 1 1
@@ -38,6 +32,7 @@ call @init_kernel
 
         call @wait
         int 5
+        ;call @wait
 
         addi X 1
         addi Y 1
@@ -52,7 +47,7 @@ halt
 
 # helper routines
 @wait
-    ldi L 3000
+    ldi L 1000
     :lus
         subi L 1
         nop
