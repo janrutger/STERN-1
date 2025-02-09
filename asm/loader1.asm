@@ -351,8 +351,6 @@ ret
 ret
 
 
-
-
 @check_XY_bounderies
 # checkd of the X an Y positions
 # Fits on screen, 
