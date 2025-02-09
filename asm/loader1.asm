@@ -58,6 +58,10 @@
     ldi M @scroll_screen
     stx M $INT_VECTORS
 
+    ldi I 5
+    ldi M @DRAW_SPRITE
+    stx M $INT_VECTORS
+
     ## Done interrupt factors
 
     # don't forget to enable Interrupts
@@ -265,5 +269,105 @@ ld M Z
 jmpf :fill_zero    
 
 rti
-;ret
 
+
+@DRAW_SPRITE
+    . $start_x 1
+    . $start_y 1
+    sto X $start_x
+    sto Y $start_y
+
+    . $pixel_w_pntr 1
+    . $pixel_h_pntr 1
+    . $current_sprite 1
+    . $sprite_pntr 1
+
+    sto C $current_sprite
+
+    sto Z $sprite_pntr
+    sto Z $pixel_h_pntr
+    :row_loop_sprite
+        inc K $pixel_h_pntr
+        sto Z $pixel_w_pntr
+        ldm X $start_x
+            :col_loop
+            inc L $pixel_w_pntr
+
+                inc I $sprite_pntr
+                ldx C $current_sprite
+
+                add X L
+                add Y K
+                call @check_XY_bounderies
+                call @calc_pxl_pntr
+                call @write_pxl
+
+                ldm X $start_x
+                ldm Y $start_y
+
+            ldm M $pixel_w_pntr
+            nop
+            tstg A M
+            jmpt :col_loop
+    
+        ldm M $pixel_h_pntr
+        tstg B M
+        jmpt :row_loop_sprite   
+rti
+
+
+
+
+## Helper routines
+
+# calc pixel pointer
+# expects X and Y register for pos pixel
+# calculates the mem pointer pos for this X Y
+@calc_pxl_pntr
+    ld I Y 
+    muli I 64
+    add I X
+ret
+
+
+@toggle_pxl
+    # Expects Reg I as pxl mem pointer
+    # Toggle pixel Ri mem position
+
+    # draw the pixel
+    ldi C 1
+    xorx C $VIDEO_MEM
+    stx C $VIDEO_MEM
+ret
+
+@write_pxl
+    # Expects Reg I as pxl mem pointer
+    # Toggle pixel Ri mem position
+
+    # draw the pixel
+    ;ldi C 1
+    xorx C $VIDEO_MEM
+    stx C $VIDEO_MEM
+ret
+
+
+
+
+@check_XY_bounderies
+# checkd of the X an Y positions
+# Fits on screen, 
+# reset XY when out of bounderie
+. $last_x_pos 1
+. $last_y_pos 1
+
+% $last_x_pos 64
+% $last_y_pos 32
+
+# check bounderies
+    ldm M $last_x_pos
+    dmod X M 
+    ld X M
+    ldm M $last_y_pos
+    dmod Y M
+    ld Y M
+ret
