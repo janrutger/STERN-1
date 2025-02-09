@@ -8,11 +8,20 @@ call @init_kernel
 @program
         ldi X 25
         ldi Y 16
+
+        . $sprite 9
+        % $sprite 1 1 1 1 0 1 1 1 1
+
+        . $sprite1 64
+        % $sprite1 0 1 0 1 1 0 1 0 0 1 0 0 0 0 1 0 1 0 0 0 0 0 0 1 1 0 1 0 0 1 0 1 1 0 0 0 0 0 0 1 1 1 0 1 1 0 1 1 0 1 0 0 0 0 1 0 0 0 1 1 1 1 0 0
+        
         
     :loop
-        call @check_XY_bounderies
-        call @calc_pxl_pntr
-        call @toggle_pxl
+        # Draw the char
+        ldi A 3
+        ldi B 3
+        ldi C $sprite
+        int 5
 
         :read_kbd
             call @KBD_READ
@@ -22,39 +31,43 @@ call @init_kernel
             tstg A M 
         jmpf :read_kbd
 
-        ;call @wait
+        ld K A
 
-        call @calc_pxl_pntr
-        call @toggle_pxl
+        # un-Draw the char
+        ldi A 3
+        ldi B 3
+        ldi C $sprite
+        int 5
 
-        tst A \Up
+        tst K \Up
         jmpf :Right
             # Up
             subi Y 1
         jmp :loop
 
         :Right
-        tst A \Right
+        tst K \Right
         jmpf :Down
             # Right
             addi X 1
         jmp :loop
 
         :Down
-        tst A \Down
+        tst K \Down
         jmpf :Left
             # Down
             addi Y 1
         jmp :loop
 
         :Left
-        tst A \Return
+        tst K \Return
         jmpt :Return
             # Left
             subi X 1
     jmp :loop
 
-:Return      
+:Return  
+int 2    
 halt
 
 

@@ -277,12 +277,6 @@ ret
     int 3
 ret
 
-#@no_cursor
-#   ldm X $DSP_X_POS
-#   ldm Y $DSP_Y_POS
-#   ldi C \_ 
-#   int 3
-#ret
 
 ###############
 @printBCD

@@ -40,9 +40,9 @@ def main():
         adres =  adres + 1
 
     A = Assembler(start_var)
-    A.assemble("loader1.asm", start_loader, "loader.bin")
+    A.assemble("loader2.asm", start_loader, "loader.bin")
     A.assemble("kernel.asm",  start_kernel, "kernel.bin")
-    A.assemble("program.asm", start_prog,   "program.bin")
+    A.assemble("spritewalker.asm", start_prog,   "program.bin")
 
     # Loader bin into MainMem
     program = readFile("loader.bin", 0)
