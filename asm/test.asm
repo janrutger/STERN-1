@@ -7,8 +7,11 @@ call @init_kernel
     ldi X 0
     ldi Y 0
     ldi C \a 
-
+nop
+    addi X -1
+nop
     int 3
+    nop
     call @wait
     int 3
 halt

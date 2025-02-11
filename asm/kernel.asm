@@ -285,6 +285,12 @@ ldi M 0
 sto M $BCDstring_index
 
 # expects the number value to print in A 
+    ldi M 1
+    tstg A Z
+    jmpt :get_bcd_string_val
+    ldi M 0
+    muli A -1
+
     :get_bcd_string_val
         ldi K 10
         dmod A K
@@ -293,8 +299,15 @@ sto M $BCDstring_index
         inc I $BCDstring_index
         stx K $BCDstring_pntr
 
-        tst A 0
+        tst A 0 
         jmpf :get_bcd_string_val
+        
+        tst M 1
+        jmpt :print_values_reverse
+        ldi A \-
+        inc I $BCDstring_index
+        stx A $BCDstring_pntr
+
 
     # print in reverse order
     :print_values_reverse
@@ -305,7 +318,8 @@ sto M $BCDstring_index
 
         tst I 0
         jmpf :print_values_reverse
-    ldi A \space
+    
+        ldi A \space
     call @draw_char_on_screen
 
 ret

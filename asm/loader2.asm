@@ -273,10 +273,9 @@ ret
 
 @write_pxl
     # Expects Reg I as pxl mem pointer
-    # Toggle pixel Ri mem position
+    # Write pixel Ri mem position
 
     # draw the pixel
-    ;ldi C 1
     xorx C $VIDEO_MEM
     stx C $VIDEO_MEM
 ret
@@ -324,26 +323,26 @@ ret
         sto Z $pixel_w_pntr
         ldm X $start_x
         
-            :col_loop
-                inc L $pixel_w_pntr
+        :col_loop
+            inc L $pixel_w_pntr
 
-                inc I $sprite_pntr
-                ldx C $current_sprite
+            inc I $sprite_pntr
+            ldx C $current_sprite
 
-                add X L
-                add Y K
-                call @check_XY_bounderies
-                call @calc_pxl_pntr
-                call @write_pxl
+            add X L
+            add Y K
+            call @check_XY_bounderies
+            call @calc_pxl_pntr
+            call @write_pxl
 
-                ldm X $start_x
-                ldm Y $start_y
+            ldm X $start_x
+            ldm Y $start_y
 
-            ldm M $pixel_w_pntr
-            tstg A M
-            jmpt :col_loop
-    
-        ldm M $pixel_h_pntr
-        tstg B M
-        jmpt :row_loop_sprite 
+        ldm M $pixel_w_pntr
+        tstg A M
+        jmpt :col_loop
+
+    ldm M $pixel_h_pntr
+    tstg B M
+    jmpt :row_loop_sprite 
 ret

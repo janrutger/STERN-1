@@ -76,6 +76,8 @@ class Assembler:
     def get_value(self, label: str) -> str:
         if label.isdigit():
             return(str(label))
+        elif label[0] in ['-', '+'] and label[1:].isdigit():
+            return(str(label))
         elif label[0] == "\\":
             return(str(self.myASCII[label[1:]]))
         elif label[0] in ["@", "$"]:
@@ -147,4 +149,4 @@ if __name__ == "__main__":
     assembler.assemble("kernel.asm", prog_start)
 
     prog_start = 5*1024
-    assembler.assemble("spritewalker.asm", prog_start)
+    assembler.assemble("test.asm", prog_start)
