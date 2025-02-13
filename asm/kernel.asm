@@ -285,6 +285,10 @@ ldi M 0
 sto M $BCDstring_index
 
 # expects the number value to print in A 
+
+    # + signed numbers is the default M=1
+    # Check is A has - sign, M=0
+    # Multiply A * -1, to change sign
     ldi M 1
     tstg A Z
     jmpt :get_bcd_string_val
@@ -302,6 +306,8 @@ sto M $BCDstring_index
         tst A 0 
         jmpf :get_bcd_string_val
         
+        # Check sign M, when negative M=0
+        # add sign (-) in front 
         tst M 1
         jmpt :print_values_reverse
         ldi A \-

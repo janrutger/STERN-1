@@ -1,7 +1,7 @@
 from memory import Memory
 from cpu import Cpu
 from assembler import Assembler
-from display4 import Display
+from display5 import Display
 from interrupts import Interrupts
 from FileIO import readFile
 from stringtable import makechars
@@ -42,7 +42,7 @@ def main():
     A = Assembler(start_var)
     A.assemble("loader2.asm", start_loader, "loader.bin")
     A.assemble("kernel.asm",  start_kernel, "kernel.bin")
-    A.assemble("calculator.asm", start_prog,   "program.bin")
+    A.assemble("spritewalker.asm", start_prog,   "program.bin")
 
     # Loader bin into MainMem
     program = readFile("loader.bin", 0)

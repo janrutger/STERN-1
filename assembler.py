@@ -149,4 +149,4 @@ if __name__ == "__main__":
     assembler.assemble("kernel.asm", prog_start)
 
     prog_start = 5*1024
-    assembler.assemble("test.asm", prog_start)
+    assembler.assemble("program.asm", prog_start)

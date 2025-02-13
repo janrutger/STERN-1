@@ -12,5 +12,5 @@ def decode(memValue: str) -> tuple:
         operand2 = int(memValue[3:])
         return((instruction, operand1, operand2))
     else:
-        exit("Decoder error")
+        raise ValueError("Decoder error")
     
