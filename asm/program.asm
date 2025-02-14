@@ -35,7 +35,16 @@ call @init_kernel
     % $ball_x 60
     % $ball_y 10
 
+    . $ball_x_dir 1
+    . $ball_y_dir 1
 
+    # directions: 1 and -1
+    # X=1 right,  X=-1 left
+    # X Y=1 down, Y=-1 up 
+    % $ball_x_dir -1
+    % $ball_y_dir -1
+
+#######
 
     call @update_paddle
     :pong
@@ -98,11 +107,17 @@ ret
     ldm B $ball_h
     ldm C $ball_pointer
 
-    
-
     ldm X $ball_x
     ldm Y $ball_y
-
     int 5
+
+    # check directions
+
+    # refresh ball
+    ldm X $ball_x
+    ldm Y $ball_y
+    int 5
+
+
 ret
 
