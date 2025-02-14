@@ -44,12 +44,22 @@ call @init_kernel
     % $ball_x_dir -1
     % $ball_y_dir -1
 
-#######
+    . $ball_update_counter 1
+    % $ball_update_counter 300
 
+#######
+    call @draw_ball
     call @update_paddle
     :pong
-
-        call @update_ball
+        ldm M $ball_update_counter
+        tst M 0
+            subi M 1
+            sto M $ball_update_counter
+        jmpf :no_ball_update     
+            call @update_ball
+            ldi M 300
+            sto M $ball_update_counter
+        :no_ball_update
         call @handle_input
 
     jmp :pong
@@ -58,6 +68,7 @@ call @init_kernel
 int 2
 halt
 
+## Helpers from Here 
 
 @handle_input 
     call @KBD_READ
@@ -102,7 +113,7 @@ ret
     int 5
 ret
 
-@update_ball
+@draw_ball
     ldm A $ball_w
     ldm B $ball_h
     ldm C $ball_pointer
@@ -110,10 +121,23 @@ ret
     ldm X $ball_x
     ldm Y $ball_y
     int 5
+ret
+
+
+@update_ball
+    ldm A $ball_w
+    ldm B $ball_h
+    ldm C $ball_pointer
+
+    ldm X $ball_x
+    ldm Y $ball_y
+    ;int 5
 
     # check directions
+    call @check_directions
 
     # refresh ball
+    int 5
     ldm X $ball_x
     ldm Y $ball_y
     int 5
@@ -123,7 +147,43 @@ ret
 
 
 @check_directions
-    
+    # Check X for 'win' line
+    tst X 1
+    jmpf :test_top_line
+        ldi M 64
+        sto M $ball_x
 
+        ldm M $ball_y_dir
+        muli M -1
+        sto M $ball_y_dir
+
+        ldm L $ball_y
+        addi L 1
+        sto L $ball_y
+
+    :test_top_line
+    tst Y 0
+    jmpf :test_low_line
+        ldm M $ball_y_dir
+        muli M -1
+        sto M $ball_y_dir
+    :test_low_line
+    tst Y 31
+    jmpf :update_xy
+        ldm M $ball_y_dir
+        muli M -1
+        sto M $ball_y_dir
+
+    :update_xy
+        ldm K $ball_x
+        ldm M $ball_x_dir
+        add K M 
+        sto K $ball_x
+
+        ldm L $ball_y
+        ldm M $ball_y_dir
+        add L M 
+        sto L $ball_y
+            
 ret
 
