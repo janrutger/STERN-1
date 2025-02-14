@@ -121,3 +121,9 @@ ret
 
 ret
 
+
+@check_directions
+    
+
+ret
+
