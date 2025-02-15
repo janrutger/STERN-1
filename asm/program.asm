@@ -60,7 +60,7 @@ call @init_kernel
             call @update_ball
             call @check_collision
 
-            ldi M 150
+            ldi M 100
             sto M $ball_update_counter
         :no_ball_update
 
@@ -229,6 +229,11 @@ ret
     ldm M $paddle_h
     addi M 1
     sto M $paddle_h
+
+    ldm M $paddle_x
+    addi M 1
+    sto M $paddle_x
+
     ldi M 63
     sto M $ball_x
     call @draw_ball

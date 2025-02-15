@@ -42,7 +42,7 @@ class Display():
         if self.prev_mem != videoMemory:
             self.draw_screen(videoMemory)
             self.prev_mem = videoMemory
-        self.display.after(10, self.update_videoMemory)  # Reduced delay for smoother updates
+        self.display.after(50, self.update_videoMemory)  # Reduced delay for smoother updates
 
     def draw_pixel(self, x, y, s):
         color = "gray"  # Default color
