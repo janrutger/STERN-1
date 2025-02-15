@@ -6,19 +6,19 @@ call @init_kernel
 
 
 @program
-    . $paddle_sprite 8
+    . $paddle_sprite 32
     . $paddle_pointer 1
     . $paddle_w 1
     . $paddle_h 1
     . $paddle_x 1
     . $paddle_y 1
 
-    % $paddle_sprite 1 1 1 1 1 1 1 1 
+    % $paddle_sprite 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 
     % $paddle_pointer $paddle_sprite
     % $paddle_w 1
     % $paddle_h 2
     % $paddle_x 3
-    % $paddle_y 14
+    % $paddle_y 5
 
 # ball pixel
     . $ball_sprite 1
@@ -32,8 +32,8 @@ call @init_kernel
     % $ball_pointer $ball_sprite
     % $ball_w 1
     % $ball_h 1
-    % $ball_x 60
-    % $ball_y 10
+    % $ball_x 63
+    % $ball_y 16
 
     . $ball_x_dir 1
     . $ball_y_dir 1
@@ -60,7 +60,7 @@ call @init_kernel
             call @update_ball
             call @check_collision
 
-            ldi M 200
+            ldi M 150
             sto M $ball_update_counter
         :no_ball_update
 
@@ -162,9 +162,9 @@ ret
         muli M -1
         sto M $ball_y_dir
 
-        ldm L $ball_y
-        addi L 1
-        sto L $ball_y
+        ;ldm L $ball_y
+        ;addi L 1
+        ;sto L $ball_y
 
     :test_top_line
     tst Y 0
@@ -224,12 +224,14 @@ ret
 ret
 
 @collision
+    call @draw_ball
     call @update_paddle
     ldm M $paddle_h
     addi M 1
     sto M $paddle_h
     ldi M 63
     sto M $ball_x
+    call @draw_ball
     call @update_paddle
 ret
 
