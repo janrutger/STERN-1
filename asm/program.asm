@@ -55,12 +55,13 @@ call @init_kernel
         tst M 0
             subi M 1
             sto M $ball_update_counter
-        jmpf :no_ball_update   
+        jmpf :no_ball_update 
+          
 
             call @update_ball
             call @check_collision
 
-            ldi M 100
+            ldi M 300
             sto M $ball_update_counter
         :no_ball_update
 

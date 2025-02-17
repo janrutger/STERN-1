@@ -1,8 +1,7 @@
 from tkinter import *
-from time import time
 
 class Display():
-    def __init__(self, myASCII, interrupts, width, height, memory, scale=10):
+    def __init__(self, myASCII, interrupts, width=32, height=64, memory, scale=10):
         self.ASCII = myASCII
         self.int = interrupts
         self.width = width
@@ -15,7 +14,7 @@ class Display():
         self.display.title("STERN I")
         self.canvas = Canvas(self.display, width=self.width * self.scale, height=self.height * self.scale)
         self.canvas.pack()
-        self.canvas.config(bg="gray")
+        self.canvas.config(bg="black")
 
         self.input_var = StringVar()
         self.input_bar = Entry(self.display, textvariable=self.input_var, width=16)
@@ -23,9 +22,8 @@ class Display():
         self.input_bar.bind("<Key>", self.key_pressed)
 
         self.prev_mem = []
-        self.pixel_map = {}  # Dictionary to keep track of current pixel states
+        self.pixel_map = {}
 
-        # Initialize rectangles
         self.rectangles = {}
         for y in range(self.height):
             for x in range(self.width):
@@ -33,7 +31,7 @@ class Display():
                 y1 = y * self.scale
                 x2 = x1 + self.scale
                 y2 = y1 + self.scale
-                rect_id = self.canvas.create_rectangle(x1, y1, x2, y2, fill="gray")
+                rect_id = self.canvas.create_rectangle(x1, y1, x2, y2, fill="black")
                 self.rectangles[(x, y)] = rect_id
 
         self.update_videoMemory()
@@ -43,38 +41,27 @@ class Display():
         if self.prev_mem != videoMemory:
             self.draw_screen(videoMemory)
             self.prev_mem = videoMemory
-        self.display.after(10, self.update_videoMemory)  # Reduced delay for smoother updates
-
-    def draw_pixel(self, x, y, s):
-        color = "gray"  # Default color
-
-        if s == "1":
-            color = "white"
-        elif s == "0":
-            color = "black"
-
-        # Update only if the pixel state has changed
-        if (x, y) not in self.pixel_map or self.pixel_map[(x, y)] != color:
-            self.canvas.itemconfig(self.rectangles[(x, y)], fill=color)
-            self.pixel_map[(x, y)] = color
+        self.display.after(50, self.update_videoMemory)
 
     def draw_screen(self, memory):
         mem_pointer = 0
         changes = []
         for y in range(self.height):
             for x in range(self.width):
-                color = "gray"
-                if memory[mem_pointer] == "1":
-                    color = "white"
-                elif memory[mem_pointer] == "0":
+                index = memory[mem_pointer]
+                char = next((k for k, v in self.ASCII.items() if v == index), None)
+                color = "white"
+                if not char:
                     color = "black"
+
                 if (x, y) not in self.pixel_map or self.pixel_map[(x, y)] != color:
-                    changes.append((x, y, color))
+                    changes.append((x, y, color, char))
                 mem_pointer += 1
 
-        # Apply batched changes
-        for x, y, color in changes:
+        for x, y, color, char in changes:
             self.canvas.itemconfig(self.rectangles[(x, y)], fill=color)
+            if char:
+                self.canvas.create_text(x * self.scale + self.scale // 2, y * self.scale + self.scale // 2, text=char, fill=color, font=("Courier", self.scale))
             self.pixel_map[(x, y)] = color
 
         self.display.update_idletasks()
@@ -87,7 +74,7 @@ class Display():
         elif event.keysym in self.ASCII.keys():
             value = self.ASCII[event.keysym]
             if event.keysym == "Return":
-                self.input_var.set("") #clear imputbox
+                self.input_var.set("")  # clear input box
             self.int.interrupt(0, value)
         else:
             print("Unknown key ", event.keysym)
