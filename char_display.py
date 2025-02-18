@@ -1,7 +1,7 @@
 from tkinter import *
 
 class Display():
-    def __init__(self, myASCII, interrupts, width=32, height=64, memory, scale=10):
+    def __init__(self, myASCII, interrupts, width, height, memory, scale=10):
         self.ASCII = myASCII
         self.int = interrupts
         self.width = width
@@ -49,10 +49,11 @@ class Display():
         for y in range(self.height):
             for x in range(self.width):
                 index = memory[mem_pointer]
-                char = next((k for k, v in self.ASCII.items() if v == index), None)
-                color = "white"
-                if not char:
-                    color = "black"
+                # char = next((k for k, v in self.ASCII.items() if v == index), None)
+                char = next((k for k, v in self.ASCII.items() if v == index and (v >= 0 or v <= 56)), '#')
+                color = "black"
+                if  char:
+                    color = "white"
 
                 if (x, y) not in self.pixel_map or self.pixel_map[(x, y)] != color:
                     changes.append((x, y, color, char))

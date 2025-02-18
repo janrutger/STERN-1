@@ -48,7 +48,7 @@ class Cpu:
 
             # Decode instruction
             inst, op1, op2 = decode(memValue)
-            #print(self.PC-1, inst, op1, op2)
+            print(self.PC-1, inst, op1, op2)
 
 
             # execute instruction
