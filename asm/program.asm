@@ -2,6 +2,7 @@
 # runs after init
 
 call @init_stern
+;halt
 call @init_kernel
 
 
@@ -56,7 +57,7 @@ call @init_kernel
             subi M 1
             sto M $ball_update_counter
         jmpf :no_ball_update 
-          
+
 
             call @update_ball
             call @check_collision

@@ -158,7 +158,7 @@ rti
 @clear_screen
 ; $video_pointer 1
 sto Z $video_pointer
-ldi M 0
+ldi M \space
 ldm L $VIDEO_SIZE
     :loop_clear
         inc I $video_pointer

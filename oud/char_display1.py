@@ -1,4 +1,5 @@
 from tkinter import *
+from time import time
 
 class Display():
     def __init__(self, myASCII, interrupts, width, height, memory, scale=10):
@@ -22,17 +23,14 @@ class Display():
         self.input_bar.bind("<Key>", self.key_pressed)
 
         self.prev_mem = []
-        self.pixel_map = {}
+        self.char_map = {}  # Dictionary to keep track of current char states
 
-        self.rectangles = {}
+        # Initialize characters
+        self.chars = {}
         for y in range(self.height):
             for x in range(self.width):
-                x1 = x * self.scale
-                y1 = y * self.scale
-                x2 = x1 + self.scale
-                y2 = y1 + self.scale
-                rect_id = self.canvas.create_rectangle(x1, y1, x2, y2, fill="black")
-                self.rectangles[(x, y)] = rect_id
+                char_id = self.canvas.create_text((x * self.scale, y * self.scale), text="", fill="white", anchor=NW)
+                self.chars[(x, y)] = char_id
 
         self.update_videoMemory()
 
@@ -41,31 +39,36 @@ class Display():
         if self.prev_mem != videoMemory:
             self.draw_screen(videoMemory)
             self.prev_mem = videoMemory
-        self.display.after(50, self.update_videoMemory)
+        self.display.after(10, self.update_videoMemory)  # Reduced delay for smoother updates
 
     def draw_screen(self, memory):
         mem_pointer = 0
         changes = []
         for y in range(self.height):
             for x in range(self.width):
-                index = memory[mem_pointer]
-                # char = next((k for k, v in self.ASCII.items() if v == index), None)
-                char = next((k for k, v in self.ASCII.items() if v == index and (v >= 0 or v <= 56)), '#')
-                color = "black"
-                if  char:
-                    color = "white"
-
-                if (x, y) not in self.pixel_map or self.pixel_map[(x, y)] != color:
-                    changes.append((x, y, color, char))
+                index = int(memory[mem_pointer])
+                char = next((k for k, v in self.ASCII.items() if v == index and (v > 0 and v <= 56)), '#')
+                if (x, y) not in self.char_map or self.char_map[(x, y)] != char:
+                    if char == "space":
+                        char = ""
+                    changes.append((x, y, char))
                 mem_pointer += 1
 
-        for x, y, color, char in changes:
-            self.canvas.itemconfig(self.rectangles[(x, y)], fill=color)
-            if char:
-                self.canvas.create_text(x * self.scale + self.scale // 2, y * self.scale + self.scale // 2, text=char, fill=color, font=("Courier", self.scale))
-            self.pixel_map[(x, y)] = color
+        # Apply batched changes
+        for x, y, char in changes:
+            # Delete previous text element to prevent overwriting characters
+            print(f"Deleting item ID: {self.chars.get((x, y), 'None')}")
+            id = self.chars[(x, y)]
+            self.canvas.delete(id) # Delete the old text object
 
-        self.display.update_idletasks()
+            # Create new text element, and register new_id
+            new_id = self.canvas.create_text((x * self.scale, y * self.scale), text=char, fill="white", anchor=NW)
+            self.chars[(x, y)] = new_id
+
+            # register new char
+            self.char_map[(x, y)] = char
+
+        #Sself.display.update_idletasks()
         self.display.update()
 
     def key_pressed(self, event):
@@ -75,7 +78,7 @@ class Display():
         elif event.keysym in self.ASCII.keys():
             value = self.ASCII[event.keysym]
             if event.keysym == "Return":
-                self.input_var.set("")  # clear input box
+                self.input_var.set("") #clear input box
             self.int.interrupt(0, value)
         else:
             print("Unknown key ", event.keysym)

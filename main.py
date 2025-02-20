@@ -1,7 +1,7 @@
 from memory import Memory
 from cpu import Cpu
 from assembler import Assembler
-from display5 import Display
+from display6 import CharDisplay as Display
 from interrupts import Interrupts
 from FileIO import readFile
 from stringtable import makechars
@@ -30,7 +30,7 @@ def main():
 
 
     CPU    = Cpu(MainMem, interrupts, StackPointer, intVectors) 
-    screen = Display(myASCII, interrupts, Vw, Vh, MainMem, 10)
+    screen = Display(myASCII, interrupts, Vw, Vh, MainMem, 15)
 
     # load fonts into MainMem
     font  = readFile("standard.font", 2)
