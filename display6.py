@@ -123,7 +123,7 @@ class CharDisplay():
         self.chars = {}
         for y in range(self.height):
             for x in range(self.width):
-                char_id = self.canvas.create_text((x * self.scale, y * self.scale), text="", fill="white", anchor=NW)
+                char_id = self.canvas.create_text((x * self.scale, y * self.scale), text="", fill="white", anchor=NW, font=("Courier", self.scale))
                 self.chars[(x, y)] = char_id
 
         self.update_videoMemory()
@@ -156,7 +156,7 @@ class CharDisplay():
             self.canvas.delete(id) # Delete the old text object
 
             # Create new text element, and register new_id
-            new_id = self.canvas.create_text((x * self.scale, y * self.scale), text=char, fill="white", anchor=NW)
+            new_id = self.canvas.create_text((x * self.scale, y * self.scale), text=char, fill="white", anchor=NW, font=("Courier", self.scale))
             self.chars[(x, y)] = new_id
 
             # register new char
