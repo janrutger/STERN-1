@@ -133,7 +133,7 @@ class CharDisplay():
         if self.prev_mem != videoMemory:
             self.draw_screen(videoMemory)
             self.prev_mem = videoMemory
-        self.display.after(10, self.update_videoMemory)  # Reduced delay for smoother updates
+        self.display.after(50, self.update_videoMemory)  # Reduced delay for smoother updates
 
     def draw_screen(self, memory):
         mem_pointer = 0
@@ -142,9 +142,9 @@ class CharDisplay():
             for x in range(self.width):
                 index = int(memory[mem_pointer])
                 char = next((k for k, v in self.ASCII.items() if v == index and (v > 0 and v <= 56)), '#')
-                if (x, y) not in self.char_map or self.char_map[(x, y)] != char:
-                    if char == "space":
+                if char == "space":
                         char = ""
+                if (x, y) not in self.char_map or self.char_map[(x, y)] != char:
                     changes.append((x, y, char))
                 mem_pointer += 1
 
