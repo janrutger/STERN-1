@@ -1,244 +1,108 @@
-# MAIN program
-# runs after init
-
 call @init_stern
-;halt
-call @init_kernel
 
+. $input_buffer 64
+. $input_buffer_pntr 1
+. $input_buffer_indx 1
+% $input_buffer_pntr $input_buffer
+% $input_buffer_indx 0
+
+. $screen_x 1
+. $screen_y 1
+% $screen_x 0
+% $screen_y 0
 
 @program
-    . $paddle_sprite 32
-    . $paddle_pointer 1
-    . $paddle_w 1
-    . $paddle_h 1
-    . $paddle_x 1
-    . $paddle_y 1
+    call @get_input_line
 
-    % $paddle_sprite 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 
-    % $paddle_pointer $paddle_sprite
-    % $paddle_w 1
-    % $paddle_h 2
-    % $paddle_x 3
-    % $paddle_y 5
-
-# ball pixel
-    . $ball_sprite 1
-    . $ball_pointer 1
-    . $ball_w 1
-    . $ball_h 1
-    . $ball_x 1
-    . $ball_y 1
-
-    % $ball_sprite 1
-    % $ball_pointer $ball_sprite
-    % $ball_w 1
-    % $ball_h 1
-    % $ball_x 63
-    % $ball_y 16
-
-    . $ball_x_dir 1
-    . $ball_y_dir 1
-
-    # directions: 1 and -1
-    # X=1 right,  X=-1 left
-    # X Y=1 down, Y=-1 up 
-    % $ball_x_dir -1
-    % $ball_y_dir -1
-
-    . $ball_update_counter 1
-    % $ball_update_counter 300
-
-#######
-    call @draw_ball
-    call @update_paddle
-    :pong
-        ldm M $ball_update_counter
-        tst M 0
-            subi M 1
-            sto M $ball_update_counter
-        jmpf :no_ball_update 
-
-
-            call @update_ball
-            call @check_collision
-
-            ldi M 300
-            sto M $ball_update_counter
-        :no_ball_update
-
-        call @handle_input
+    :tokennice_line
+        sto Z $input_buffer_indx
         
 
-    jmp :pong
 
-:end  
-int 2
 halt
 
-## Helpers from Here 
 
-@handle_input 
-    call @KBD_READ
 
-    tst A \Up
-    jmpf :Down
-        # Paddle UP
-        call @update_paddle
-        ldm M $paddle_y
-        subi M 1
-        sto M $paddle_y
-        call @update_paddle
-    ret
+@get_input_line 
+    :get_input
+        call @print_cursor
+        call @KBD_READ
+        tst A \null
+        jmpt :get_input
 
-    :Down
-    tst A \Down
-    jmpf :return
-        # Paddle down
-        call @update_paddle
-        ldm M $paddle_y
-        addi M 1
-        sto M $paddle_y
-        call @update_paddle
-    ret
+        # check for Return as line terminator
+        tst A \Return
+        jmpt :end_of_input
 
-    :return
-    tst A \Return
-    jmpf :no_input
-        # exit program
-        jmp :end
-:no_input
-ret
+        # check if A is printeble, ignore arrow-keys
+        ldi M \z 
+        tstg A M 
+        jmpt :get_input
 
-@update_paddle
-    ldm A $paddle_w
-    ldm B $paddle_h
-    ldm C $paddle_pointer
+        # Store A in buffer
+        inc I $input_buffer_indx
+        stx A $input_buffer_pntr
 
-    ldm X $paddle_x
-    ldm Y $paddle_y
+        call @print_char
 
-    int 5
-ret
+        # increase X position, fatal after max line lenght 64-1
+        inc X $screen_x
+        ldm X $screen_x
+        ldi M 63
+        tstg M X 
+        jmpt :get_input
+        call @fatal_error
 
-@draw_ball
-    ldm A $ball_w
-    ldm B $ball_h
-    ldm C $ball_pointer
+    :end_of_input
+        # increase Y position, fatal after max line lenght 32-1
+        # must scroll 
+        ldi A \space
+        call @print_char
+        inc Y $screen_y
+        sto Z $screen_x
 
-    ldm X $ball_x
-    ldm Y $ball_y
-    int 5
+        tst Y 31
+        jmpf :end
+        call @fatal_error
+    :end
+        call @print_cursor
+        # Store termination in buffer
+        ldi A \null
+        inc I $input_buffer_indx
+        stx A $input_buffer_pntr
 ret
 
 
-@update_ball
-    ldm A $ball_w
-    ldm B $ball_h
-    ldm C $ball_pointer
-
-    ldm X $ball_x
-    ldm Y $ball_y
-    ;int 5
-
-    # check directions
-    call @check_directions
-
-    # refresh ball
-    int 5
-    ldm X $ball_x
-    ldm Y $ball_y
-    int 5
 
 
+@print_cursor
+    ldi A \_ 
+    call @print_char
 ret
 
 
-@check_directions
-    # Check X for 'win' line
-    tst X 1
-    jmpf :test_top_line
-        ldi M 64
-        sto M $ball_x
+@print_char
+# expexts $screen_x and $screen_y
+# char to print in A 
 
-        ldm M $ball_y_dir
-        muli M -1
-        sto M $ball_y_dir
+    ldm X $screen_x
+    ldm Y $screen_y
 
-        ;ldm L $ball_y
-        ;addi L 1
-        ;sto L $ball_y
+    # calc memory position, input_string_index
+    ld I Y 
+    muli I 64
+    add I X
 
-    :test_top_line
-    tst Y 0
-    jmpf :test_low_line
-        ldm M $ball_y_dir
-        muli M -1
-        sto M $ball_y_dir
-    :test_low_line
-    tst Y 31
-    jmpf :update_xy
-        ldm M $ball_y_dir
-        muli M -1
-        sto M $ball_y_dir
+    # print on screen
+    stx A $VIDEO_MEM
+ret   
 
-    :update_xy
-        ldm K $ball_x
-        ldm M $ball_x_dir
-        add K M 
-        sto K $ball_x
-
-        ldm L $ball_y
-        ldm M $ball_y_dir
-        add L M 
-        sto L $ball_y
-            
-ret
-
-
-@check_collision
-
-    ldm K $ball_x
-    ldm M $paddle_x
-
-    tste K M 
-    jmpf :done
-
-    # possible collision 
-    # check the start of the paddle 
-    ldm L $ball_y
-    ldm M $paddle_y
-    tstg M L
-    jmpt :done
-
-    #check the tail of the paddle
-    ldm K $paddle_h
-    add M K 
-    ldi K 32
-    dmod M K 
-    ld M K 
-
-    tstg L M 
-    jmpt :done
-    ;call @draw_ball
-    call @collision
-
-:done
-ret
-
-@collision
-    call @draw_ball
-    call @update_paddle
-    ldm M $paddle_h
-    addi M 1
-    sto M $paddle_h
-
-    ldm M $paddle_x
-    addi M 1
-    sto M $paddle_x
-
-    ldi M 63
-    sto M $ball_x
-    call @draw_ball
-    call @update_paddle
-ret
-
+@fatal_error
+    ldi X 5
+    ldi Y 30
+    ld I Y 
+    muli I 64
+    add I X
+    ldi A \f
+    stx A $VIDEO_MEM
+halt

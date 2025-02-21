@@ -18,9 +18,9 @@ call @init_kernel
         
     :loop
         # Draw the char
-        ldi A 1
-        ldi B 4
-        ldi C $sprite
+        ldi A 8
+        ldi B 8
+        ldi C $sprite1
         int 5
 
         :read_kbd
@@ -34,9 +34,9 @@ call @init_kernel
         ld K A
 
         # un-Draw the char
-        ldi A 1
-        ldi B 4
-        ldi C $sprite
+        ldi A 8
+        ldi B 8
+        ldi C $sprite1
         int 5
 
         tst K \Up

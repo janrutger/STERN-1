@@ -68,9 +68,9 @@
     # don't forget to enable Interrupts
     # int 1, clears the screen, 
     # return from interrupt (rti)  enbles interrupts
-    nop
+
     int 1
-    nop
+
 ret
 
 
