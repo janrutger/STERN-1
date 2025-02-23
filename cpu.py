@@ -169,6 +169,8 @@ class Cpu:
                     self.registers[1] = value
                     self.PC = adres
 
+        print("CPU halted")
+
 
 
 
