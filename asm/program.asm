@@ -36,11 +36,21 @@ halt
 
         call @is_digit
         jmpf :check_neg
+            ldi C 1
             call @get_number_token
             jmpf :tokennice
             jmp :end_tokens
+
         :check_neg
         call @is_neg
+        jmpf :check_operator
+            ldi C -1
+            call @read_char
+            call @get_number_token
+            jmpf :tokennice
+            jmp :end_tokens
+            
+        :check_operator
 
     jmp :tokennice
 
@@ -55,6 +65,7 @@ ret
 
 @get_number_token
     # expects first digit in A 
+    # expects sign in C
     # returns tokentype and value in token_buffer
     # statusbit is 1 when \Return (end of line)
 
@@ -74,9 +85,7 @@ ret
         call @fatal_error
 
         :proces_digit
-
             muli L 10
-
             subi A 20
             add L A
     jmp :next_digit_token_loop
@@ -85,8 +94,11 @@ ret
     ldi K 0
     inc I $token_buffer_indx
     stx K $token_buffer_pntr
+
+    mul L C
     inc I $token_buffer_indx
     stx L $token_buffer_pntr
+
     tst A \Return
 ret
 
