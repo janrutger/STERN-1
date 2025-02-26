@@ -18,6 +18,9 @@
     tst A \+
     jmpt :isoperator
 
+    tst A \*
+    jmpt :isoperator
+
     ret
 :isoperator
     ret
