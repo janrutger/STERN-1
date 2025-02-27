@@ -3,6 +3,15 @@
     call @print_char
 ret
 
+@cursor_on
+    ldi A \_ 
+    call @print_char
+ret
+
+@cursor_off
+    ldi A \space
+    call @print_char
+ret
 
 @print_char
 # expexts $cursor_x and $cursor_y

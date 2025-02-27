@@ -9,6 +9,19 @@
         tst A \Return
         jmpt :end_of_input
 
+        tst A \BackSpace
+        jmpf :check_printeble
+            ldm X $cursor_x
+            tst X 0
+            jmpt :get_input
+
+            call @cursor_off
+            dec X $cursor_x
+            dec I $input_buffer_indx
+            call @cursor_on
+        jmp :get_input
+
+        :check_printeble
         # check if A is printeble, ignore arrow-keys
         ldi M \z 
         tstg A M 
