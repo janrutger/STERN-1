@@ -12,18 +12,17 @@
     ret 
 
 @is_operator
-    tst A \-
-    jmpt :isoperator
-    
-    tst A \+
-    jmpt :isoperator
+    ldi M \null
+    tstg A M 
+    jmpf :nooperator
 
-    tst A \*
-    jmpt :isoperator
+    ldi M \space
+    tstg M A
+    jmpf :nooperator
 
     ret
-:isoperator
-    ret
+:nooperator
+    ret 
 
 @is_digit
     ldi M 19
