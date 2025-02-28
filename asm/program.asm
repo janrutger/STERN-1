@@ -13,113 +13,71 @@ call @init_stern
 
 @program
     call @get_input_line
-
     call @tokennice_line
+    ;call @execute_tokens
+
+    ldi A 4
+    call @INT_to_BCD
+
     nop
 halt
 
 
-@tokennice_line
-    . $token_buffer 64
-    . $token_buffer_pntr 1
-    . $token_buffer_indx 1
-    % $token_buffer_pntr $token_buffer
-    % $token_buffer_indx 0
+@INT_to_BCD
 
-    sto Z $input_buffer_indx  
 
-    :tokennice
-        call @read_char
-        jmpt :end_tokens
-        tst A \space
-        jmpt :tokennice
+ldi M 0
+sto M $BCDstring_index
 
-        call @is_digit
-        jmpf :check_neg
-            ldi C 1
-            call @get_number_token
-            jmpf :tokennice
-            jmp :end_tokens
+# expects the number value to print in A 
 
-        :check_neg
-        call @is_neg
-        jmpf :check_operator
-            ldi C -1
-            call @read_char
-            call @get_number_token
-            jmpt :end_tokens
-            jmp :tokennice
-            
-        :check_operator
-        call @is_operator
-        jmpf :check_string
-            call @get_operator_token
-            jmpt :end_tokens
-            jmp :tokennice
+    # + signed numbers is the default M=1
+    # Check is A has - sign, M=0
+    # Multiply A * -1, to change sign
+    ldi M 1
+    tstg A Z
+    jmpt :get_bcd_string_val
+    ldi M 0
+    muli A -1
 
-        :check_string
+    :get_bcd_string_val
+        ldi K 10
+        dmod A K
 
-    jmp :tokennice
+        addi K 20
+        inc I $BCDstring_index
+        stx K $BCDstring_pntr
 
-    :end_tokens
-        inc I $token_buffer_indx
-        stx Z $token_buffer_pntr
-        inc I $token_buffer_indx
-        stx Z $token_buffer_pntr
+        tst A 0 
+        jmpf :get_bcd_string_val
+        
+        # Check sign M, when negative M=0
+        # add sign (-) in front 
+        tst M 1
+        jmpt :print_values_reverse
+        ldi A \-
+        inc I $BCDstring_index
+        stx A $BCDstring_pntr
+
+
+    # print in reverse order
+    :print_values_reverse
+        dec I $BCDstring_index
+        ldx A $BCDstring_pntr
+;nop
+        call @print_char
+
+        tst I 0
+        jmpf :print_values_reverse
+    
+        ldi A \space
+    call @print_char
+
 ret
+
     
 
-@get_operator_token
-    # expects first [part /,*,+,-, !, ...]  operator in A 
-    # expects second [part !=, >=, ...]
-    # returns tokentype and value in token_buffer
-    # statusbit is 1 when \Return (end of line)
 
-    tst B \space
-    jmpt :operator_token
-    tst B \Return
-    jmpt :operator_token
-
-    call @fatal_error
-    :operator_token
-        # K = token type \0=mumber, \1=operator, \2=string
-        ldi K \1
-
-        tst A \+
-        jmpf :tst_min
-        ldi A @do_addition
-        jmp :store_operator_token
-
-        :tst_min
-        tst A \-
-        jmpf :last_token_check
-        ldi A @do_substraction
-        jmp :store_operator_token
-
-        :last_token_check
-            # K = token type \0=mumber, \1=operator, \2=string
-            ldi K \2
-
-    :store_operator_token
-        # K = token type \0=mumber, \1=operator, \2=string
-        inc I $token_buffer_indx
-        stx K $token_buffer_pntr
-
-        # A = value
-        inc I $token_buffer_indx
-        stx A $token_buffer_pntr
-
-        # terminate string type
-        tst K \2
-        jmpf :end_operator_token
-            ldi A \null 
-            inc I $token_buffer_indx
-            stx A $token_buffer_pntr
-        
-        :end_operator_token
-            call @read_char
-            tst A \Return
-ret
 
 @do_addition
 ret
@@ -127,14 +85,23 @@ ret
 @do_substraction
 ret
 
+@do_dot
+ret
+
+@do_bang
+ret
+
 
 ## INCLUDE helpers
 
 INCLUDE read_char
 INCLUDE get_input_line
-INCLUDE get_number_token
+INCLUDE tokennice_line
 INCLUDE check_char_type
-INCLUDE errors
+INCLUDE get_number_token
+INCLUDE get_operator_token
 INCLUDE printing
+INCLUDE errors
+
 
 

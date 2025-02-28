@@ -1,7 +1,7 @@
-@print_cursor
-    ldi A \_ 
-    call @print_char
-ret
+; @print_cursor
+;    ldi A \_ 
+;    call @print_char
+; ret
 
 @cursor_on
     ldi A \_ 
