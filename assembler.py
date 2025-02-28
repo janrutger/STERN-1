@@ -158,7 +158,7 @@ if __name__ == "__main__":
     assembler.assemble("loader2.asm", prog_start)
 
     prog_start = 2 * 1024
-    assembler.assemble("kernel.asm", prog_start)
+    assembler.assemble("kernel_dummy.asm", prog_start)
 
     prog_start = 5 * 1024
     assembler.assemble("program.asm", prog_start)

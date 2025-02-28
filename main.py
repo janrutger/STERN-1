@@ -41,7 +41,7 @@ def main():
 
     A = Assembler(start_var)
     A.assemble("loader2.asm", start_loader, "loader.bin")
-    A.assemble("kernel.asm",  start_kernel, "kernel.bin")
+    A.assemble("kernel_dummy.asm",  start_kernel, "kernel.bin")
     A.assemble("program.asm", start_prog,   "program.bin")
 
     # Loader bin into MainMem

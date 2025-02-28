@@ -16,7 +16,7 @@ call @init_stern
     call @tokennice_line
     ;call @execute_tokens
 
-    ldi A 4
+    ldi A -33333
     call @INT_to_BCD
 
     nop
@@ -24,6 +24,13 @@ halt
 
 
 @INT_to_BCD
+. $BCDstring 16
+. $BCDstring_pntr 1
+. $BCDstring_index 1
+% $BCDstring_pntr $BCDstring
+
+; ldi M $BCDstring 
+; sto M $BCDstring_pntr
 
 
 ldi M 0
@@ -64,14 +71,17 @@ sto M $BCDstring_index
     :print_values_reverse
         dec I $BCDstring_index
         ldx A $BCDstring_pntr
-;nop
+
+        ld M I
         call @print_char
+        inc X $cursor_x
+        ld I M
 
         tst I 0
         jmpf :print_values_reverse
     
-        ldi A \space
-    call @print_char
+    ; ldi A \space
+    ; call @print_char
 
 ret
 
