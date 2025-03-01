@@ -28,3 +28,59 @@ ret
     # print on screen
     stx A $VIDEO_MEM
 ret   
+
+
+@print_to_BCD
+
+ldi M 0
+sto M $BCDstring_index
+
+# expects the number value to print in A 
+
+    # + signed numbers is the default M=1
+    # Check is A has - sign, M=0
+    # Multiply A * -1, to change sign
+    ldi M 1
+    tstg A Z
+    jmpt :get_bcd_string_val
+    ldi M 0
+    muli A -1
+
+    :get_bcd_string_val
+        ldi K 10
+        dmod A K
+
+        addi K 20
+        inc I $BCDstring_index
+        stx K $BCDstring_pntr
+
+        tst A 0 
+        jmpf :get_bcd_string_val
+        
+        # Check sign M, when negative M=0
+        # add sign (-) in front 
+        tst M 1
+        jmpt :print_values_reverse
+        ldi A \-
+        inc I $BCDstring_index
+        stx A $BCDstring_pntr
+
+
+    # print in reverse order
+    :print_values_reverse
+        dec I $BCDstring_index
+        ldx A $BCDstring_pntr
+
+        ld M I
+        call @print_char
+        inc X $cursor_x
+        ld I M
+
+        tst I 0
+        jmpf :print_values_reverse
+    
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+
+ret
