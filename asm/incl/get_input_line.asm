@@ -1,6 +1,6 @@
 @get_input_line 
+    sto Z $input_buffer_indx
     :get_input
-        sto Z $input_buffer_indx
         call @cursor_on
         call @KBD_READ
         tst A \null

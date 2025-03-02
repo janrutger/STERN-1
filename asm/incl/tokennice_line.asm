@@ -1,11 +1,12 @@
-@tokennice_line
     . $token_buffer 64
     . $token_buffer_pntr 1
     . $token_buffer_indx 1
     % $token_buffer_pntr $token_buffer
     % $token_buffer_indx 0
 
+@tokennice_line
     sto Z $input_buffer_indx  
+    sto Z $token_buffer_indx
 
     :tokennice
         call @read_char
