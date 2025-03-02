@@ -1,0 +1,51 @@
+LD	Ra	Rb	
+LDI	Ra	integer	integer, \string and @adres format
+LDM	Ra	adres	
+LDX	Ra	adres 	adres + R(i)
+			
+STO	Ra	adres	
+STX	Ra	adres	adres + R(i)
+			
+ADD	Ra	Rb	
+ADDI	Ra	integer	integer, \string and @adres format
+			
+MUL	Ra	Rb	
+MULI	Ra	integer	integer, \string and @adres format
+			
+SUB	Ra	Rb	
+SUBI	Ra	integer	R = R - integer, set statusbit when 0, integer, \string and @adres format
+SUBR	Ra	integer	R = integer - R, set statusbit when 0, integer, \string and @adres format
+			
+ANDI	Ra	integer 	binary AND R & integer,  integer, \string and @adres format
+XORX	Ra	adres	binary XOR wíth Ra and the content of adres
+			
+DIV	Ra	Rb	
+DIVI	Ra	integer	R = R // integer, integer, \string and @adres format
+DIVR	Ra	integer	R = integer // R, integer, \string and @adres format
+			
+DMOD	Ra	Rb	divmod Ra Rb, returns quotiënt in Ra, remainder in Rb
+			
+TST	Ra	integer 	set statusbit when equal 
+TSTE	Ra	Rb	set statusbit when true
+TSTG	Ra	Rb	set statusbit when true 
+			
+INC	Ra	adres 	load adres to R, inc mem value
+DEC	Ra	adres 	load adres to R, dec, write back. sets statusbit when hits 0
+			
+CALL	adres 		store return adres on stack, dec stack. return RET
+CALLX	adres 		calls the adres stored in adres + R(i), stores return adres n stack, dec stack. return RET
+			
+INT	integer		calls interrupt integer, first saves current CPU state. Retrun RTI
+			
+JMP	adres 		jump always 
+JMPX	adres 		jumps to adres stored in adres + R(i)
+JMPT	adres 		jump when statusbit is true 1
+JMPF	adres 		jump when statusbit is false 0
+			
+			
+NOP			do nothing, like sundays
+HALT			Halts the CPU
+RET			returns from CALL and CALLX
+EI			Enable Interrupts
+DI			Disable Interrupts
+RTI			returns from interrupt routine, restore CPU state before interrupt

@@ -81,7 +81,8 @@ class Cpu:
                     self.SP = self.SP - 1               # update stackpointer
                     self.PC = op1                       #load PC wirh jump adres
                 case 25:    # CALLX	adres 		calls the adres stored in adres + R(i), stores return adres n stack, dec stack
-                    adres = int(self.memory.read(int(self.memory.read(op1)) + self.registers[0]))
+                    #adres = int(self.memory.read(int(self.memory.read(op1)) + self.registers[0]))
+                    adres = int(self.memory.read(op1)) + self.registers[0]
                     self.memory.write(self.SP, self.PC) # store PC at stackpointer
                     self.SP = self.SP - 1               # update stackpointer
                     self.PC = adres                       #load PC wirh jump adres
