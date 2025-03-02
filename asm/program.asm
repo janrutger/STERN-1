@@ -43,7 +43,8 @@ halt
         jmp :loop_parse_tokens
 
     :end_of_tokens
-        tst Z $cursor_x
+        ldm M $cursor_x
+        tste Z M 
         jmpt :no_newline
             call @cursor_off
             call @print_nl
