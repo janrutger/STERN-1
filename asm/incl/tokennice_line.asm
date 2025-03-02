@@ -32,13 +32,17 @@
             
         :check_operator
         call @is_operator
-        jmpf :check_string
+        jmpf :check_chars
             call @get_operator_token
             jmpt :end_tokens
             jmp :tokennice
 
-        :check_string
-
+        :check_chars
+        call @is_char
+        jmpf :tokennice
+            call @get_string_token
+            jmpt :end_tokens
+            jmp :tokennice
     jmp :tokennice
 
     :end_tokens
@@ -46,4 +50,5 @@
         stx Z $token_buffer_pntr
         inc I $token_buffer_indx
         stx Z $token_buffer_pntr
+        nop
 ret

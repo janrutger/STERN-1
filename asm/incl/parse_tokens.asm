@@ -17,6 +17,10 @@
     :no_newline
 ret
 
+
+
+
+
 @read_token
     # returns token type  in B 
     # returns token value in A  
@@ -24,11 +28,11 @@ ret
     # returns true when last token is read
     # token types \0=mumber, \1=operator, \2=string
 
-    # load token type B
+    # load token type in B
     inc I $token_buffer_indx
     ldx B $token_buffer_pntr
 
-    # load token value A
+    # load token value in A
     inc I $token_buffer_indx
     ldx A $token_buffer_pntr
 
@@ -48,10 +52,17 @@ ret
     # check if token is a operator
     :check_for_operator_token
         tst B \1
-        jmpf :no_valid_token
+        jmpf :check_for_string_token
             # handle operator token 
             ld I A 
             callx $mem_start
+        ret
+    
+    # check if token is a string
+    :check_for_string_token
+        tst B \2
+        jmpt :no_valid_token
+            # handele string token
         ret
 
     :no_valid_token

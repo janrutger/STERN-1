@@ -45,6 +45,7 @@ INCLUDE tokennice_line
 INCLUDE check_char_type
 INCLUDE get_number_token
 INCLUDE get_operator_token
+INCLUDE get_string_token
 INCLUDE parse_tokens
 INCLUDE printing
 INCLUDE math
