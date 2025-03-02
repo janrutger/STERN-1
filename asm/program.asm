@@ -32,64 +32,7 @@ call @init_stern
     jmp @program
 halt
 
-@parse_tokens
-    sto Z $token_buffer_indx
-    :loop_parse_tokens
-        call @read_token
-        jmpt :end_of_tokens
 
-        # Parse and execute tokens here 
-        call @execute_token
-        jmp :loop_parse_tokens
-
-    :end_of_tokens
-        ldm M $cursor_x
-        tste Z M 
-        jmpt :no_newline
-            call @cursor_off
-            call @print_nl
-    :no_newline
-ret
-
-@read_token
-    # load token type  in B 
-    # load token value in A  
-    # \null is end of token_buffer
-    # token types \0=mumber, \1=operator, \2=string
-    # returns true when last token is read
-
-    # load token type B
-    inc I $token_buffer_indx
-    ldx B $token_buffer_pntr
-
-    # load token value A
-    inc I $token_buffer_indx
-    ldx A $token_buffer_pntr
-
-    tst B \null
-ret
-
-@execute_token
-        # check if token is a number
-        tst B \0
-        jmpf :check_for_operator_token
-            # handle number token
-            call @datastack_push 
-        ret
-
-
-        # check if token is a operator
-        :check_for_operator_token
-        tst B \1
-        jmpf :no_valid_token
-            # handle operator token 
-            ld I A 
-            callx $mem_start
-        ret
-
-    :no_valid_token
-        call @fatal_error
-ret
 
 
 
@@ -102,6 +45,7 @@ INCLUDE tokennice_line
 INCLUDE check_char_type
 INCLUDE get_number_token
 INCLUDE get_operator_token
+INCLUDE parse_tokens
 INCLUDE printing
 INCLUDE math
 INCLUDE errors

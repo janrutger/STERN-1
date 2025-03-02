@@ -7,7 +7,30 @@
 ret
 
 @do_substraction
+    call @datastack_pop
+    ld B A 
+    call @datastack_pop
+    sub A B 
+    call @datastack_push 
 ret
+
+@do_multiplication
+    call @datastack_pop
+    ld B A 
+    call @datastack_pop
+    mul A B 
+    call @datastack_push 
+ret
+
+@do_division
+    call @datastack_pop
+    ld B A 
+    call @datastack_pop
+    div A B 
+    call @datastack_push 
+ret
+
+
 
 @do_dot
     call @datastack_pop

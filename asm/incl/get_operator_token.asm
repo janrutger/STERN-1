@@ -21,8 +21,20 @@
 
         :tst_min
             tst A \-
-            jmpf :tst_dot
+            jmpf :tst_mul
             ldi A @do_substraction
+            jmp :store_operator_token
+
+        :tst_mul
+            tst A \*
+            jmpf :tst_div
+            ldi A @do_multiplication
+            jmp :store_operator_token
+
+        :tst_div
+            tst A \/
+            jmpf :tst_dot
+            ldi A @do_division
             jmp :store_operator_token
 
         :tst_dot
@@ -36,6 +48,7 @@
             jmpf :last_token_check
             ldi A @do_bang
             jmp :store_operator_token
+
 
         :last_token_check
             # K = token type \0=mumber, \1=operator, \2=string
