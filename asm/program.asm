@@ -29,7 +29,6 @@ call @init_stern
     call @get_input_line
     call @tokennice_line
     call @execute_tokens
-nop
     jmp @program
 halt
 
@@ -76,6 +75,11 @@ halt
 
 
 :execution_done
+    tst Z $cursor_x
+    jmpt :execute_tokens_done
+        call @cursor_off
+        call @print_nl
+    :execute_tokens_done
 ret
 
 

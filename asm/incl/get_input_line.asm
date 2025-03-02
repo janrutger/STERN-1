@@ -48,13 +48,14 @@
         ;ldi A \space
         ;call @print_char
         call @cursor_off
-        inc Y $cursor_y
-        sto Z $cursor_x
+        ;inc Y $cursor_y
+        ;sto Z $cursor_x
 
-        tst Y 31
-        jmpf :end
-        call @fatal_error
-    :end
+        ;tst Y 31
+        ;jmpf :end
+        ;call @fatal_error
+        ;:end
+        call @print_nl
         call @cursor_on
         # Store termination in buffer
         ldi A \Return

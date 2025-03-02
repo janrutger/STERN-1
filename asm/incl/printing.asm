@@ -29,6 +29,16 @@ ret
     stx A $VIDEO_MEM
 ret   
 
+@print_nl
+    inc Y $cursor_y
+    sto Z $cursor_x
+
+    tst Y 31
+    jmpf :end
+    sto Z $cursor_y
+:end
+ret
+
 
 @print_to_BCD
 
