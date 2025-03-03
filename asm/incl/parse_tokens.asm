@@ -1,7 +1,7 @@
 @parse_tokens
     sto Z $token_buffer_indx
     :loop_parse_tokens
-        call @read_token2
+        call @read_token
         jmpt :end_of_tokens
 
         # Parse and execute tokens here 
@@ -17,7 +17,7 @@
     :no_newline
 ret
 
-@read_token2
+@read_token
     # returns token type  in B 
     # returns token value in A  
     # \null is end of token_buffer
@@ -30,7 +30,7 @@ ret
 
     # test for last token
     tst B \null
-    jmpt :end_read_token2
+    jmpt :end_read_token
 
     # test for String type token
     # if not a string type,
@@ -40,7 +40,7 @@ ret
         # load token value in A
         inc I $token_buffer_indx
         ldx A $token_buffer_pntr
-    jmp :end_read_token2
+    jmp :end_read_token
 
     # handle string type token
     :read_string_token
@@ -55,33 +55,15 @@ ret
             stx M $token_last_string_value_pntr
        
             tst M \null
-        jmpt :end_read_token2
+        jmpt :end_read_token
         jmp :read_string_token_loop
 
     # make sure the exit status is correct
-    :end_read_token2
+    :end_read_token
     tst B \null
 ret
 
 
-
-@read_token
-    # returns token type  in B 
-    # returns token value in A  
-    # \null is end of token_buffer
-    # returns true when last token is read
-    # token types \0=mumber, \1=operator, \2=string
-
-    # load token type in B
-    inc I $token_buffer_indx
-    ldx B $token_buffer_pntr
-
-    # load token value in A
-    inc I $token_buffer_indx
-    ldx A $token_buffer_pntr
-
-    tst B \null
-ret
 
 @execute_token
     # check if token is a number
