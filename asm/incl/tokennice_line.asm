@@ -4,6 +4,14 @@
     % $token_buffer_pntr $token_buffer
     % $token_buffer_indx 0
 
+    . $token_last_string_value 16
+    . $token_last_string_value_pntr 1
+    . $token_last_string_value_indx 1
+    % $token_last_string_value_pntr $token_last_string_value
+    % $token_last_string_value_indx 0
+
+
+
 @tokennice_line
     sto Z $input_buffer_indx  
     sto Z $token_buffer_indx
@@ -50,5 +58,4 @@
         stx Z $token_buffer_pntr
         inc I $token_buffer_indx
         stx Z $token_buffer_pntr
-        nop
 ret
