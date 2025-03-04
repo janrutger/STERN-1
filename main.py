@@ -9,6 +9,7 @@ from stringtable import makechars
 import threading
 from time import sleep
 
+
 def main():
 
     Vh = 32

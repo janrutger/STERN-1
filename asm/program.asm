@@ -25,12 +25,73 @@ call @init_stern
 % $datastack_pntr $datastack
 % $datastack_index 0
 
+call @init_keywords
+nop
+
 @program
     call @get_input_line
     call @tokennice_line
     call @parse_tokens
     jmp @program
 halt
+
+
+@init_keywords
+    . $keyword_indx 0
+    % $keyword_indx 0
+
+    . $keyword_list_len 1
+    % $keyword_list_len 0
+
+    . $keyword_list 10
+    . $keyword_call_dict 10
+
+    # define keywords
+    . $exit_kw 5
+    % $exit_kw \e \x \i \t \null
+
+    . $print_kw 6
+    % $print_kw \p \r \i \n \t \null
+
+
+    # update list and dictonary
+    # update len
+
+        # keyword exit
+        inc I $keyword_indx
+
+        ldi M $exit_kw
+        nop
+        stx M $keyword_list
+
+        ldi M @exit_kw
+        stx M $keyword_call_dict
+
+    inc I $keyword_list_len
+    # next keyword
+        # keyword print 
+        inc I $keyword_indx
+
+        ldi M $print_kw
+        nop
+        stx M $keyword_list
+
+        ldi M @print_kw
+        stx M $keyword_call_dict
+
+    inc I $keyword_list_len
+    # next keyword
+
+ret
+
+@exit_kw
+    int 2
+    halt
+ret
+
+@print_kw
+    ;call @printing
+ret
 
 
 

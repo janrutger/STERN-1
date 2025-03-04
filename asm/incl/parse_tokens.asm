@@ -89,6 +89,7 @@ ret
         tst B \2
         jmpf :no_valid_token
             # handele string token
+            nop
         ret
 
     :no_valid_token

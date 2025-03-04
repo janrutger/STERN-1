@@ -21,9 +21,13 @@
             tst A \space
             jmpt :end_of_string_token
 
-            call @is_char
-        jmpt :loop_string_token
-            call @fatal_error
+            # First char of string [a..z]
+            # Seceond and more can be any printeble char
+            ;call @is_char
+            ;jmpt :loop_string_token
+            ;call @fatal_error
+            jmp :loop_string_token
+
 
 
         :end_of_string_token
