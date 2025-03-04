@@ -36,8 +36,9 @@ nop
 halt
 
 
-@init_keywords
-    . $keyword_indx 0
+
+# start of init keywords 
+    . $keyword_indx 1
     % $keyword_indx 0
 
     . $keyword_list_len 1
@@ -53,15 +54,14 @@ halt
     . $print_kw 6
     % $print_kw \p \r \i \n \t \null
 
-
+@init_keywords
     # update list and dictonary
     # update len
-
+nop
         # keyword exit
         inc I $keyword_indx
 
         ldi M $exit_kw
-        nop
         stx M $keyword_list
 
         ldi M @exit_kw
@@ -73,7 +73,6 @@ halt
         inc I $keyword_indx
 
         ldi M $print_kw
-        nop
         stx M $keyword_list
 
         ldi M @print_kw
