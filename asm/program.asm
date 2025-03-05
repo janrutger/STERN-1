@@ -45,7 +45,12 @@ halt
     % $keyword_list_len 0
 
     . $keyword_list 10
+    . $keyword_list_pntr 1
     . $keyword_call_dict 10
+    . $keyword_call_dict_pntr 1
+    % $keyword_list_pntr $keyword_list
+    % $keyword_call_dict_pntr $keyword_call_dict
+
 
     # define keywords
     . $exit_kw 5
@@ -57,15 +62,15 @@ halt
 @init_keywords
     # update list and dictonary
     # update len
-nop
+
         # keyword exit
+        ldi K $exit_kw
+        ldi L @exit_kw
+
         inc I $keyword_indx
 
-        ldi M $exit_kw
-        stx M $keyword_list
-
-        ldi M @exit_kw
-        stx M $keyword_call_dict
+        stx K $keyword_list_pntr
+        stx L $keyword_call_dict_pntr
 
     inc I $keyword_list_len
     # next keyword
@@ -73,10 +78,10 @@ nop
         inc I $keyword_indx
 
         ldi M $print_kw
-        stx M $keyword_list
+        stx M $keyword_list_pntr
 
         ldi M @print_kw
-        stx M $keyword_call_dict
+        stx M $keyword_call_dict_pntr
 
     inc I $keyword_list_len
     # next keyword
