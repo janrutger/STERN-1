@@ -99,8 +99,15 @@ ret
 ret
 
 
-@find_value
+@find_keyword 
+    # need $keyword_list_pntr for known keywords
+    # need $token_last_string_value_pntr keyword to look for
+    # returns index of keyword in A
+    # returns status = 0 if not found
+    # returns status = 1 if found
+
     
+
 ret
 
 
