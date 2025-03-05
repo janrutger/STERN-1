@@ -37,7 +37,7 @@ halt
 
 
 
-# start of init keywords 
+# start of keyword routines 
     . $keyword_indx 1
     % $keyword_indx 0
 
@@ -46,9 +46,10 @@ halt
 
     . $keyword_list 10
     . $keyword_list_pntr 1
-    . $keyword_call_dict 10
-    . $keyword_call_dict_pntr 1
     % $keyword_list_pntr $keyword_list
+
+    . $keyword_call_dict 10
+    . $keyword_call_dict_pntr 1    
     % $keyword_call_dict_pntr $keyword_call_dict
 
 
@@ -62,28 +63,28 @@ halt
 @init_keywords
     # update list and dictonary
     # update len
-
+    # first keyword
         # keyword exit
         ldi K $exit_kw
         ldi L @exit_kw
 
         inc I $keyword_indx
-
         stx K $keyword_list_pntr
         stx L $keyword_call_dict_pntr
 
-    inc I $keyword_list_len
+        inc I $keyword_list_len
+
     # next keyword
         # keyword print 
+        ldi K $print_kw
+        ldi L @print_kw
+
         inc I $keyword_indx
+        stx K $keyword_list_pntr
+        stx L $keyword_call_dict_pntr
 
-        ldi M $print_kw
-        stx M $keyword_list_pntr
+        inc I $keyword_list_len
 
-        ldi M @print_kw
-        stx M $keyword_call_dict_pntr
-
-    inc I $keyword_list_len
     # next keyword
 
 ret
@@ -98,7 +99,9 @@ ret
 ret
 
 
-
+@find_value
+    
+ret
 
 
 ## INCLUDE helpers
