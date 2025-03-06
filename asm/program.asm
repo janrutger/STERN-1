@@ -98,7 +98,8 @@ ret
     ;call @printing
 ret
 
-
+. $search_indx 1
+. $keyword_value_pntr 1
 @find_keyword 
     # need $keyword_list_pntr for known keywords
     # need $token_last_string_value_pntr keyword to look for
@@ -107,6 +108,32 @@ ret
     # returns status = 1 if found
 
     
+    sto Z $keyword_indx
+    
+
+    :search_loop
+        # Get the adres of keyword
+        inc I $keyword_indx
+        ldx A $keyword_list
+        sto A $keyword_value_pntr
+
+        sto Z $search_indx
+        :compare_loop
+            inc I $search_indx
+            ldx A $keyword_value_pntr
+            ldx B $token_last_string_value_pntr
+
+            tste A B 
+            jmpf :keyword_not_equal
+            tst A \null
+            jmpt :keyword_found
+            jmp :compare_loop
+
+
+        :keyword_not_equal 
+            
+
+    :keyword_found
 
 ret
 
