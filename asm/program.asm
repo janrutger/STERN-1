@@ -133,16 +133,17 @@ ret
 
         :keyword_not_equal 
             # check for last keyword
-            ldm K $keyword_indx
+            # its just a string
+            ;ldm K $keyword_indx
             ldm L $keyword_list_len
-            tste K L
+            ;tste K L
+            tste L C  
             jmpt :keyword_not_found
             jmp :search_loop
 
     :keyword_found
         ld A C
         tste A A 
-        nop
         jmp :end_find_keyword
 
 
@@ -150,8 +151,8 @@ ret
         # must return status = 0 when not found
         # returns A = 0 as default
         ldi A 0
+        ldi B \2
         tst A 1
-
 
 :end_find_keyword
 nop
