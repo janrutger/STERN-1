@@ -55,8 +55,19 @@ ret
             stx M $token_last_string_value_pntr
        
             tst M \null
-        jmpt :end_read_token
+
+        jmpt :check_for_keyword
         jmp :read_string_token_loop
+
+    :check_for_keyword
+        call @find_keyword
+        jmpf :end_read_token
+        # token types   \0=mumber, \1=operator, \2=string
+        #               \3=keyword
+        # Find_keyword returns Index in A
+        ldi B \3
+    jmp :end_read_token
+
 
     # make sure the exit status is correct
     :end_read_token
@@ -87,9 +98,15 @@ ret
     # check if token is a string
     :check_for_string_token
         tst B \2
+        jmpf :check_for_keyword_token
+            # handele string token
+        ret
+
+    # check if token is a keyword
+    :check_for_keyword_token
+        tst B \3
         jmpf :no_valid_token
             # handele string token
-            nop
         ret
 
     :no_valid_token

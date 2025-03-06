@@ -26,7 +26,6 @@ call @init_stern
 % $datastack_index 0
 
 call @init_keywords
-nop
 
 @program
     call @get_input_line
@@ -98,6 +97,8 @@ ret
     ;call @printing
 ret
 
+
+# Find keyword starts here
 . $search_indx 1
 . $keyword_value_pntr 1
 @find_keyword 
@@ -114,7 +115,8 @@ ret
     :search_loop
         # Get the adres of keyword
         inc I $keyword_indx
-        ldx A $keyword_list
+        ld C I 
+        ldx A $keyword_list_pntr
         sto A $keyword_value_pntr
 
         sto Z $search_indx
@@ -129,12 +131,30 @@ ret
             jmpt :keyword_found
             jmp :compare_loop
 
-
         :keyword_not_equal 
-            
+            # check for last keyword
+            ldm K $keyword_indx
+            ldm L $keyword_list_len
+            tste K L
+            jmpt :keyword_not_found
+            jmp :search_loop
 
     :keyword_found
+        ld A C
+        tste A A 
+        nop
+        jmp :end_find_keyword
 
+
+    :keyword_not_found
+        # must return status = 0 when not found
+        # returns A = 0 as default
+        ldi A 0
+        tst A 1
+
+
+:end_find_keyword
+nop
 ret
 
 
