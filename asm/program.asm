@@ -134,9 +134,7 @@ ret
         :keyword_not_equal 
             # check for last keyword
             # its just a string
-            ;ldm K $keyword_indx
             ldm L $keyword_list_len
-            ;tste K L
             tste L C  
             jmpt :keyword_not_found
             jmp :search_loop
@@ -149,13 +147,13 @@ ret
 
     :keyword_not_found
         # must return status = 0 when not found
-        # returns A = 0 as default
-        ldi A 0
+        # returns token_last_string_value 
+        ldi A $token_last_string_value
         ldi B \2
         tst A 1
 
 :end_find_keyword
-nop
+
 ret
 
 
