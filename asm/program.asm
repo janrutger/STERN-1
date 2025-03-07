@@ -94,7 +94,8 @@ ret
 ret
 
 @print_kw
-    ;call @printing
+    call @datastack_pop
+    call @print_to_BCD
 ret
 
 

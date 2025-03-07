@@ -107,6 +107,10 @@ ret
         tst B \3
         jmpf :no_valid_token
             # handele string token
+            ld I A 
+            ldx A $keyword_call_dict_pntr
+            ld I A 
+            callx $mem_start
         ret
 
     :no_valid_token
