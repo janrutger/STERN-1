@@ -42,8 +42,8 @@ def main():
 
     A = Assembler(start_var)
     A.assemble("loader2.asm", start_loader, "loader.bin")
-    A.assemble("kernel_dummy.asm",  start_kernel, "kernel.bin")
-    A.assemble("program.asm", start_prog,   "program.bin")
+    A.assemble("kernel2.asm",  start_kernel, "kernel.bin")
+    A.assemble("spritewalker.asm", start_prog,   "program.bin")
 
     # Loader bin into MainMem
     program = readFile("loader.bin", 0)
@@ -61,7 +61,7 @@ def main():
         MainMem.write(int(line[0]), line[1])
 
     # Start the CPU thread
-    cpu_thread = threading.Thread(target=CPU.run, args=(start_prog,))
+    cpu_thread = threading.Thread(target=CPU.run, args=(start_kernel,))
     cpu_thread.start()
 
     # Start the screen main loop (tK)

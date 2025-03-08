@@ -1,9 +1,5 @@
-# MAIN program
-# runs after init
-
-call @init_stern
-call @init_kernel
-
+# main program is loaded at adres 4608
+# is called with rh rub command
 
 @program
         ldi X 25
@@ -67,19 +63,11 @@ call @init_kernel
     jmp :loop
 
 :Return  
-int 2    
-halt
-
-
-# helper routines
-@wait
-    ldi L 1000
-    :lus
-        subi L 1
-        nop
-        tst L 0
-        jmpf :lus
 ret
+
+
+
+
 
 
 

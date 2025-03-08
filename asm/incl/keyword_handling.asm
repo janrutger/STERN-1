@@ -21,6 +21,10 @@
     . $print_kw 6
     % $print_kw \p \r \i \n \t \null
 
+    . $run_kw 4
+    % $run_kw \r \u \n \null
+
+
 @init_keywords
     # update list and dictonary
     # update len
@@ -47,7 +51,17 @@
         inc I $keyword_list_len
 
     # next keyword
+        # keyword run 
+        ldi K $run_kw
+        ldi L @run_kw
 
+        inc I $keyword_indx
+        stx K $keyword_list_pntr
+        stx L $keyword_call_dict_pntr
+
+        inc I $keyword_list_len
+
+    # next keyword
 ret
 
 
