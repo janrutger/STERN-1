@@ -12,7 +12,7 @@
 
 
 
-@tokennice_line
+@tokennice_input_buffer
     sto Z $input_buffer_indx  
     sto Z $token_buffer_indx
 

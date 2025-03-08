@@ -1,3 +1,10 @@
+. $input_buffer 64
+. $input_buffer_pntr 1
+. $input_buffer_indx 1
+% $input_buffer_pntr $input_buffer
+% $input_buffer_indx 0
+
+
 @get_input_line 
     sto Z $input_buffer_indx
     :get_input
@@ -45,18 +52,11 @@
     :end_of_input
         # increase Y position, fatal after max line lenght 32-1
         # must scroll 
-        ;ldi A \space
-        ;call @print_char
-        call @cursor_off
-        ;inc Y $cursor_y
-        ;sto Z $cursor_x
 
-        ;tst Y 31
-        ;jmpf :end
-        ;call @fatal_error
-        ;:end
+        call @cursor_off
         call @print_nl
         call @cursor_on
+        
         # Store termination in buffer
         ldi A \Return
         inc I $input_buffer_indx

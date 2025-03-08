@@ -1,7 +1,14 @@
-; @print_cursor
-;    ldi A \_ 
-;    call @print_char
-; ret
+. $cursor_x 1
+. $cursor_y 1
+% $cursor_x 0
+% $cursor_y 0
+
+. $BCDstring 16
+. $BCDstring_pntr 1
+. $BCDstring_index 1
+% $BCDstring_pntr $BCDstring
+
+
 
 @cursor_on
     ldi A \_ 

@@ -1,3 +1,10 @@
+. $datastack 16
+. $datastack_pntr 1
+. $datastack_index 1
+% $datastack_pntr $datastack
+% $datastack_index 0
+
+
 @do_addition
     call @datastack_pop
     ld B A 
