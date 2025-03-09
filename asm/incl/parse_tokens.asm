@@ -17,6 +17,11 @@
     :no_newline
 ret
 
+
+
+
+# helpers
+
 @read_token
     # returns token type  in B 
     # returns token value in A  
@@ -45,7 +50,7 @@ ret
     # handle string type token
     :read_string_token
         sto Z $token_last_string_value_indx
-        ldi A $token_last_string_value
+        ;ldi A $token_last_string_value
 
         :read_string_token_loop
             inc I $token_buffer_indx
@@ -59,15 +64,15 @@ ret
         jmpt :check_for_keyword
         jmp :read_string_token_loop
 
-    :check_for_keyword
-        call @find_keyword
-        jmpf :end_read_token
-        # token types   \0=mumber, \1=operator, \2=string
-        #               \3=keyword
-        # Find_keyword returns Index in A
-        ldi B \3
-    jmp :end_read_token
-
+        :check_for_keyword
+            call @find_keyword
+            # returns string type, when keyword not found
+            jmpf :end_read_token
+            # token types   \0=mumber, \1=operator, \2=string
+            #               \3=keyword
+            # returns index of found keyword in A 
+            ldi B \3
+        jmp :end_read_token
 
     # make sure the exit status is correct
     :end_read_token

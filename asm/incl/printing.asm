@@ -46,14 +46,19 @@ ret
 :end
 ret
 
+@print_cls
+    sto Z $cursor_y
+    sto Z $cursor_x
+
+    int 1
+ret
+
 
 @print_to_BCD
+    ldi M 0
+    sto M $BCDstring_index
 
-ldi M 0
-sto M $BCDstring_index
-
-# expects the number value to print in A 
-
+    # expects the number value to print in A 
     # + signed numbers is the default M=1
     # Check is A has - sign, M=0
     # Multiply A * -1, to change sign

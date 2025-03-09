@@ -10,6 +10,7 @@ ret
 
 
 @run_kw
+    ;call @print_cls
     ldm I $prog_start
     callx $mem_start 
 ret
