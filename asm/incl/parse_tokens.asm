@@ -22,12 +22,23 @@ ret
 
 # helpers
 
+. $token_last_string_value 16
+. $token_last_string_value_pntr 1
+. $token_last_string_value_indx 1
+. $token_last_string_value_hash 1
+% $token_last_string_value_pntr $token_last_string_value
+% $token_last_string_value_indx 0
+
 @read_token
     # returns token type  in B 
     # returns token value in A  
+    # returns token hash  in C when type = stringtype
     # \null is end of token_buffer
     # returns true when last token is read
     # token types \0=mumber, \1=operator, \2=string
+
+    # reset hash
+    sto Z $token_last_string_value_hash
 
     # load token type in B
     inc I $token_buffer_indx
@@ -56,26 +67,39 @@ ret
             inc I $token_buffer_indx
             ldx M $token_buffer_pntr
 
+            # store value
             inc I $token_last_string_value_indx
             stx M $token_last_string_value_pntr
        
+            # check for end of stringtoken \null
             tst M \null
+            jmpt :check_for_keyword
 
-        jmpt :check_for_keyword
+            # calc the  hash of the value
+            ldm K $token_last_string_value_hash
+            muli K 7
+            add K M 
+            sto K $token_last_string_value_hash
+
         jmp :read_string_token_loop
 
         :check_for_keyword
             call @find_keyword
             # returns string type, when keyword not found
             jmpf :end_read_token
+            # else returns index of found keyword in A 
+
             # token types   \0=mumber, \1=operator, \2=string
             #               \3=keyword
-            # returns index of found keyword in A 
             ldi B \3
         jmp :end_read_token
 
-    # make sure the exit status is correct
+    
     :end_read_token
+    # return hash in C
+    # make sure the exit status is correct
+
+    ldm C $token_last_string_value_hash 
     tst B \null
 ret
 

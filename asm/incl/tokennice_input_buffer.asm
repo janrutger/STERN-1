@@ -4,12 +4,6 @@
     % $token_buffer_pntr $token_buffer
     % $token_buffer_indx 0
 
-    . $token_last_string_value 16
-    . $token_last_string_value_pntr 1
-    . $token_last_string_value_indx 1
-    % $token_last_string_value_pntr $token_last_string_value
-    % $token_last_string_value_indx 0
-
 
 
 @tokennice_input_buffer

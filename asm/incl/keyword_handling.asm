@@ -17,12 +17,39 @@
     # define keywords
     . $exit_kw 5
     % $exit_kw \e \x \i \t \null
+    . $exit_hash 1
 
     . $print_kw 6
     % $print_kw \p \r \i \n \t \null
+    . $print_hash 1
+
 
     . $run_kw 4
     % $run_kw \r \u \n \null
+    . $run_hash 1
+
+
+
+@calc_kw_hash
+    # expect point to string in K 
+    . $string_to_hash 1
+    sto K $string_to_hash
+    # returns hash in M 
+    ld M Z
+
+    sto Z $search_indx
+    :loop_calc_hash
+        inc I $search_indx
+        ldx A $string_to_hash
+
+        tst A \null
+        jmpt :end_hash_calc
+            muli M 7
+            add M A
+        jmp :loop_calc_hash
+
+:end_hash_calc
+ret
 
 
 @init_keywords
@@ -32,6 +59,9 @@
         # keyword exit
         ldi K $exit_kw
         ldi L @exit_kw
+
+        call @calc_kw_hash
+        sto M $exit_hash
 
         inc I $keyword_indx
         stx K $keyword_list_pntr
@@ -44,6 +74,9 @@
         ldi K $print_kw
         ldi L @print_kw
 
+        call @calc_kw_hash
+        sto M $print_hash
+
         inc I $keyword_indx
         stx K $keyword_list_pntr
         stx L $keyword_call_dict_pntr
@@ -54,6 +87,9 @@
         # keyword run 
         ldi K $run_kw
         ldi L @run_kw
+        
+        call @calc_kw_hash
+        sto M $run_hash
 
         inc I $keyword_indx
         stx K $keyword_list_pntr
@@ -103,7 +139,7 @@ ret
             # its just a string
             ldm L $keyword_list_len
             tste L C  
-            jmpt :keyword_not_found
+            jmpt :keyword_not_found_return_string
             jmp :search_loop
 
     :keyword_found
@@ -112,7 +148,7 @@ ret
         jmp :end_find_keyword
 
 
-    :keyword_not_found
+    :keyword_not_found_return_string
         # must return status = 0 when not found
         # returns token_last_string_value 
         ldi A $token_last_string_value
