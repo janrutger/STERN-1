@@ -14,21 +14,17 @@
     % $keyword_call_dict_pntr $keyword_call_dict
 
 
-    # define keywords
-    . $exit_kw 5
-    % $exit_kw \e \x \i \t \null
-    . $exit_hash 1
-
-    . $print_kw 6
-    % $print_kw \p \r \i \n \t \null
-    . $print_hash 1
 
 
-    . $run_kw 4
-    % $run_kw \r \u \n \null
-    . $run_hash 1
+:init_keyword  
+    call @calc_kw_hash
 
+    inc I $keyword_indx
+    stx K $keyword_list_pntr
+    stx L $keyword_call_dict_pntr
 
+    inc I $keyword_list_len
+ret
 
 @calc_kw_hash
     # expect point to string in K 
@@ -52,53 +48,7 @@
 ret
 
 
-@init_keywords
-    # update list and dictonary
-    # update len
-    # first keyword
-        # keyword exit
-        ldi K $exit_kw
-        ldi L @exit_kw
 
-        call @calc_kw_hash
-        sto M $exit_hash
-
-        inc I $keyword_indx
-        stx K $keyword_list_pntr
-        stx L $keyword_call_dict_pntr
-
-        inc I $keyword_list_len
-
-    # next keyword
-        # keyword print 
-        ldi K $print_kw
-        ldi L @print_kw
-
-        call @calc_kw_hash
-        sto M $print_hash
-
-        inc I $keyword_indx
-        stx K $keyword_list_pntr
-        stx L $keyword_call_dict_pntr
-
-        inc I $keyword_list_len
-
-    # next keyword
-        # keyword run 
-        ldi K $run_kw
-        ldi L @run_kw
-        
-        call @calc_kw_hash
-        sto M $run_hash
-
-        inc I $keyword_indx
-        stx K $keyword_list_pntr
-        stx L $keyword_call_dict_pntr
-
-        inc I $keyword_list_len
-
-    # next keyword
-ret
 
 
 # Find keyword starts here

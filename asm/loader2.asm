@@ -8,8 +8,8 @@
 . $KBD_READ_PNTR 1
 . $KBD_WRITE_PNTR 1
 
-
-
+INCLUDE printing
+INCLUDE errors
 
 @init_stern
 

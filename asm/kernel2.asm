@@ -34,10 +34,11 @@ INCLUDE get_string_token
 INCLUDE parse_tokens
 INCLUDE keyword_handling
 
-INCLUDE printing
 INCLUDE math
+INCLUDE keyword_defs
 INCLUDE keyword_calls
-INCLUDE errors
+INCLUDE keyword_init
+
 
 
 
