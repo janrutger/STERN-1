@@ -11,3 +11,7 @@
     . $run_kw 4
     % $run_kw \r \u \n \null
     . $run_hash 1
+
+    . $stacks_kw 7
+    % $stacks_kw \s \t \a \c \k \s \null
+    . $stacks_hash 1

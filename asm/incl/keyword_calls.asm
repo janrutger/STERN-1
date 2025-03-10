@@ -14,3 +14,8 @@ ret
     ldm I $prog_start
     callx $mem_start 
 ret
+
+@stacks_kw  
+    ldm I @stacks
+    callx $mem_start
+ret

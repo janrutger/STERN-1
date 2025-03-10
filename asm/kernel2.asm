@@ -39,6 +39,8 @@ INCLUDE keyword_defs
 INCLUDE keyword_calls
 INCLUDE keyword_init
 
+INCLUDE stacks
+
 
 
 
