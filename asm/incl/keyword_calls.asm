@@ -16,6 +16,14 @@ ret
 ret
 
 @stacks_kw  
-    ldm I @stacks
+    ldi I @stacks
     callx $mem_start
+ret
+
+@begin_kw
+    # stub
+ret
+
+@end_kw
+    # stub
 ret

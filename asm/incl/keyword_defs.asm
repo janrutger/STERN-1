@@ -15,3 +15,11 @@
     . $stacks_kw 7
     % $stacks_kw \s \t \a \c \k \s \null
     . $stacks_hash 1
+
+    . $begin_kw 6
+    % $begin_kw \b \e \g \i \n \null
+    . $begin_hash 1
+
+    . $end_kw 4
+    % $end_kw \e \n \d \null
+    . $end_hash 1
