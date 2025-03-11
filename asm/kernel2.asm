@@ -10,6 +10,7 @@
     call @init_keywords
 
 @kernel
+    call @prompt_system
     call @get_input_line
     call @tokennice_input_buffer
     call @parse_tokens

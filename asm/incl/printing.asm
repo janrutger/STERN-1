@@ -9,6 +9,42 @@
 % $BCDstring_pntr $BCDstring
 
 
+@prompt_system
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+    ldi A \>
+    call @print_char
+    inc X $cursor_x
+ret
+
+@prompt_command
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+    ldi A \$
+    call @print_char
+    inc X $cursor_x
+    ldi A \>
+    call @print_char
+    inc X $cursor_x
+ret
+
+@prompt_program
+    ldi A \-
+    call @print_char
+    inc X $cursor_x
+    ldi A \-
+    call @print_char
+    inc X $cursor_x
+    ldi A \>
+    call @print_char
+    inc X $cursor_x
+ret
+
 
 @cursor_on
     ldi A \_ 

@@ -22,6 +22,7 @@ ret
 
 @begin_kw
     # stub
+    call @prompt_program
 ret
 
 @end_kw

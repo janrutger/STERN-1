@@ -11,6 +11,7 @@
 
 @stacks
     :stacks_loop
+        call @prompt_command
         call @read_stacks_line
 
         sto Z $token_buffer_indx
@@ -21,9 +22,11 @@
             ldm M $begin_hash
             tste C M
         jmpf :read_loop
-        nop
-
-
+            ld I A 
+            ldx A $keyword_call_dict_pntr
+            ld I A 
+            callx $mem_start
+        
 
     jmp :stacks_loop
     
