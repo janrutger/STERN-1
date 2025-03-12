@@ -46,5 +46,12 @@
         call :init_keyword
         sto M $end_hash
         
+    # keyword quit
+        ldi K $quit_kw
+        ldi L @quit_kw
+        
+        call :init_keyword
+        sto M $quit_hash
+        
     # next keyword
 ret

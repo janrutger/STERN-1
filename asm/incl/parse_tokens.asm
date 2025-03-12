@@ -1,5 +1,5 @@
 @parse_tokens
-    sto Z $token_buffer_indx
+    ;sto Z $token_buffer_indx
     :loop_parse_tokens
         call @read_token
         jmpt :end_of_tokens

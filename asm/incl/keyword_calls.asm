@@ -21,10 +21,13 @@ ret
 ret
 
 @begin_kw
-    # stub
     call @prompt_program
 ret
 
 @end_kw
+    # stub
+ret
+
+@quit_kw
     # stub
 ret

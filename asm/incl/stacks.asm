@@ -14,23 +14,34 @@
         call @prompt_command
         call @read_stacks_line
 
-        sto Z $token_buffer_indx
+        ;sto Z $token_buffer_indx
         :read_loop
             call @read_token
             jmpt :stacks_loop
             
             ldm M $begin_hash
             tste C M
-        jmpf :read_loop
+            jmpt :execute_command
+
+            ldm M $quit_hash
+            tste C M 
+            jmp :end_stacks
+
+        jmp :read_loop
+
+        :execute_command
             ld I A 
             ldx A $keyword_call_dict_pntr
             ld I A 
             callx $mem_start
+        jmp :read_loop
         
-
-    jmp :stacks_loop
-    
+    ;jmp :stacks_loop
+:end_stacks 
 ret
+
+
+
 
 
 

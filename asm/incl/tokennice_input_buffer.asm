@@ -52,4 +52,6 @@
         stx Z $token_buffer_pntr
         inc I $token_buffer_indx
         stx Z $token_buffer_pntr
+        
+        sto Z $token_buffer_indx
 ret
