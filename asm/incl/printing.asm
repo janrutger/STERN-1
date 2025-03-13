@@ -10,10 +10,10 @@
 
 
 @prompt_system
-    ldi A \space
+    ldi A \-
     call @print_char
     inc X $cursor_x
-    ldi A \space
+    ldi A \-
     call @print_char
     inc X $cursor_x
     ldi A \>
@@ -34,10 +34,10 @@ ret
 ret
 
 @prompt_program
-    ldi A \-
+    ldi A \space
     call @print_char
     inc X $cursor_x
-    ldi A \-
+    ldi A \space
     call @print_char
     inc X $cursor_x
     ldi A \>

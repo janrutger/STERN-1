@@ -15,10 +15,17 @@ ret
     callx $mem_start 
 ret
 
-@stacks_kw  
-    ldi I @stacks
-    callx $mem_start
-ret
+
+
+. $stacks_line_counter 1
+% $stacks_line_counter 0
+
+. $stacks_program_mem 32
+. $stacks_program_mem_pntr 1
+. $stacks_program_mem_indx 1
+% $stacks_program_mem_pntr $stacks_program_mem
+% $stacks_program_mem_indx 0
+
 
 @begin_kw
     # reset mem index (adres)
@@ -26,7 +33,8 @@ ret
 
     :inst_readline
         call @prompt_program
-        call @read_stacks_line
+        call @get_input_line
+        call @tokennice_input_buffer
 
         :inst_read
             call @read_token
@@ -52,9 +60,10 @@ ret
 :begin_kw_end
     inc I $stacks_program_mem_indx
     stx Z $stacks_program_mem_pntr
-nop
+
     sto Z $stacks_program_mem_indx
 ret
+
 
 
 @run_kw
@@ -62,7 +71,7 @@ ret
     :run_code_loop
         inc I $stacks_program_mem_indx
         ldx B $stacks_program_mem_pntr
-nop
+
         tste Z B 
         jmpt :run_kw_end
 
@@ -78,12 +87,12 @@ nop
     sto Z $stacks_program_mem_indx        
 ret
 
+@stub
+    # stub
+ret
 
 
 @end_kw
     # stub
 ret
 
-@quit_kw
-    # stub
-ret
