@@ -30,13 +30,19 @@ ret
 @begin_kw
     # reset mem index (adres)
     sto Z $stacks_program_mem_indx
+    sto Z $stacks_line_counter
 
     :inst_readline
         call @prompt_program
         call @get_input_line
         call @tokennice_input_buffer
 
-        :inst_read
+        # store start line index (adres) as counter
+        ldm M $stacks_program_mem_indx
+        sto M $stacks_line_counter
+
+
+        :instruction_read
             call @read_token
             jmpt :inst_readline
 
@@ -46,7 +52,7 @@ ret
 
             # Create label comes here
             # then inc line counter 
-            inc I $stacks_line_counter
+            ;inc I $stacks_line_counter
 
             # keep track of the mem index (adres)
             inc I $stacks_program_mem_indx
@@ -55,7 +61,7 @@ ret
             inc I $stacks_program_mem_indx
             stx A $stacks_program_mem_pntr
 
-        jmp :inst_read
+        jmp :instruction_read
         
 :begin_kw_end
     inc I $stacks_program_mem_indx

@@ -23,14 +23,6 @@
         
         call :init_keyword
         sto M $main_hash
-    
-    # keyword run 
-        ldi K $run_kw
-        ldi L @run_kw
-        
-        call :init_keyword
-        sto M $run_hash
-
         
     # keyword begin
         ldi K $begin_kw
@@ -45,7 +37,13 @@
         
         call :init_keyword
         sto M $end_hash
-
+    
+    # keyword run 
+        ldi K $run_kw
+        ldi L @run_kw
+        
+        call :init_keyword
+        sto M $run_hash
         
     # next keyword
 ret
