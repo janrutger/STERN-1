@@ -21,17 +21,7 @@
     inc X $cursor_x
 ret
 
-@prompt_command
-    ldi A \space
-    call @print_char
-    inc X $cursor_x
-    ldi A \$
-    call @print_char
-    inc X $cursor_x
-    ldi A \>
-    call @print_char
-    inc X $cursor_x
-ret
+
 
 @prompt_program
     ldi A \space
