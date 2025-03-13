@@ -17,6 +17,12 @@
         call :init_keyword
         sto M $print_hash
 
+     # keyword main
+        ldi K $main_kw
+        ldi L @main_kw
+        
+        call :init_keyword
+        sto M $main_hash
     
     # keyword run 
         ldi K $run_kw

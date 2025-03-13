@@ -9,7 +9,7 @@ ret
 ret
 
 
-@run_kw
+@main_kw
     ;call @print_cls
     ldm I $prog_start
     callx $mem_start 
@@ -46,12 +46,39 @@ ret
 
             inc I $stacks_program_mem_indx
             stx A $stacks_program_mem_pntr
-            nop
 
         jmp :inst_read
         
 :begin_kw_end
+    inc I $stacks_program_mem_indx
+    stx Z $stacks_program_mem_pntr
+nop
+    sto Z $stacks_program_mem_indx
 ret
+
+
+@run_kw
+    
+    :run_code_loop
+        inc I $stacks_program_mem_indx
+        ldx B $stacks_program_mem_pntr
+nop
+        tste Z B 
+        jmpt :run_kw_end
+
+        inc I $stacks_program_mem_indx
+        ldx A $stacks_program_mem_pntr
+
+        call @execute_token
+    jmp :run_code_loop
+
+
+
+:run_kw_end    
+    sto Z $stacks_program_mem_indx        
+ret
+
+
 
 @end_kw
     # stub

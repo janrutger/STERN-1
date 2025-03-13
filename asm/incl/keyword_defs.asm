@@ -7,6 +7,9 @@
     % $print_kw \p \r \i \n \t \null
     . $print_hash 1
 
+    . $main_kw 5
+    % $main_kw \m \a \i \n \null
+    . $main_hash 1
 
     . $run_kw 4
     % $run_kw \r \u \n \null
