@@ -27,6 +27,4 @@
     % $end_kw \e \n \d \null
     . $end_hash 1
 
-    . $quit_kw 5
-    % $quit_kw \q \u \i \t \null
-    . $quit_hash 1
+  

@@ -73,7 +73,6 @@ ret
 
 
 @run_kw
-    
     :run_code_loop
         inc I $stacks_program_mem_indx
         ldx B $stacks_program_mem_pntr
@@ -86,19 +85,14 @@ ret
 
         call @execute_token
     jmp :run_code_loop
-
-
-
 :run_kw_end    
     sto Z $stacks_program_mem_indx        
 ret
+
+
 
 @stub
     # stub
 ret
 
-
-@end_kw
-    # stub
-ret
 
