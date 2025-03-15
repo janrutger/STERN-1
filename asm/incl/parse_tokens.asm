@@ -129,6 +129,7 @@ ret
         tst B \2
         jmpf :check_for_keyword_token
             # handele string token
+            call @read_var
         ret
 
     # check if token is a keyword
