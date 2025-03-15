@@ -15,9 +15,6 @@
     % $run_kw \r \u \n \null
     . $run_hash 1
 
-    . $stacks_kw 7
-    % $stacks_kw \s \t \a \c \k \s \null
-    . $stacks_hash 1
 
     . $begin_kw 6
     % $begin_kw \b \e \g \i \n \null
@@ -26,5 +23,11 @@
     . $end_kw 4
     % $end_kw \e \n \d \null
     . $end_hash 1
+
+    . $as_kw 3
+    % $as_kw \a \s \null
+    . $as_hash 1
+
+    
 
   

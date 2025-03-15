@@ -8,10 +8,9 @@
 
 @write_var
     # needs $var_list_pntr 
-    # needs var (hash) to look for in A (or new)
+    # expects the var (hash) to look for in C (or new)
     # expects the value on the datastack 
-    # adds a new var to the list, default value=0
-    # returns 
+    # adds a new var to the list
 
     sto Z $var_list_index
 
@@ -22,7 +21,7 @@
         tst M \null
         jmpt :new_var_write
 
-        tste A M
+        tste C M
         jmpt :found_var_write
 
         # extra inc to skip the value index
@@ -30,11 +29,29 @@
     jmp :var_write_loop
 
     :found_var_write
-        nop
+        call @datastack_pop
+        # inc to value index
+        inc I $var_list_index
+        stx A $var_list_pntr
+        jmp :end_write_var
 
 
     :new_var_write
-        nop
+        # write new value hash 
+        stx C $var_list_pntr
+
+        call @datastack_pop
+        # inc to value index
+        inc I $var_list_index
+        stx A $var_list_pntr
+
+        # Terminate list
+        inc I $var_list_index
+        stx Z $var_list_pntr
+
+    jmp :end_write_var
+
+
 
 :end_write_var
 ret

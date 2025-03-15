@@ -45,5 +45,11 @@
         call :init_keyword
         sto M $run_hash
         
-    # next keyword
+    # keyword as
+        ldi K $as_kw
+        ldi L @as_kw
+        
+        call :init_keyword
+        sto M $as_hash
+        
 ret
