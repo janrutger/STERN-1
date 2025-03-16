@@ -86,6 +86,5 @@ ret
     jmp :end_write_var
 
 
-
 :end_write_var
 ret
