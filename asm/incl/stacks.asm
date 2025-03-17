@@ -27,15 +27,25 @@
             call @read_token
             jmpt :inst_readline
 
+            # check for end of program
             ldm M $end_hash
             tste C M 
             jmpt :begin_kw_end
+
+            # check for string (var)
+            ldi M \2
+            tste B M 
+            jmpf :end_string
+                ldi B \v 
+                ld A C
+            :end_string
+        
 
             # if as-keyword is used
             ldm M $as_hash
             tste C M 
             jmpf :end_as_hash
-                ldi B \4
+                ldi B \w
                 ld A C
             :end_as_hash
 
@@ -63,21 +73,55 @@ ret
         ldx B $stacks_program_mem_pntr
 
         # stop at end of program
-        tste Z B 
+        tste B Z  
         jmpt :run_kw_end
 
+        # test for variable
+        tst B \v 
+        jmpf :check_word_type
+            inc I $stacks_program_mem_indx
+            ldx C $stacks_program_mem_pntr
+            call @read_var
+        jmp :run_code_loop
+
+        # test for word type 
+        :check_word_type
+        tst B \w
+        jmpf :run_token
+            inc I $stacks_program_mem_indx
+            ldx C $stacks_program_mem_pntr
+            call @execute_word_type
+        jmp :run_code_loop
+
+
+        :run_token
         # load A 
-        inc I $stacks_program_mem_indx
-        ldx A $stacks_program_mem_pntr
+            inc I $stacks_program_mem_indx
+            ldx A $stacks_program_mem_pntr
 
-        # execute token
-        # Needs tokentype in B 
-        # expects value in A
-        call @execute_token
+            # execute token
+            # Needs tokentype in B 
+            # expects value in A
+            call @execute_token
 
-    jmp :run_code_loop
+        jmp :run_code_loop
 :run_kw_end    
-    sto Z $stacks_program_mem_indx        
+    sto Z $stacks_program_mem_indx      
+    nop  
+ret
+
+
+@execute_word_type
+    # expects the hash of word to execute
+    # in C
+
+    ldm M $as_hash
+    tste C M 
+    jmpf :end_as_word
+        inc I $stacks_program_mem_indx
+        ldx C $stacks_program_mem_pntr
+        call @write_var
+    :end_as_word
 ret
 
 

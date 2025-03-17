@@ -144,5 +144,6 @@ ret
         ret
 
     :no_valid_token
+
         call @fatal_error
 ret
