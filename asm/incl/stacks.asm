@@ -107,7 +107,6 @@ ret
         jmp :run_code_loop
 :run_kw_end    
     sto Z $stacks_program_mem_indx      
-    nop  
 ret
 
 
@@ -118,10 +117,21 @@ ret
     ldm M $as_hash
     tste C M 
     jmpf :end_as_word
+        # check if the next argumnet is a \v type
         inc I $stacks_program_mem_indx
-        ldx C $stacks_program_mem_pntr
-        call @write_var
+        ldx B $stacks_program_mem_pntr
+        tst B \v 
+        jmpt :exec_as
+            call @fatal_error
+
+        :exec_as
+            inc I $stacks_program_mem_indx
+            ldx C $stacks_program_mem_pntr
+            call @write_var
+            nop
     :end_as_word
+
+
 ret
 
 
