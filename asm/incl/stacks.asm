@@ -1,7 +1,7 @@
 . $stacks_line_counter 1
 % $stacks_line_counter 0
 
-. $stacks_program_mem 32
+. $stacks_program_mem 128
 . $stacks_program_mem_pntr 1
 . $stacks_program_mem_indx 1
 % $stacks_program_mem_pntr $stacks_program_mem
@@ -39,9 +39,17 @@
                 ldi B \v 
                 ld A C
             :end_string
-        
 
-            # if as-keyword is used
+            # when label-keyword is used
+            ldm M $label_hash
+            tste C M 
+            jmpf :end_label_hash
+                call @execute_label_type 
+                jmp :instruction_read
+            :end_label_hash
+
+
+            # when as-keyword is used
             ldm M $as_hash
             tste C M 
             jmpf :end_as_hash
@@ -114,6 +122,7 @@ ret
     # expects the hash of word to execute
     # in C
 
+    # if it is a as-word type
     ldm M $as_hash
     tste C M 
     jmpf :end_as_word
@@ -128,10 +137,22 @@ ret
             inc I $stacks_program_mem_indx
             ldx C $stacks_program_mem_pntr
             call @write_var
-            nop
     :end_as_word
 
+ret
 
+
+@execute_label_type
+    # expects the next argumnet is a \v type
+    call @read_token
+    tst B \2 
+    jmpt :exec_label
+        call @fatal_error
+    
+    :exec_label        
+        ldm A $stacks_line_counter
+        call @datastack_push
+        call @write_var
 ret
 
 

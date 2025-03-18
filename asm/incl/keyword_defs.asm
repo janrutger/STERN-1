@@ -28,6 +28,14 @@
     % $as_kw \a \s \null
     . $as_hash 1
 
+    . $label_kw 6
+    % $label_kw \l \a \b \e \l \null
+    . $label_hash 1 
+
+    . $goto_kw 5
+    % $goto_kw \g \o \t \o \null
+    . $goto_hash 1
+
     
 
   

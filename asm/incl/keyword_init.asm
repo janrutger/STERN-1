@@ -51,5 +51,21 @@
         
         call :init_keyword
         sto M $as_hash
+
+    # keyword goto
+        ldi K $goto_kw
+        ldi L @stub
+        
+        call :init_keyword
+        sto M $goto_hash
+
+    # kewyord label
+        ldi K $label_kw
+        ldi L @stub
+        
+        call :init_keyword
+        sto M $label_hash
+
+
         
 ret
