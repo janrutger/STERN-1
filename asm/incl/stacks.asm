@@ -32,6 +32,15 @@
             tste C M 
             jmpt :begin_kw_end
 
+            # when label-keyword is used
+            ldm M $label_hash
+            tste C M 
+            jmpf :end_label_hash
+                call @execute_label_type 
+                jmp :instruction_read
+            :end_label_hash
+
+
             # check for string (var)
             ldi M \2
             tste B M 
@@ -40,13 +49,13 @@
                 ld A C
             :end_string
 
-            # when label-keyword is used
-            ldm M $label_hash
+            # when goto-keyword is used
+            ldm M $goto_hash
             tste C M 
-            jmpf :end_label_hash
-                call @execute_label_type 
-                jmp :instruction_read
-            :end_label_hash
+            jmpf :end_goto_hash 
+                ldi B \w 
+                ld A C 
+            :end_goto_hash
 
 
             # when as-keyword is used
@@ -72,6 +81,23 @@
 
     sto Z $stacks_program_mem_indx
 ret
+
+
+
+@execute_label_type
+    # expects the next argumnet is a \v type
+    call @read_token
+    tst B \2 
+    jmpt :exec_label
+        call @fatal_error
+    
+    :exec_label        
+        ldm A $stacks_line_counter
+        call @datastack_push
+        call @write_var
+ret
+
+
 
 
 
@@ -126,7 +152,7 @@ ret
     ldm M $as_hash
     tste C M 
     jmpf :end_as_word
-        # check if the next argumnet is a \v type
+        # check if the next argumnet is a \string type
         inc I $stacks_program_mem_indx
         ldx B $stacks_program_mem_pntr
         tst B \v 
@@ -139,20 +165,28 @@ ret
             call @write_var
     :end_as_word
 
+    # if it is a goto-word type
+    ldm M $goto_hash
+    tste C M 
+    jmpf :end_goto_word
+        # check if the next argumnet is a \string type
+        inc I $stacks_program_mem_indx
+        ldx B $stacks_program_mem_pntr
+        tst B \v 
+        jmpt :exec_goto
+            call @fatal_error
+
+        :exec_goto
+            call @read_var
+            call @datastack_pop
+            sto A $stacks_line_counter 
+            nop
+    :end_goto_word
+
+
 ret
 
 
-@execute_label_type
-    # expects the next argumnet is a \v type
-    call @read_token
-    tst B \2 
-    jmpt :exec_label
-        call @fatal_error
-    
-    :exec_label        
-        ldm A $stacks_line_counter
-        call @datastack_push
-        call @write_var
-ret
+
 
 
