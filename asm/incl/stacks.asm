@@ -110,7 +110,7 @@ ret
         tste B Z  
         jmpt :run_kw_end
 
-        # test for variable
+        # test/execute for variable type
         tst B \v 
         jmpf :check_word_type
             inc I $stacks_program_mem_indx
@@ -118,7 +118,7 @@ ret
             call @read_var
         jmp :run_code_loop
 
-        # test for word type 
+        # test/execute for word type 
         :check_word_type
         tst B \w
         jmpf :run_token
@@ -127,18 +127,15 @@ ret
             call @execute_word_type
         jmp :run_code_loop
 
-
-        :run_token
-        # load A 
+        # run execute number and operator tokens
+        # expects tokentype in B 
+        # expects value in A
+        :run_token     
             inc I $stacks_program_mem_indx
             ldx A $stacks_program_mem_pntr
-
-            # execute token
-            # Needs tokentype in B 
-            # expects value in A
             call @execute_token
-
         jmp :run_code_loop
+
 :run_kw_end    
     sto Z $stacks_program_mem_indx      
 ret
@@ -177,10 +174,13 @@ ret
             call @fatal_error
 
         :exec_goto
+            inc I $stacks_program_mem_indx
+            ldx C $stacks_program_mem_pntr
+            
             call @read_var
             call @datastack_pop
-            sto A $stacks_line_counter 
-            nop
+            
+            sto A $stacks_program_mem_indx
     :end_goto_word
 
 
