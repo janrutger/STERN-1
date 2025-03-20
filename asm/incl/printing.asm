@@ -118,17 +118,31 @@ ret
     :print_values_reverse
         dec I $BCDstring_index
         ldx A $BCDstring_pntr
-
         ld M I
+
         call @print_char
         inc X $cursor_x
-        ld I M
+        call @check_nl
+        ;ld I M
 
-        tst I 0
+        tst M 0
         jmpf :print_values_reverse
     
     ldi A \space
     call @print_char
     inc X $cursor_x
+    call @check_nl
 
 ret
+
+
+
+@check_nl
+    tst X 63
+    jmpf :skip
+        call @print_nl        
+    :skip
+ret
+
+
+    
