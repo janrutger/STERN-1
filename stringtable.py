@@ -17,12 +17,13 @@ def makechars():
     chars["/"] = 11
     chars["%"] = 12
     chars["'"] = 13
-    chars['"'] = 14
-    chars[':'] = 15
+    chars['('] = 14
+    chars[')'] = 15
     chars['@'] = 16
     chars['_'] = 17
     chars['?'] = 18
-
+    chars[':'] = 19
+    
     chars["0"] = 20
     chars["1"] = 21
     chars["2"] = 22

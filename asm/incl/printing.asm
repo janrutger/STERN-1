@@ -89,8 +89,13 @@ ret
     # Check is A has - sign, M=0
     # Multiply A * -1, to change sign
     ldi M 1
-    tstg A Z
-    jmpt :get_bcd_string_val
+
+    ;tstg A Z
+    ;jmpt :get_bcd_string_val
+
+    tstg Z A
+    jmpf :get_bcd_string_val
+
     ldi M 0
     muli A -1
 
