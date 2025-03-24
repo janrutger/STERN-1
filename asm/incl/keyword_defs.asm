@@ -36,6 +36,17 @@
     % $goto_kw \g \o \t \o \null
     . $goto_hash 1
 
+    . $open_(_kw 2
+    % $open_(_kw \(
+    . $open_(_hash 1
+
+    . $close_(_kw 2
+    % $close_(_kw \)
+    . $close_(_hash 1
+
+
+
+
     
 
   

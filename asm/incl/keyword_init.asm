@@ -66,6 +66,19 @@
         call :init_keyword
         sto M $label_hash
 
+    # keyword open ( 
+        ldi K $open_(_kw
+        ldi L @stub
+        
+        call :init_keyword
+        sto M $open_(_hash
+
+    # keyword close )
+        ldi K $close_(_kw 
+        ldi L @stub
+        
+        call :init_keyword
+        sto M $close_(_hash
 
         
 ret
