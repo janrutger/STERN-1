@@ -37,11 +37,11 @@
     . $goto_hash 1
 
     . $open_(_kw 2
-    % $open_(_kw \(
+    % $open_(_kw \( \null
     . $open_(_hash 1
 
     . $close_(_kw 2
-    % $close_(_kw \)
+    % $close_(_kw \) \null
     . $close_(_hash 1
 
 

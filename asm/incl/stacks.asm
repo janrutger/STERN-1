@@ -57,7 +57,24 @@
                 ld A C 
             :end_goto_hash
 
+            # conditional execution
+            # when open ( is used
+            ldm M $open_(_hash
+            tste C M 
+            jmpf :end_open_(_hash
+                ldi B \w 
+                ld A C 
+            :end_open_(_hash
 
+            # when close ( is used
+            ldm M $close_(_hash
+            tste C M 
+            jmpf :end_close_(_hash
+                ldi B \w 
+                ld A C 
+            :end_close_(_hash
+
+            
             # when as-keyword is used
             ldm M $as_hash
             tste C M 
@@ -182,6 +199,41 @@ ret
             
             sto A $stacks_program_mem_indx
     :end_goto_word
+
+    # if it is a open ( word type
+    ldm M $open_(_hash
+    tste C M 
+    jmpf :end_open_(
+        # check if TOS 0 (0=true)
+        # when true, execute 
+        # when false, skip to ) 
+        call @datastack_pop
+        tst A 0
+        jmpt :ret_open_(
+        :close_(_loop
+            inc I $stacks_program_mem_indx
+            ldx B $stacks_program_mem_pntr
+            tst B \w
+
+            inc I $stacks_program_mem_indx
+            ldx C $stacks_program_mem_pntr
+            nop
+            # skip over Value
+            jmpf :close_(_loop 
+
+            # check if Value is closing (
+            ;inc I $stacks_program_mem_indx
+            ;ldx C $stacks_program_mem_pntr
+            ldm M $close_(_hash
+            tste C M 
+            nop
+            jmpf :close_(_loop
+            
+        
+        :ret_open_(
+            ret
+
+    :end_open_(
 
 
 ret

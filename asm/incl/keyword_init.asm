@@ -73,7 +73,7 @@
         call :init_keyword
         sto M $open_(_hash
 
-    # keyword close )
+    # keyword close (
         ldi K $close_(_kw 
         ldi L @stub
         
