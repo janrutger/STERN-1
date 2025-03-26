@@ -209,32 +209,24 @@ ret
         # when false, skip to ) 
         call @datastack_pop
         tst A 0
-        jmpt :ret_open_(
+        jmpt :end_open_(
         :close_(_loop
             inc I $stacks_program_mem_indx
             ldx B $stacks_program_mem_pntr
-            tst B \w
-
+            
             inc I $stacks_program_mem_indx
             ldx C $stacks_program_mem_pntr
-            nop
-            # skip over Value
+
+            tst B \w
             jmpf :close_(_loop 
 
             # check if Value is closing (
-            ;inc I $stacks_program_mem_indx
-            ;ldx C $stacks_program_mem_pntr
             ldm M $close_(_hash
             tste C M 
-            nop
             jmpf :close_(_loop
-            
-        
-        :ret_open_(
-            ret
 
     :end_open_(
-
+        ret
 
 ret
 
