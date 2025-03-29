@@ -8,6 +8,9 @@
 . $KBD_READ_PNTR 1
 . $KBD_WRITE_PNTR 1
 
+. $DU0_baseadres 1 
+% $DU0_baseadres 12303
+
 INCLUDE printing
 INCLUDE errors
 
@@ -249,6 +252,37 @@ rti
    call @draw_sprite_function   
 rti
 
+## File based ISR's
+
+@OPEN_FILE
+    # expects the filename hash i A 
+    # wait for return
+
+    # store A in data_register
+    ldi I 2
+    stx A $DU0_baseadres
+
+    # set the commmand (0) open filre
+    ldi M 0
+    ldi I 1
+    stx M $DU0_baseadres 
+
+    # sets status (2) request from host
+    ldi M 2
+    ldi I 0
+    stx M $DU0_baseadres
+
+    :wait_for_ack_open_file
+        # read status register
+        ldi I 0
+        ldx M $DU0_baseadres
+        # check for ack (1) request from disk
+        tst M 1
+        jmpf :wait_for_ack_open_file
+
+rti
+
+
 ## End of the ISR's
 
 
@@ -349,3 +383,5 @@ ret
     tstg B M
     jmpt :row_loop_sprite 
 ret
+
+

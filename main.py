@@ -3,6 +3,7 @@ from cpu import Cpu
 from assembler import Assembler
 from display6 import CharDisplay as Display
 from interrupts import Interrupts
+from virtualdisk import VirtualDisk as Vdisk
 from FileIO import readFile
 from stringtable import makechars
 
@@ -22,6 +23,7 @@ def main():
     MainMem = Memory(1024 * 16) 
     StackPointer = MainMem.MEMmax() - VideoSize
     start_var  = StackPointer - 2024
+    IOmem_du0  = start_var - 8 # its just one/first device
 
     start_loader  = 0
     start_kernel  = start_loader + 512
@@ -29,7 +31,9 @@ def main():
     intVectors = 4096
     start_prog = intVectors + 512
 
-
+    DU0    = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")
+    DU0.access()
+    
     CPU    = Cpu(MainMem, interrupts, StackPointer, intVectors) 
     screen = Display(myASCII, interrupts, Vw, Vh, MainMem, 15)
 
