@@ -5,11 +5,11 @@
     . $keyword_list_len 1
     % $keyword_list_len 0
 
-    . $keyword_list 10
+    . $keyword_list 16
     . $keyword_list_pntr 1
     % $keyword_list_pntr $keyword_list
 
-    . $keyword_call_dict 10
+    . $keyword_call_dict 16
     . $keyword_call_dict_pntr 1    
     % $keyword_call_dict_pntr $keyword_call_dict
 

@@ -1,5 +1,5 @@
 @parse_tokens
-    sto Z $token_buffer_indx
+    ;sto Z $token_buffer_indx
     :loop_parse_tokens
         call @read_token
         jmpt :end_of_tokens
@@ -129,6 +129,7 @@ ret
         tst B \2
         jmpf :check_for_keyword_token
             # handele string token
+            call @read_var
         ret
 
     # check if token is a keyword
@@ -143,5 +144,6 @@ ret
         ret
 
     :no_valid_token
+
         call @fatal_error
 ret

@@ -37,6 +37,20 @@ ret
     call @datastack_push 
 ret
 
+@do_gt
+    call @datastack_pop
+    ld B A 
+    call @datastack_pop
+    tstg A B 
+    jmpf :gt_fasle
+        ldi A 0
+    jmp :gt_end
+    :gt_fasle
+        ldi A 1
+    :gt_end
+        call @datastack_push 
+ret
+
 
 
 @do_dot

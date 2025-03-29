@@ -9,6 +9,32 @@
 % $BCDstring_pntr $BCDstring
 
 
+@prompt_system
+    ldi A \-
+    call @print_char
+    inc X $cursor_x
+    ldi A \-
+    call @print_char
+    inc X $cursor_x
+    ldi A \>
+    call @print_char
+    inc X $cursor_x
+ret
+
+
+
+@prompt_program
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+    ldi A \>
+    call @print_char
+    inc X $cursor_x
+ret
+
 
 @cursor_on
     ldi A \_ 
@@ -63,8 +89,13 @@ ret
     # Check is A has - sign, M=0
     # Multiply A * -1, to change sign
     ldi M 1
-    tstg A Z
-    jmpt :get_bcd_string_val
+
+    ;tstg A Z
+    ;jmpt :get_bcd_string_val
+
+    tstg Z A
+    jmpf :get_bcd_string_val
+
     ldi M 0
     muli A -1
 
@@ -92,17 +123,31 @@ ret
     :print_values_reverse
         dec I $BCDstring_index
         ldx A $BCDstring_pntr
-
         ld M I
+
         call @print_char
         inc X $cursor_x
-        ld I M
+        call @check_nl
+        ;ld I M
 
-        tst I 0
+        tst M 0
         jmpf :print_values_reverse
     
     ldi A \space
     call @print_char
     inc X $cursor_x
+    call @check_nl
 
 ret
+
+
+
+@check_nl
+    tst X 63
+    jmpf :skip
+        call @print_nl        
+    :skip
+ret
+
+
+    

@@ -33,10 +33,16 @@
 
         :tst_div
             tst A \/
-            jmpf :tst_dot
+            jmpf :tst_gt
             ldi A @do_division
             jmp :store_operator_token
 
+        :tst_gt
+            tst A \>
+            jmpf :tst_dot
+            ldi A @do_gt
+            jmp :store_operator_token
+            
         :tst_dot
             tst A \.
             jmpf :tst_bang
