@@ -224,9 +224,9 @@ ret
             ldm M $close_(_hash
             tste C M 
             jmpf :close_(_loop
-
-    :end_open_(
         ret
+    :end_open_(
+        
 
 ret
 
