@@ -31,11 +31,9 @@ def main():
     intVectors = 4096
     start_prog = intVectors + 512
 
-    DU0    = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")
-    DU0.access()
-    
+    DU0    = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")    
     CPU    = Cpu(MainMem, interrupts, StackPointer, intVectors) 
-    screen = Display(myASCII, interrupts, Vw, Vh, MainMem, 15)
+    screen = Display(myASCII, interrupts, DU0, Vw, Vh, MainMem, 15)
 
     # load fonts into MainMem
     font  = readFile("standard.font", 2)
@@ -47,7 +45,7 @@ def main():
     A = Assembler(start_var)
     A.assemble("loader2.asm", start_loader, "loader.bin")
     A.assemble("kernel2.asm",  start_kernel, "kernel.bin")
-    A.assemble("spritewalker.asm", start_prog,   "program.bin")
+    A.assemble("test.asm", start_prog,   "program.bin")
 
     # Loader bin into MainMem
     program = readFile("loader.bin", 0)

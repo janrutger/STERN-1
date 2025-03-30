@@ -80,5 +80,19 @@
         call :init_keyword
         sto M $close_(_hash
 
+    # keyword open (file)
+        ldi K $open_kw
+        ldi L @open_kw
         
+        call :init_keyword
+        sto M $open_hash
+
+    # keyword load (file)
+        ldi K $load_kw
+        ldi L @stub
+        
+        call :init_keyword
+        sto M $load_hash
+
+  
 ret

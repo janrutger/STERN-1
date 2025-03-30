@@ -66,6 +66,11 @@ INCLUDE errors
     ldi M @DRAW_SPRITE
     stx M $INT_VECTORS
 
+    ldi I 6
+    ldi M @OPEN_FILE
+    stx M $INT_VECTORS
+
+
     ## Done interrupt factors
 
     # don't forget to enable Interrupts
@@ -255,20 +260,23 @@ rti
 ## File based ISR's
 
 @OPEN_FILE
-    # expects the filename hash i A 
-    # wait for return
+    # expects the filename hash in A 
+    # Returns statusregister is Idle (0)
 
     # store A in data_register
+    # dataregister index = 2 
     ldi I 2
     stx A $DU0_baseadres
 
-    # set the commmand (0) open filre
+    # set the commmand (0) open file
     ldi M 0
+    # commandregister index = 1
     ldi I 1
     stx M $DU0_baseadres 
 
     # sets status (2) request from host
     ldi M 2
+    # statusregister index = 0
     ldi I 0
     stx M $DU0_baseadres
 
@@ -280,10 +288,21 @@ rti
         tst M 1
         jmpf :wait_for_ack_open_file
 
+    # set status to Idle after file open
+    ldi M 0
+    ldi I 0
+    stx M $DU0_baseadres
+
 rti
 
 
+
+
 ## End of the ISR's
+
+
+
+
 
 
 ## Helper routines

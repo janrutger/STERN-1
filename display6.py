@@ -2,9 +2,10 @@ from tkinter import *
 from time import time
 
 class CharDisplay():
-    def __init__(self, myASCII, interrupts, width, height, memory, scale=10):
+    def __init__(self, myASCII, interrupts, vdisk, width, height, memory, scale=10):
         self.ASCII = myASCII
         self.int = interrupts
+        self.vdisk = vdisk
         self.width = width
         self.height = height
         self.scale = scale
@@ -33,6 +34,7 @@ class CharDisplay():
                 self.chars[(x, y)] = char_id
 
         self.update_videoMemory()
+        self.update_disk()
 
     def update_videoMemory(self):
         videoMemory = [self.memory.read(self.videoadres + i) for i in range(self.width * self.height)]
@@ -40,6 +42,12 @@ class CharDisplay():
             self.draw_screen(videoMemory)
             self.prev_mem = videoMemory
         self.display.after(50, self.update_videoMemory)  # Reduced delay for smoother updates
+
+    def update_disk(self):
+        self.vdisk.access()
+        print("disk updated")
+        self.display.after(500, self.update_disk)
+        
 
     def draw_screen(self, memory):
         mem_pointer = 0

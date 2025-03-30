@@ -44,6 +44,15 @@
     % $close_(_kw \) \null
     . $close_(_hash 1
 
+    . $open_kw 5
+    % $open_kw \o \p \e \n \null
+    . $open_hash 1
+
+    . $load_kw 5
+    % $load_kw \l \o \a \d \null
+    . $load_hash 1
+
+
 
 
 
