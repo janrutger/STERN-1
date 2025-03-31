@@ -71,7 +71,7 @@ class VirtualDisk:
                             self.serial_buffer = ""  # Reset the buffer before reading a new file
                             for line in f:
                                 self.serial_buffer += line
-                                self.serial_buffer += " " # add a space after each line
+                                #self.serial_buffer += " " # add a space after each line
                             self.serial_buffer_index = 0
                             self.mainmem.write(self.status_register, 1)
 
@@ -94,6 +94,9 @@ class VirtualDisk:
                         self.serial_buffer_index += 1
                         if char == "\n":
                             self.mainmem.write(self.data_register, self.ASCII["Return"])
+                            self.mainmem.write(self.status_register, 1)
+                        elif char == " ":
+                            self.mainmem.write(self.data_register, self.ASCII["space"])
                             self.mainmem.write(self.status_register, 1)
                         else:
                             self.mainmem.write(self.data_register, self.ASCII[char])

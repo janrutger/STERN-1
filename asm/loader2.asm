@@ -340,6 +340,10 @@ rti
             tst M \Return
             jmpt :end_file_read
 
+            # check for \null (end of file)
+            tst M \null
+            jmpt :end_file_read
+
         jmp :read_line  
     
 :end_file_read
