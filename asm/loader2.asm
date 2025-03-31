@@ -70,6 +70,10 @@ INCLUDE errors
     ldi M @OPEN_FILE
     stx M $INT_VECTORS
 
+    ldi I 7
+    ldi M @READ_FILE_LINE
+    stx M $INT_VECTORS
+
 
     ## Done interrupt factors
 
@@ -295,7 +299,56 @@ rti
 
 rti
 
+. $disk_read_buffer 64
+. $disk_read_buffer_indx 1
+. $disk_read_buffer_pntr 1
+% $disk_read_buffer_pntr $disk_read_buffer
 
+
+@READ_FILE_LINE
+    # returns a line from the file in $disk_read_buffer
+    # Returns statusregister is Idle (0)
+
+    sto Z $disk_read_buffer_indx
+
+    :read_line
+        # set command_register read
+        ldi I 1
+        ldi M 1
+        stx M $DU0_baseadres
+        # set status_register request from host
+        ldi I 0
+        ldi M 2
+        stx M $DU0_baseadres
+
+        :wait_for_ack_read_line
+            # read status register
+            ldi I 0
+            ldx M $DU0_baseadres
+            # check for ack (1) request from disk
+            tst M 1 
+        jmpf :wait_for_ack_read_line
+            # read data_register
+            ldi I 2
+            ldx M $DU0_baseadres
+
+            # store in disk_read_buffer
+            inc I $disk_read_buffer_indx
+            stx M $disk_read_buffer_pntr
+            
+            # check for \Return (end of line)
+            tst M \Return
+            jmpt :end_file_read
+
+        jmp :read_line  
+    
+:end_file_read
+    # set status to Idle after kine read
+    ldi M 0
+    ldi I 0
+    stx M $DU0_baseadres
+    nop
+rti
 
 
 ## End of the ISR's
