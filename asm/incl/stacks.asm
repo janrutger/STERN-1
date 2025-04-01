@@ -7,6 +7,84 @@
 % $stacks_program_mem_pntr $stacks_program_mem
 % $stacks_program_mem_indx 0
 
+@load_kw
+    # reset mem index (adres)
+    sto Z $stacks_program_mem_indx
+    sto Z $stacks_line_counter
+
+    int 7
+    call @handle_file_input
+    call @tokennice_input_buffer
+
+    call @read_token
+
+    # when no first token in buffer, 
+    # the file was not correct
+    jmpt :fatal_error_load
+
+    # check for first token = begin
+    # if not, its not a valid program
+    ldm M $begin_hash
+    tste C M 
+    jmpf :fatal_error_load
+
+
+    :load_program_instructions
+        call @read_token
+        # Must be an next token
+        jmpt :read_next_line
+
+        # check for end of program
+        ldm M $end_hash
+        tste C M 
+        nop
+        jmpt :end_load_kw
+
+    jmp :load_program_instructions
+    
+    :read_next_line
+        int 7
+        call @handle_file_input
+        call @tokennice_input_buffer
+    jmp :load_program_instructions
+        
+
+    :fatal_error_load
+        call @fatal_error
+        jmp :end_load_kw
+
+:end_load_kw 
+ret 
+
+@handle_file_input
+    # Reads $disk_read_buffer
+    # Prints the input on screen
+    # Write value to $input_buffer
+
+    sto Z $disk_read_buffer_indx
+    sto Z $input_buffer_pntr
+    
+    :read_buffer_loop
+        inc I $disk_read_buffer_indx
+        ldx A $disk_read_buffer_pntr
+
+        inc I $input_buffer_indx
+        stx A $input_buffer_pntr
+
+        tst A \Return
+        jmpt :end_file_input
+        
+        call @print_char
+        # increase X position
+        inc X $cursor_x
+        ldm X $cursor_x
+        
+        jmp :read_buffer_loop
+
+:end_file_input
+    sto Z $input_buffer_pntr
+    call @print_nl
+ret
 
 @begin_kw
     # reset mem index (adres)

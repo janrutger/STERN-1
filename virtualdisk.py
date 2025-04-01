@@ -13,7 +13,7 @@ class VirtualDisk:
         self.mainmem.write(self.status_register, 0)
 
         self.file_map = {}
-        self.buffer = None
+        #self.buffer = None
         self.serial_buffer = str()
         self.serial_buffer_index = 0
         self._build_file_map()
@@ -78,11 +78,11 @@ class VirtualDisk:
                     except FileNotFoundError:
                         print(f"Error: Real file not found at {real_path}")
                         self.mainmem.write(self.status_register, 3)
-                        self.buffer = None
-                        #self.buffer_index = 0
+                    #     #self.buffer = None
+                    #     #self.buffer_index = 0
                 else:
                     self.mainmem.write(self.status_register, 3)
-                    self.buffer = None
+                    #self.buffer = None
                     #self.buffer_index = 0
 
             elif command == 1: # read from file

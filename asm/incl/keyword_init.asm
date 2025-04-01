@@ -89,7 +89,7 @@
 
     # keyword load (file)
         ldi K $load_kw
-        ldi L @stub
+        ldi L @load_kw
         
         call :init_keyword
         sto M $load_hash

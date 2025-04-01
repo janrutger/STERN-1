@@ -46,7 +46,7 @@ class CharDisplay():
     def update_disk(self):
         self.vdisk.access()
         print("disk updated")
-        self.display.after(500, self.update_disk)
+        self.display.after(300, self.update_disk)
         
 
     def draw_screen(self, memory):

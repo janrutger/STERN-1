@@ -51,14 +51,6 @@ ret
 
 
 
-@load_kw_block_from_file
-    # returns one block = one line
-    # returns block in $block_from_file
-    
-    
-
-ret
-
 
 
 @stub

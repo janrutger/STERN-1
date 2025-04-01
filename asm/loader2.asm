@@ -307,6 +307,7 @@ rti
 
 @READ_FILE_LINE
     # returns a line from the file in $disk_read_buffer
+    # Returns \null at end of file 
     # Returns statusregister is Idle (0)
 
     sto Z $disk_read_buffer_indx
@@ -347,11 +348,10 @@ rti
         jmp :read_line  
     
 :end_file_read
-    # set status to Idle after kine read
+    # set status to Idle after line read
     ldi M 0
     ldi I 0
     stx M $DU0_baseadres
-    nop
 rti
 
 
