@@ -37,8 +37,9 @@
         # check for end of program
         ldm M $end_hash
         tste C M 
-        nop
         jmpt :end_load_kw
+
+        nop
 
     jmp :load_program_instructions
     
@@ -46,6 +47,7 @@
         int 7
         call @handle_file_input
         call @tokennice_input_buffer
+        
     jmp :load_program_instructions
         
 
@@ -62,7 +64,8 @@ ret
     # Write value to $input_buffer
 
     sto Z $disk_read_buffer_indx
-    sto Z $input_buffer_pntr
+    sto Z $input_buffer_indx
+    #sto Z $input_buffer_pntr
     
     :read_buffer_loop
         inc I $disk_read_buffer_indx
@@ -82,7 +85,8 @@ ret
         jmp :read_buffer_loop
 
 :end_file_input
-    sto Z $input_buffer_pntr
+    #sto Z $input_buffer_pntr
+    sto Z $input_buffer_indx
     call @print_nl
 ret
 
