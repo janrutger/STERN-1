@@ -39,14 +39,18 @@
         tste C M 
         jmpt :end_load_kw
 
-        nop
-
+        call @store_stacks_line
+        
     jmp :load_program_instructions
     
     :read_next_line
         int 7
         call @handle_file_input
         call @tokennice_input_buffer
+
+        # store start line index (adres) as counter
+        ldm M $stacks_program_mem_indx
+        sto M $stacks_line_counter
         
     jmp :load_program_instructions
         
@@ -56,6 +60,10 @@
         jmp :end_load_kw
 
 :end_load_kw 
+    inc I $stacks_program_mem_indx
+    stx Z $stacks_program_mem_pntr
+
+    sto Z $stacks_program_mem_indx
 ret 
 
 @handle_file_input
@@ -114,63 +122,7 @@ ret
             tste C M 
             jmpt :begin_kw_end
 
-            # when label-keyword is used
-            ldm M $label_hash
-            tste C M 
-            jmpf :end_label_hash
-                call @execute_label_type 
-                jmp :instruction_read
-            :end_label_hash
-
-
-            # check for string (var)
-            ldi M \2
-            tste B M 
-            jmpf :end_string
-                ldi B \v 
-                ld A C
-            :end_string
-
-            # when goto-keyword is used
-            ldm M $goto_hash
-            tste C M 
-            jmpf :end_goto_hash 
-                ldi B \w 
-                ld A C 
-            :end_goto_hash
-
-            # conditional execution
-            # when open ( is used
-            ldm M $open_(_hash
-            tste C M 
-            jmpf :end_open_(_hash
-                ldi B \w 
-                ld A C 
-            :end_open_(_hash
-
-            # when close ( is used
-            ldm M $close_(_hash
-            tste C M 
-            jmpf :end_close_(_hash
-                ldi B \w 
-                ld A C 
-            :end_close_(_hash
-
-            
-            # when as-keyword is used
-            ldm M $as_hash
-            tste C M 
-            jmpf :end_as_hash
-                ldi B \w
-                ld A C
-            :end_as_hash
-
-            # keep track of the mem index (adres)
-            inc I $stacks_program_mem_indx
-            stx B $stacks_program_mem_pntr
-
-            inc I $stacks_program_mem_indx
-            stx A $stacks_program_mem_pntr
+            call @store_stacks_line
 
         jmp :instruction_read
         
@@ -181,7 +133,66 @@ ret
     sto Z $stacks_program_mem_indx
 ret
 
+@store_stacks_line
+    # when label-keyword is used
+    ldm M $label_hash
+    tste C M 
+    jmpf :end_label_hash
+        call @execute_label_type 
+        ret
+    :end_label_hash
 
+    # check for string (var)
+    ldi M \2
+    tste B M 
+    jmpf :end_string
+        ldi B \v 
+        ld A C
+    :end_string
+
+    # when goto-keyword is used
+    ldm M $goto_hash
+    tste C M 
+    jmpf :end_goto_hash 
+        ldi B \w 
+        ld A C 
+    :end_goto_hash
+
+    # conditional execution
+    # when open ( is used
+    ldm M $open_(_hash
+    tste C M 
+    jmpf :end_open_(_hash
+        ldi B \w 
+        ld A C 
+    :end_open_(_hash
+
+    # when close ( is used
+    ldm M $close_(_hash
+    tste C M 
+    jmpf :end_close_(_hash
+        ldi B \w 
+        ld A C 
+    :end_close_(_hash
+
+    
+    # when as-keyword is used
+    ldm M $as_hash
+    tste C M 
+    jmpf :end_as_hash
+        ldi B \w
+        ld A C
+    :end_as_hash
+
+    # keep track of the mem index (adres)
+    inc I $stacks_program_mem_indx
+    stx B $stacks_program_mem_pntr
+
+    inc I $stacks_program_mem_indx
+    stx A $stacks_program_mem_pntr
+    nop
+
+ret
 
 @execute_label_type
     # expects the next argumnet is a \v type

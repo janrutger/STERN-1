@@ -1,2 +1,10 @@
 begin
+0 as a 
+20 as b 
+
+label loop
+a print 
+a 1 + as a 
+b a > ( goto loop )
+
 end
