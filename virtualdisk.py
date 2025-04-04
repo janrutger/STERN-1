@@ -74,7 +74,7 @@ class VirtualDisk:
                                 #self.serial_buffer += " " # add a space after each line
                             self.serial_buffer_index = 0
                             self.mainmem.write(self.status_register, 1)
-
+                        self.serial_buffer += "\n"
                     except FileNotFoundError:
                         print(f"Error: Real file not found at {real_path}")
                         self.mainmem.write(self.status_register, 3)

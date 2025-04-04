@@ -416,7 +416,7 @@ ret
 
 # draw sprite helper functio
 @draw_sprite_function
-. $start_x 1
+    . $start_x 1
     . $start_y 1
     sto X $start_x
     sto Y $start_y
