@@ -1,4 +1,7 @@
 import os
+from time import sleep
+
+
 
 class VirtualDisk:
     def __init__(self, myASCII, MainMem, BaseAdres, real_directory):
@@ -55,6 +58,7 @@ class VirtualDisk:
         
         if status == 2: # Request van host
             if command == 0: # open file
+                print("Open file command received")
                 hashed_filename = data
                 if hashed_filename in self.file_map:
                     real_path = self.file_map[hashed_filename]
@@ -86,6 +90,7 @@ class VirtualDisk:
                     #self.buffer_index = 0
 
             elif command == 1: # read from file
+                print("Read from file command received")
                 if self.serial_buffer == "":
                     self.mainmem.write(self.status_register, 3)
                 else:

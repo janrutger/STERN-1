@@ -1,6 +1,6 @@
 begin
 0 as a 
-20 as b 
+120 as b 
 
 label loop
 a print 
