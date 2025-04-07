@@ -1,10 +1,10 @@
 begin
-0 as a 
-120 as b 
+10 as a 
+-20 as b 
 
 label loop
 a print 
-a 1 + as a 
-b a > ( goto loop )
+a 1 - as a 
+a b > ( goto loop )
 
 end

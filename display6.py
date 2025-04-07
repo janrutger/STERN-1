@@ -33,16 +33,12 @@ class CharDisplay():
                 char_id = self.canvas.create_text((x * self.scale, y * self.scale), text="", fill="white", anchor=NW, font=("Courier", self.scale))
                 self.chars[(x, y)] = char_id
 
-        
-        # self.update_disk()
-        # self.update_videoMemory()
+        self.my_tasks()
 
-        self.my_idle_tasks()
-
-    def my_idle_tasks(self):
+    def my_tasks(self):
         self.update_disk()
         self.update_videoMemory()
-        self.display.after_idle(self.my_idle_tasks)
+        self.display.after_idle(self.my_tasks)
         
 
     def update_videoMemory(self):
@@ -50,16 +46,12 @@ class CharDisplay():
         if self.prev_mem != videoMemory:
             self.draw_screen(videoMemory)
             self.prev_mem = videoMemory
-        #self.display.after(150, self.update_videoMemory)  # Reduced delay for smoother updates
-        #self.display.after_idle(self.update_videoMemory)
-        
-        
+
 
     def update_disk(self):
         self.vdisk.access()
         #print("disk updated")
-        #self.display.after(150, self.update_disk)
-        #self.display.after_idle(self.update_disk)
+
         
 
     def draw_screen(self, memory):
@@ -89,7 +81,6 @@ class CharDisplay():
             # register new char
             self.char_map[(x, y)] = char
 
-        #self.display.update_idletasks()
         self.display.update()
 
     def key_pressed(self, event):

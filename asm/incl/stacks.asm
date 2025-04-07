@@ -75,7 +75,9 @@ ret
     sto Z $input_buffer_indx
     #sto Z $input_buffer_pntr
     
+    call @prompt_program
     :read_buffer_loop
+        
         inc I $disk_read_buffer_indx
         ldx A $disk_read_buffer_pntr
 
