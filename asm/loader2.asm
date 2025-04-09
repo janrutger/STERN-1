@@ -1,7 +1,24 @@
+
 . $FONTS 1
+% $FONTS 2024
+
 . $VIDEO_MEM 1
+% $VIDEO_MEM 14336
+
 . $VIDEO_SIZE 1
+# 2k - 1 = 2047
+% $VIDEO_SIZE 2047
+
 . $INT_VECTORS 1
+% $INT_VECTORS 4096
+
+. $mem_start 1
+% $mem_start 0
+
+# Prog_start adres = 4608
+. $prog_start 1
+% $prog_start 4608
+
 
 . $KBD_BUFFER 16
 . $KBD_BUFFER_ADRES 1
@@ -26,20 +43,20 @@ INCLUDE errors
 
 
     # init Fonts and Display memory pointer
-    ldi M 2024
-    sto M $FONTS
+    #ldi M 2024
+    #sto M $FONTS
 
-    ldi M 14336
-    sto M $VIDEO_MEM
+    #ldi M 14336
+    #sto M $VIDEO_MEM
 
     # 2k - 1 = 2047
-    ldi M 2047
-    sto M $VIDEO_SIZE
+    #ldi M 2047
+    #sto M $VIDEO_SIZE
 
     # init interrupt vectors
     # Memory location where int vectors are stored
-    ldi M 4096
-    sto M $INT_VECTORS
+    #ldi M 4096
+    #sto M $INT_VECTORS
 
     # set the ISR vectors
     ldi I 0
@@ -59,7 +76,7 @@ INCLUDE errors
     stx M $INT_VECTORS
 
     ldi I 4
-    ldi M @scroll_screen
+    ldi M @scroll_line
     stx M $INT_VECTORS
 
     ldi I 5
@@ -200,7 +217,7 @@ rti
 
 
 
-@scroll_screen
+@scroll_line
 ### MOVE memory block n positions
 . $screen_start 1
 . $read_pointer 1
@@ -212,14 +229,17 @@ sto M $screen_start
 
 # n postions to move
 # 6 lines x 64 pixels = 384
-addi M 384
+#addi M 384
+addi M 64
+
 # pointer to read adres
 sto M $read_pointer
 
 # number of shifts
 # total lenght of block - pixels to shift
 ldm M $VIDEO_SIZE
-subi M 384 
+#subi M 384 
+subi M 63
 sto M $pxls_to_shift
 
 ldi I 0
@@ -235,15 +255,17 @@ sto I $shifting
     tste K L 
 jmpf :shift_loop
 
-# fill with zero 
+# fill with \space
+ldi K \space
 ld M Z
 :fill_zero
     inc I $shifting
-    stx Z $screen_start
+    stx K $screen_start
 
     addi M 1
     # 6 lines x 64 pixels = 384
-    tst M 384
+    # tst M 384
+    tst M 64
 jmpf :fill_zero    
 
 rti

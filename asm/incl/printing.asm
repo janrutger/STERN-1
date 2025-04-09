@@ -68,7 +68,10 @@ ret
 
     tst Y 31
     jmpf :end
-    sto Z $cursor_y
+    #sto Z $cursor_y
+     int 4 
+     ldi Y 31
+     sto Y $cursor_y
 :end
 ret
 
