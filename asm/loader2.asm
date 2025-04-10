@@ -42,22 +42,6 @@ INCLUDE errors
     sto M $KBD_BUFFER_ADRES
 
 
-    # init Fonts and Display memory pointer
-    #ldi M 2024
-    #sto M $FONTS
-
-    #ldi M 14336
-    #sto M $VIDEO_MEM
-
-    # 2k - 1 = 2047
-    #ldi M 2047
-    #sto M $VIDEO_SIZE
-
-    # init interrupt vectors
-    # Memory location where int vectors are stored
-    #ldi M 4096
-    #sto M $INT_VECTORS
-
     # set the ISR vectors
     ldi I 0
     ldi M @KBD_WRITE
@@ -228,17 +212,16 @@ ldm M $VIDEO_MEM
 sto M $screen_start
 
 # n postions to move
-# 6 lines x 64 pixels = 384
-#addi M 384
+# 1 lines x 64 pixels = 64
 addi M 64
 
 # pointer to read adres
 sto M $read_pointer
 
 # number of shifts
-# total lenght of block - pixels to shift
+# total lenght of block - 1 = 63
+# pixels to shift
 ldm M $VIDEO_SIZE
-#subi M 384 
 subi M 63
 sto M $pxls_to_shift
 
@@ -263,7 +246,7 @@ ld M Z
     stx K $screen_start
 
     addi M 1
-    # 6 lines x 64 pixels = 384
+    # 1 line x 64 pixels = 64
     # tst M 384
     tst M 64
 jmpf :fill_zero    

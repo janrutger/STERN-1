@@ -16,7 +16,6 @@ class VirtualDisk:
         self.mainmem.write(self.status_register, 0)
 
         self.file_map = {}
-        #self.buffer = None
         self.serial_buffer = str()
         self.serial_buffer_index = 0
         self._build_file_map()
@@ -64,30 +63,17 @@ class VirtualDisk:
                     real_path = self.file_map[hashed_filename]
                     try:
                         with open(real_path, 'r') as f:
-                            # self.buffer = f.readlines()
-                            # # self.buffer_index = 0
-                            # for line in self.buffer:
-                            #     self.serial_buffer = self.serial_buffer  +  line +  " "
-                            # self.serial_buffer_index = 0
-                            # self.buffer = None
-                            # self.mainmem.write(self.status_register, 1)
-
                             self.serial_buffer = ""  # Reset the buffer before reading a new file
                             for line in f:
                                 self.serial_buffer += line
-                                #self.serial_buffer += " " # add a space after each line
-                            self.serial_buffer_index = 0
+                                self.serial_buffer_index = 0
                             self.mainmem.write(self.status_register, 1)
                         self.serial_buffer += "\n"
                     except FileNotFoundError:
                         print(f"Error: Real file not found at {real_path}")
                         self.mainmem.write(self.status_register, 3)
-                    #     #self.buffer = None
-                    #     #self.buffer_index = 0
                 else:
                     self.mainmem.write(self.status_register, 3)
-                    #self.buffer = None
-                    #self.buffer_index = 0
 
             elif command == 1: # read from file
                 print("Read from file command received")

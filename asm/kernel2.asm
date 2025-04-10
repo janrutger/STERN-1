@@ -1,9 +1,3 @@
-#. $mem_start 1
-#% $mem_start 0
-
-# Prog_start adres = 4608
-#. $prog_start 1
-#% $prog_start 4608
 
 @kernel_init
     call @init_stern
