@@ -1,12 +1,32 @@
+
 . $FONTS 1
+% $FONTS 2024
+
 . $VIDEO_MEM 1
+% $VIDEO_MEM 14336
+
 . $VIDEO_SIZE 1
+# 2k - 1 = 2047
+% $VIDEO_SIZE 2047
+
 . $INT_VECTORS 1
+% $INT_VECTORS 4096
+
+. $mem_start 1
+% $mem_start 0
+
+# Prog_start adres = 4608
+. $prog_start 1
+% $prog_start 4608
+
 
 . $KBD_BUFFER 16
 . $KBD_BUFFER_ADRES 1
 . $KBD_READ_PNTR 1
 . $KBD_WRITE_PNTR 1
+
+. $DU0_baseadres 1 
+% $DU0_baseadres 12303
 
 INCLUDE printing
 INCLUDE errors
@@ -21,22 +41,6 @@ INCLUDE errors
     ldi M $KBD_BUFFER
     sto M $KBD_BUFFER_ADRES
 
-
-    # init Fonts and Display memory pointer
-    ldi M 2024
-    sto M $FONTS
-
-    ldi M 14336
-    sto M $VIDEO_MEM
-
-    # 2k - 1 = 2047
-    ldi M 2047
-    sto M $VIDEO_SIZE
-
-    # init interrupt vectors
-    # Memory location where int vectors are stored
-    ldi M 4096
-    sto M $INT_VECTORS
 
     # set the ISR vectors
     ldi I 0
@@ -56,12 +60,21 @@ INCLUDE errors
     stx M $INT_VECTORS
 
     ldi I 4
-    ldi M @scroll_screen
+    ldi M @scroll_line
     stx M $INT_VECTORS
 
     ldi I 5
     ldi M @DRAW_SPRITE
     stx M $INT_VECTORS
+
+    ldi I 6
+    ldi M @OPEN_FILE
+    stx M $INT_VECTORS
+
+    ldi I 7
+    ldi M @READ_FILE_LINE
+    stx M $INT_VECTORS
+
 
     ## Done interrupt factors
 
@@ -188,7 +201,7 @@ rti
 
 
 
-@scroll_screen
+@scroll_line
 ### MOVE memory block n positions
 . $screen_start 1
 . $read_pointer 1
@@ -199,15 +212,17 @@ ldm M $VIDEO_MEM
 sto M $screen_start
 
 # n postions to move
-# 6 lines x 64 pixels = 384
-addi M 384
+# 1 lines x 64 pixels = 64
+addi M 64
+
 # pointer to read adres
 sto M $read_pointer
 
 # number of shifts
-# total lenght of block - pixels to shift
+# total lenght of block - 1 = 63
+# pixels to shift
 ldm M $VIDEO_SIZE
-subi M 384 
+subi M 63
 sto M $pxls_to_shift
 
 ldi I 0
@@ -223,15 +238,17 @@ sto I $shifting
     tste K L 
 jmpf :shift_loop
 
-# fill with zero 
+# fill with \space
+ldi K \space
 ld M Z
 :fill_zero
     inc I $shifting
-    stx Z $screen_start
+    stx K $screen_start
 
     addi M 1
-    # 6 lines x 64 pixels = 384
-    tst M 384
+    # 1 line x 64 pixels = 64
+    # tst M 384
+    tst M 64
 jmpf :fill_zero    
 
 rti
@@ -249,7 +266,105 @@ rti
    call @draw_sprite_function   
 rti
 
+## File based ISR's
+
+@OPEN_FILE
+    # expects the filename hash in A 
+    # Returns statusregister is Idle (0)
+
+    # store A in data_register
+    # dataregister index = 2 
+    ldi I 2
+    stx A $DU0_baseadres
+
+    # set the commmand (0) open file
+    ldi M 0
+    # commandregister index = 1
+    ldi I 1
+    stx M $DU0_baseadres 
+
+    # sets status (2) request from host
+    ldi M 2
+    # statusregister index = 0
+    ldi I 0
+    stx M $DU0_baseadres
+
+    :wait_for_ack_open_file
+        # read status register
+        ldi I 0
+        ldx M $DU0_baseadres
+        # check for ack (1) request from disk
+        tst M 1
+        jmpf :wait_for_ack_open_file
+
+    # set status to Idle after file open
+    ldi M 0
+    ldi I 0
+    stx M $DU0_baseadres
+
+rti
+
+. $disk_read_buffer 64
+. $disk_read_buffer_indx 1
+. $disk_read_buffer_pntr 1
+% $disk_read_buffer_pntr $disk_read_buffer
+
+
+@READ_FILE_LINE
+    # returns a line from the file in $disk_read_buffer
+    # Returns \null at end of file 
+    # Returns statusregister is Idle (0)
+
+    sto Z $disk_read_buffer_indx
+
+    :read_line
+        # set command_register read
+        ldi I 1
+        ldi M 1
+        stx M $DU0_baseadres
+        # set status_register request from host
+        ldi I 0
+        ldi M 2
+        stx M $DU0_baseadres
+
+        :wait_for_ack_read_line
+            # read status register
+            ldi I 0
+            ldx M $DU0_baseadres
+            # check for ack (1) request from disk
+            tst M 1 
+        jmpf :wait_for_ack_read_line
+            # read data_register
+            ldi I 2
+            ldx M $DU0_baseadres
+
+            # store in disk_read_buffer
+            inc I $disk_read_buffer_indx
+            stx M $disk_read_buffer_pntr
+            
+            # check for \Return (end of line)
+            tst M \Return
+            jmpt :end_file_read
+
+            # check for \null (end of file)
+            tst M \null
+            jmpt :end_file_read
+
+        jmp :read_line  
+    
+:end_file_read
+    # set status to Idle after line read
+    ldi M 0
+    ldi I 0
+    stx M $DU0_baseadres
+rti
+
+
 ## End of the ISR's
+
+
+
+
 
 
 ## Helper routines
@@ -306,7 +421,7 @@ ret
 
 # draw sprite helper functio
 @draw_sprite_function
-. $start_x 1
+    . $start_x 1
     . $start_y 1
     sto X $start_x
     sto Y $start_y
@@ -349,3 +464,5 @@ ret
     tstg B M
     jmpt :row_loop_sprite 
 ret
+
+

@@ -1,3 +1,11 @@
+@program
 
-. $test 4
-% $test \a \a \a \null
+ldi A 31
+int 6
+
+int 7
+int 7
+int 7
+int 7
+
+ret

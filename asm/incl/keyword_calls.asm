@@ -32,6 +32,25 @@ ret
 :as_kw_end    
 ret
 
+@open_kw
+    # expect next token is a string (filename)
+    call @read_token
+    jmpt :open_kw_error
+    tst B \2
+    jmpf :open_kw_error
+
+    ld A C
+    int 6
+    jmp :open_kw_end
+    
+:open_kw_error
+    call @fatal_error
+    
+:open_kw_end
+ret
+
+
+
 
 
 @stub
