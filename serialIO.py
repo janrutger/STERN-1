@@ -20,6 +20,7 @@ class serialIO:
         # Status
         # 00 (0) Idle
         # 01 (1) Data ready
+        # 10 (2) Waiting for data
         # 11 (3) Error
         self.status_register = BaseAdres + 3
 
@@ -27,7 +28,7 @@ class serialIO:
         self.mainmem.write(self.status_register, 0)
 
     
-    def access(self) -> None:
+    def IO(self) -> None:
         # read device registers
         channel = int(self.mainmem.read(self.channel))
         command = int(self.mainmem.read(self.command_register))

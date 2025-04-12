@@ -4,6 +4,7 @@ from assembler import Assembler
 from display6 import CharDisplay as Display
 from interrupts import Interrupts
 from virtualdisk import VirtualDisk as Vdisk
+from serialIO import serialIO as Serial
 from FileIO import readFile
 from stringtable import makechars
 
@@ -23,7 +24,8 @@ def main():
     MainMem = Memory(1024 * 16) 
     StackPointer = MainMem.MEMmax() - VideoSize
     start_var  = StackPointer - 2024
-    IOmem_du0  = start_var - 8 # its just one/first device
+    IOmem_du0  = start_var - 8  # first device
+    IOmem_sio  = start_var - 16 # second device
 
     start_loader  = 0
     start_kernel  = start_loader + 512
@@ -31,8 +33,9 @@ def main():
     intVectors = 4096
     start_prog = intVectors + 512
 
+    SIO    = Serial(MainMem, IOmem_sio)
     DU0    = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")    
-    CPU    = Cpu(MainMem, interrupts, StackPointer, intVectors) 
+    CPU    = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
     screen = Display(myASCII, interrupts, DU0, Vw, Vh, MainMem, 15)
 
     # load fonts into MainMem
@@ -45,7 +48,7 @@ def main():
     A = Assembler(start_var)
     A.assemble("loader2.asm", start_loader, "loader.bin")
     A.assemble("kernel2.asm",  start_kernel, "kernel.bin")
-    A.assemble("spritewalker.asm", start_prog,   "program.bin")
+    A.assemble("test.asm", start_prog,   "program.bin")
 
     # Loader bin into MainMem
     program = readFile("loader.bin", 0)

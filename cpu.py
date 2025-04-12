@@ -3,9 +3,10 @@ from time import sleep
 
 
 class Cpu:
-    def __init__(self, memory, interrupts, SP, intVector):
+    def __init__(self, memory, sio, interrupts, SP, intVector):
         self.memory     = memory
         self.interrupts = interrupts
+        self.sio        = sio
         
         self.registers = [0] * 10   # 10 registers
                                     # 0      index register
@@ -157,6 +158,8 @@ class Cpu:
                     exit("Invalid instruction")
             
 
+            self.sio.IO()
+            
             #check for interrupts
             if self.interruptEnable:
                 # print("Interrupts enabled")
