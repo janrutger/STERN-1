@@ -5,6 +5,7 @@ from display6 import CharDisplay as Display
 from interrupts import Interrupts
 from virtualdisk import VirtualDisk as Vdisk
 from serialIO import serialIO as Serial
+from plotter import Plotter
 from FileIO import readFile
 from stringtable import makechars
 
@@ -33,10 +34,11 @@ def main():
     intVectors = 4096
     start_prog = intVectors + 512
 
-    SIO    = Serial(MainMem, IOmem_sio)
-    DU0    = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")    
-    CPU    = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
-    screen = Display(myASCII, interrupts, DU0, Vw, Vh, MainMem, 15)
+    SIO     = Serial(MainMem, IOmem_sio)
+    DU0     = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")   
+    plotter = Plotter(SIO) 
+    CPU     = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
+    screen  = Display(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 15)
 
     # load fonts into MainMem
     font  = readFile("standard.font", 2)

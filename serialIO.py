@@ -63,6 +63,18 @@ class serialIO:
                 
         else:
             pass
+
+    def check_channel(self, channel) -> bool:
+        if channel in self.channels:
+            return True
+        else:
+            return False
+        
+    def read_channel(self, channel):
+        if len(self.channels[channel]) > 0:
+            return self.channels[channel].pop(0)
+        else:
+            return None
             
 
         
