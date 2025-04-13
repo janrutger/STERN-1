@@ -49,7 +49,22 @@ ret
 :open_kw_end
 ret
 
+@enable_kw
+    call @datastack_pop
+    call @open_channel
+ret
 
+@disable_kw
+    call @datastack_pop
+    call @close_channel
+ret
+
+@plot_kw
+    call @datastack_pop
+    ld B A 
+    ldi A 0
+    call @write_channel
+ret
 
 
 

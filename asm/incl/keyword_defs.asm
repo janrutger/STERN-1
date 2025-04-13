@@ -52,6 +52,20 @@
     % $load_kw \l \o \a \d \null
     . $load_hash 1
 
+    . $enable_kw 7
+    % $enable_kw \e \n \a \b \l \e \null
+    . $enable_hash 1
+
+    . $disable_kw 8
+    % $disable_kw \d \i \s \a \b \l \e \null
+    . $disable_hash 1
+
+    . $plot_kw 5
+    % $plot_kw \p \l \o \t \null
+    . $plot_hash 1
+
+
+
 
 
 

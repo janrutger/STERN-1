@@ -1,9 +1,9 @@
 begin
 0 as a 
-1024 as b 
+42 as b 
 
 label loop
-a print 
+a plot 
 a 1 + as a 
 b a > ( goto loop )
 
