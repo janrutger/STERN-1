@@ -13,14 +13,15 @@ class Plotter:
         if self.sio.check_channel(self.channel) and self.status == 'offline':
             self.status = 'online'
 
-            self.fig, self.ax = plt.subplots()
             plt.ion()
             plt.show(block=False)
+            self.fig, self.ax = plt.subplots()
+            plt.pause(0.001)
             print("set online...........")
 
 
 
-        elif not self.sio.check_channel(self.channel) and self.status == 'online':
+        if not self.sio.check_channel(self.channel) and self.status == 'online':
             self.status = 'offline'
             plt.close('all')
             print("set offline...........")
@@ -30,10 +31,14 @@ class Plotter:
             if data is not None:
                 self.ax.scatter(self.x_ax, data, s=5, c='black')
                 self.x_ax = self.x_ax + 1
-                plt.show(block=False)
+                #plt.show(block=False)
                 plt.draw()
                 plt.pause(0.001)
                 print("write data...........")
+            else: 
+                plt.draw()
+                plt.pause(0.001)
+                print("no data...........")
                 
                 
 

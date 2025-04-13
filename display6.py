@@ -35,11 +35,12 @@ class CharDisplay():
                 self.chars[(x, y)] = char_id
 
         self.my_tasks()
+        self.update_plotter()
 
     def my_tasks(self):
         self.update_disk()
         self.update_videoMemory()
-        self.update_plotter()
+        #self.update_plotter()
         self.display.after_idle(self.my_tasks)
         
 
@@ -56,6 +57,7 @@ class CharDisplay():
 
     def update_plotter(self):
         self.plotter.plot_update() 
+        self.display.after(1000, self.update_plotter)
 
         
 
