@@ -1,3 +1,4 @@
+from time import sleep
 
 
 class serialIO:
@@ -39,7 +40,9 @@ class serialIO:
         if status == 1:       # data ready
             if command == 0:  # open channel
                 self.channels[channel] = []
-                self.mainmem.write(self.status_register, 0)
+                self.mainmem.write(self.status_register, 2)
+                while int(self.mainmem.read(self.status_register)) == 2:
+                    sleep(0.001)
 
             elif command == 1: # write to channel
                 if channel in self.channels:
@@ -75,6 +78,9 @@ class serialIO:
             return self.channels[channel].pop(0)
         else:
             return None
+    
+    def set_idle(self):
+        self.mainmem.write(self.status_register, 0)
             
 
         

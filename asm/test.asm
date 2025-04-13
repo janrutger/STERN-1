@@ -9,7 +9,7 @@ ldi A 0
 ldi B 42
 call @write_channel
 
-nop
+#nop
 
 ldi A 0
 ldi B 84
@@ -18,7 +18,7 @@ call @write_channel
 nop
 
 ldi A 0
-call @close_channel
+#call @close_channel
 
 ret
 
