@@ -3,7 +3,7 @@ begin
 42 as b 
 
 label loop
-a plot 
+a print
 a 1 + as a 
 b a > ( goto loop )
 

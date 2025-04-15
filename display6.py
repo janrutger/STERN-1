@@ -2,11 +2,10 @@ from tkinter import *
 from time import time
 
 class CharDisplay():
-    def __init__(self, myASCII, interrupts, vdisk, plotter, width, height, memory, scale=10):
+    def __init__(self, myASCII, interrupts, vdisk, width, height, memory, scale=10):
         self.ASCII = myASCII
         self.int = interrupts
         self.vdisk = vdisk
-        self.plotter = plotter
         self.width = width
         self.height = height
         self.scale = scale
@@ -35,12 +34,10 @@ class CharDisplay():
                 self.chars[(x, y)] = char_id
 
         self.my_tasks()
-        #self.update_plotter()
 
     def my_tasks(self):
         self.update_disk()
         self.update_videoMemory()
-        self.update_plotter()
         self.display.after_idle(self.my_tasks)
         
 
@@ -54,10 +51,6 @@ class CharDisplay():
     def update_disk(self):
         self.vdisk.access()
         #print("disk updated")
-
-    def update_plotter(self):
-        self.plotter.plot_update() 
-        #self.display.after(10, self.update_plotter)
 
         
 
