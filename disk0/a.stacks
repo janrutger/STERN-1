@@ -3,7 +3,11 @@ begin
 42 as b 
 
 label loop
+<<<<<<< HEAD
 a print
+=======
+a plot
+>>>>>>> 886759c (next try for a plotter, working)
 a 1 + as a 
 b a > ( goto loop )
 

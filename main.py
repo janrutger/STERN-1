@@ -1,7 +1,8 @@
 from memory import Memory
 from cpu import Cpu
 from assembler import Assembler
-from display6 import CharDisplay as Display
+from display7 import CharDisplay as Display
+from plotter1 import Plotter
 from interrupts import Interrupts
 from virtualdisk import VirtualDisk as Vdisk
 from serialIO import serialIO as Serial
@@ -34,6 +35,7 @@ def main():
     start_prog = intVectors + 512
 
     SIO     = Serial(MainMem, IOmem_sio)
+    plotter = Plotter(SIO)
     DU0     = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")   
     CPU     = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
     screen  = Display(myASCII, interrupts, DU0, Vw, Vh, MainMem, 15)
@@ -48,7 +50,7 @@ def main():
     A = Assembler(start_var)
     A.assemble("loader2.asm", start_loader, "loader.bin")
     A.assemble("kernel2.asm",  start_kernel, "kernel.bin")
-    A.assemble("test.asm", start_prog,   "program.bin")
+    A.assemble("spritewalker.asm", start_prog,   "program.bin")
 
     # Loader bin into MainMem
     program = readFile("loader.bin", 0)
