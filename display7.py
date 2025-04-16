@@ -184,6 +184,6 @@ class CharDisplay():
             self.int.interrupt(0, value) # Assuming interrupt 0 is keyboard
         else:
             # Don't print every unknown key, can be noisy
-            # print(f"Unknown key pressed: char='{event.char}', keysym='{event.keysym}'")
+            print(f"Unknown key pressed: char='{event.char}', keysym='{event.keysym}'")
             pass
 

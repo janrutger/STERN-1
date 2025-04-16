@@ -38,7 +38,7 @@ def main():
     plotter = Plotter(SIO)
     DU0     = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")   
     CPU     = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
-    screen  = Display(myASCII, interrupts, DU0, Vw, Vh, MainMem, 15)
+    screen  = Display(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 15)
 
     # load fonts into MainMem
     font  = readFile("standard.font", 2)
