@@ -1,4 +1,4 @@
-# /home/janrutger/git/STERN-1/plotter.py
+# /home/janrutger/git/STERN-1/plotter1.py
 import matplotlib.pyplot as plt
 from time import sleep
 

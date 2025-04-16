@@ -1,7 +1,8 @@
 from memory import Memory
 from cpu import Cpu
 from assembler import Assembler
-from display7 import CharDisplay as Display
+#from display7 import CharDisplay as Display
+from hw_IO_manager import DeviceIO 
 from plotter1 import Plotter
 from interrupts import Interrupts
 from virtualdisk import VirtualDisk as Vdisk
@@ -38,7 +39,7 @@ def main():
     plotter = Plotter(SIO)
     DU0     = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")   
     CPU     = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
-    screen  = Display(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 15)
+    devices  = DeviceIO(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 15)
 
     # load fonts into MainMem
     font  = readFile("standard.font", 2)
@@ -72,8 +73,8 @@ def main():
     cpu_thread.start()
     
 
-    # Start the screen main loop (tK)
-    screen.display.mainloop()
+    # Start the devices main loop (tK)
+    devices.display.mainloop()
 
     print("SYSTEM HALTED")
 

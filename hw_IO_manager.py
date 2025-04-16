@@ -1,9 +1,9 @@
-# /home/janrutger/git/STERN-1/display6.py
+# /home/janrutger/git/STERN-1/display7.py
 from tkinter import *
 from time import time
 # No need to import Plotter here, just accept it as an argument
 
-class CharDisplay():
+class DeviceIO():
     # Add 'plotter' to the __init__ signature
     def __init__(self, myASCII, interrupts, vdisk, plotter, width, height, memory, scale=10):
         self.ASCII = myASCII
@@ -67,6 +67,7 @@ class CharDisplay():
             # --- Schedule next call ---
             # Use a regular interval (e.g., 50ms)
             self.display.after(50, self.my_tasks)
+            #self.display.after_idle(self.my_tasks)
 
         except Exception as e:
             # Catch errors to prevent the update loop from stopping unexpectedly
