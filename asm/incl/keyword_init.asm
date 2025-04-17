@@ -114,6 +114,13 @@
         
         call :init_keyword
         sto M $plot_hash
+
+    # keyword @gcd
+        ldi K $gcd_kw
+        ldi L @gcd_kw
+        
+        call :init_keyword
+        sto M $gcd_hash
     
   
 ret

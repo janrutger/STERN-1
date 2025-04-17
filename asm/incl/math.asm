@@ -42,15 +42,29 @@ ret
     ld B A 
     call @datastack_pop
     tstg A B 
-    jmpf :gt_fasle
+    jmpf :gt_false
         ldi A 0
     jmp :gt_end
-    :gt_fasle
+    :gt_false
         ldi A 1
     :gt_end
         call @datastack_push 
 ret
 
+
+@do_eq
+    call @datastack_pop
+    ld B A 
+    call @datastack_pop
+    tste A B 
+    jmpf :eq_false
+        ldi A 0
+    jmp :gt_end
+    :eq_false
+        ldi A 1
+    :eq_end
+        call @datastack_push 
+ret
 
 
 @do_dot

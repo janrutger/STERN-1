@@ -1,4 +1,4 @@
-# /home/janrutger/git/STERN-1/display7.py
+# /home/janrutger/git/STERN-1/hw_IO_manager.py
 from tkinter import *
 from time import time
 # No need to import Plotter here, just accept it as an argument
@@ -147,12 +147,16 @@ class DeviceIO():
             # Create new text element only if char is not empty
             if char:
                 try:
+                    #font_size = max(1, int(self.scale * 0.8))
+                    # Or subtract a fixed amount: font_size = max(1, self.scale - 2)
+                    font_size = max(1, self.scale - 1)
+
                     new_id = self.canvas.create_text(
                         (x * self.scale + self.scale // 2, y * self.scale + self.scale // 2), # Center text
                         text=char,
                         fill="white",
                         anchor=CENTER, # Use CENTER anchor
-                        font=("Courier", self.scale)
+                        font=("Courier", font_size)
                     )
                     self.chars[(x, y)] = new_id
                 except TclError:

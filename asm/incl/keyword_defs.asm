@@ -1,4 +1,5 @@
     # define keywords
+
     . $exit_kw 5
     % $exit_kw \e \x \i \t \null
     . $exit_hash 1
@@ -14,7 +15,6 @@
     . $run_kw 4
     % $run_kw \r \u \n \null
     . $run_hash 1
-
 
     . $begin_kw 6
     % $begin_kw \b \e \g \i \n \null
@@ -63,6 +63,12 @@
     . $plot_kw 5
     % $plot_kw \p \l \o \t \null
     . $plot_hash 1
+
+    . $gcd_kw 4
+    % $gcd_kw \g \c \d \null
+    . $gcd_hash 1
+
+
 
 
 

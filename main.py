@@ -39,7 +39,7 @@ def main():
     plotter = Plotter(SIO)
     DU0     = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")   
     CPU     = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
-    devices  = DeviceIO(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 15)
+    devices  = DeviceIO(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 16)
 
     # load fonts into MainMem
     font  = readFile("standard.font", 2)

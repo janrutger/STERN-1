@@ -66,7 +66,36 @@ ret
     call @write_channel
 ret
 
+@gcd_kw
+    call @datastack_pop
+    ld B A
+    call @datastack_pop
 
+    tst B 0
+    jmpt :gcd_kw_returnA
+
+    tst A 0
+    ld A B 
+    jmpt :gcd_kw_returnA
+
+    :loop_gcd
+        tste A B 
+        jmpt :gcd_kw_returnA
+
+        tstg A B 
+        jmpt :subAB
+            sub B A
+            jmp :loop_gcd
+
+        :subAB
+            sub A B 
+            jmp :loop_gcd
+
+  
+    :gcd_kw_returnA
+        call @datastack_push
+
+ret
 
 @stub
     # stub
