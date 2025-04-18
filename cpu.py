@@ -42,7 +42,7 @@ class Cpu:
         runState = True
         self.PC = startAdres
         while runState:
-            #sleep(.0001)
+            #sleep(.0000000001)
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  

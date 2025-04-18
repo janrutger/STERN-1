@@ -3,7 +3,7 @@ from cpu import Cpu
 from assembler import Assembler
 #from display7 import CharDisplay as Display
 from hw_IO_manager import DeviceIO 
-from plotter1 import Plotter
+from plotter2 import Plotter
 from interrupts import Interrupts
 from virtualdisk import VirtualDisk as Vdisk
 from serialIO import serialIO as Serial

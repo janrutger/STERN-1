@@ -1,0 +1,22 @@
+begin
+    1 as last
+    last plot
+    last plot
+
+    2 as current
+
+    label loop
+    current 10 = ( current print last print )
+        last current gcd as commenfactor
+        1 commenfactor = ( last current 1 + + as tmp
+
+            goto nextnumber )
+        
+        last commenfactor / as tmp
+
+        label nextnumber
+            tmp plot
+            tmp as last
+            current 1 + as current
+    700 current > ( goto loop )
+end
