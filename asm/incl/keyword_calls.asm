@@ -75,8 +75,7 @@ ret
     jmpt :gcd_kw_returnA
 
     tst A 0
-    ld A B 
-    jmpt :gcd_kw_returnA
+    jmpt :returnB
 
     :loop_gcd
         tste A B 
@@ -91,11 +90,14 @@ ret
             sub A B 
             jmp :loop_gcd
 
-  
+    :returnB
+        ld A B
     :gcd_kw_returnA
         call @datastack_push
-
 ret
+
+
+
 
 @stub
     # stub
