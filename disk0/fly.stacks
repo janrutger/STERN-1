@@ -1,4 +1,5 @@
 begin
+
     1 as last
     last plot
     last plot
@@ -6,10 +7,8 @@ begin
     2 as current
 
     label loop
-    current 10 = ( current print last print )
         last current gcd as commenfactor
         1 commenfactor = ( last current 1 + + as tmp
-
             goto nextnumber )
         
         last commenfactor / as tmp

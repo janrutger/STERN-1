@@ -76,7 +76,7 @@ class VirtualDisk:
                     self.mainmem.write(self.status_register, 3)
 
             elif command == 1: # read from file
-                print("Read from file command received")
+                #print("Read from file command received")
                 if self.serial_buffer == "":
                     self.mainmem.write(self.status_register, 3)
                 else:

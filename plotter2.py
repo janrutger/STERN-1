@@ -1,4 +1,4 @@
-# /home/janrutger/git/STERN-1/plotter2_fixed.py
+# /home/janrutger/git/STERN-1/plotter2.py
 import matplotlib.pyplot as plt
 from time import sleep, time
 
@@ -11,7 +11,7 @@ class Plotter:
         self.x_buffer = []
         self.y_buffer = []
         self.last_update_time = 0
-        self.update_interval = 0.1 # Redraw every 100ms
+        self.update_interval = 1 # Redraw every 10ms
 
         # --- ADD A PERSISTENT COUNTER ---
         self.sample_count = 0
@@ -101,7 +101,11 @@ class Plotter:
                      return
 
                 # --- Batch Read Data ---
-                new_data_received = False
+                if not self.x_buffer:
+                    new_data_received = False
+                else:
+                    new_data_received = True
+
                 # No need for start_index anymore if using the persistent counter
 
                 while True:
@@ -112,7 +116,7 @@ class Plotter:
                         self.y_buffer.append(data)
                         self.sample_count += 1 # Increment for the next sample
                         # --- END CHANGE ---
-                        new_data_received = True
+                        #new_data_received = True
                     else:
                         break # No more data
 

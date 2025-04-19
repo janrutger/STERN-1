@@ -1,9 +1,12 @@
 from decoder import decode
 from time import sleep
+from CPUmonitor import CpuMonitor
 
 
 class Cpu:
     def __init__(self, memory, sio, interrupts, SP, intVector):
+        self.monitor = CpuMonitor()
+        
         self.memory     = memory
         self.interrupts = interrupts
         self.sio        = sio
@@ -41,8 +44,10 @@ class Cpu:
 
         runState = True
         self.PC = startAdres
+        self.monitor.start_monitoring()
         while runState:
-            #sleep(.0000000001)
+            self.monitor.start_cycle()
+            #sleep(.00001)
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  
@@ -172,6 +177,11 @@ class Cpu:
                     self.interruptEnable = False
                     self.registers[1] = value
                     self.PC = adres
+
+            self.monitor.end_cycle()
+
+        self.monitor.stop_monitoring()
+        self.monitor.report()
 
         print("CPU halted")
 
