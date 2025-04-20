@@ -1,6 +1,6 @@
 from decoder import decode
 from time import sleep
-from CPUmonitor import CpuMonitor
+from CPUmonitor1 import CpuMonitor
 
 
 class Cpu:
@@ -163,7 +163,11 @@ class Cpu:
                     exit("Invalid instruction")
             
 
+            # --- Measure SIO Call ---
+            self.monitor.start_sio_call()
             self.sio.IO()
+            self.monitor.end_sio_call()
+            # --- End SIO Measurement ---
             
             #check for interrupts
             if self.interruptEnable:
