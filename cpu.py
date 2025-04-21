@@ -4,12 +4,13 @@ from CPUmonitor1 import CpuMonitor
 
 
 class Cpu:
-    def __init__(self, memory, sio, interrupts, SP, intVector):
+    def __init__(self, memory, sio, rtc, interrupts, SP, intVector):
         self.monitor = CpuMonitor()
         
         self.memory     = memory
         self.interrupts = interrupts
         self.sio        = sio
+        self.rtc        = rtc
         
         self.registers = [0] * 10   # 10 registers
                                     # 0      index register
@@ -168,9 +169,11 @@ class Cpu:
             self.sio.IO()
             self.monitor.end_sio_call()
             # --- End SIO Measurement ---
-            
+
+                      
             #check for interrupts
             if self.interruptEnable:
+                self.rtc.tick()
                 # print("Interrupts enabled")
                 if self.interrupts.pending():
                     # get interruption and execute

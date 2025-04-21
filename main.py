@@ -1,10 +1,10 @@
 from memory import Memory
 from cpu import Cpu
 from assembler import Assembler
-#from display7 import CharDisplay as Display
 from hw_IO_manager import DeviceIO 
 from plotter2 import Plotter
 from interrupts import Interrupts
+from rtc import RTC as Rtc
 from virtualdisk import VirtualDisk as Vdisk
 from serialIO import serialIO as Serial
 from FileIO import readFile
@@ -22,6 +22,7 @@ def main():
 
     myASCII = makechars()
     interrupts = Interrupts()
+    RTC = Rtc(interrupts)
 
     MainMem = Memory(1024 * 16) 
     StackPointer = MainMem.MEMmax() - VideoSize
@@ -38,7 +39,7 @@ def main():
     SIO     = Serial(MainMem, IOmem_sio)
     plotter = Plotter(SIO)
     DU0     = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")   
-    CPU     = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
+    CPU     = Cpu(MainMem, SIO, RTC, interrupts, StackPointer, intVectors) 
     devices  = DeviceIO(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 16)
 
     # load fonts into MainMem
