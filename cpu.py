@@ -47,8 +47,9 @@ class Cpu:
         self.PC = startAdres
         self.monitor.start_monitoring()
         while runState:
+            sleep(0)
             self.monitor.start_cycle()
-            #sleep(.00001)
+            
             # read instruction from memory
             memValue = self.memory.read(self.PC)
             self.PC = self.PC + 1  

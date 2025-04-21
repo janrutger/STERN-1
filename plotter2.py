@@ -11,7 +11,7 @@ class Plotter:
         self.x_buffer = []
         self.y_buffer = []
         self.last_update_time = 0
-        self.update_interval = 1 # Redraw every 10ms
+        self.update_interval = 1.5 # Redraw every ...
 
         # --- ADD A PERSISTENT COUNTER ---
         self.sample_count = 0
