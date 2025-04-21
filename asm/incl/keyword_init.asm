@@ -122,5 +122,12 @@
         call :init_keyword
         sto M $gcd_hash
     
-  
+    # keyword @now
+        ldi K $now_kw
+        ldi L @now_kw
+        
+        call :init_keyword
+        sto M $now_hash
+
+    
 ret

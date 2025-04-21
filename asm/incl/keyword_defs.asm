@@ -68,6 +68,12 @@
     % $gcd_kw \g \c \d \null
     . $gcd_hash 1
 
+    . $now_kw 4
+    % $now_kw \n \o \w \null
+    . $now_hash 1
+
+
+
 
 
 

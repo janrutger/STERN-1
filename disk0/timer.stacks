@@ -1,0 +1,12 @@
+begin
+    now 5 + as newtime
+    0 as counter
+    now print
+
+    label loop
+        counter 1 + as counter  
+        newtime now > ( goto loop )
+
+    now print counter print
+
+end

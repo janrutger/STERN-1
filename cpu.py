@@ -126,6 +126,8 @@ class Cpu:
                     self.registers[op1] = self.registers[op1] * op2
                 case 62:    # DIV r1 r2
                     self.registers[op1] = self.registers[op1] // self.registers[op2]
+                case 63:    # DIVI r1 val
+                    self.registers[op1] = self.registers[op1] // op2
                 case 65:    # DMOD	Ra	Rb	    divmod Ra Rb, returns quotiënt in Ra, remainder in Rb
                     quotient, remainder = divmod(self.registers[op1], self.registers[op2])
                     self.registers[op1] = quotient

@@ -96,7 +96,12 @@ ret
         call @datastack_push
 ret
 
-
+@now_kw
+    ldm A $CURRENT_TIME
+    addi A 5
+    divi A 10
+    call @datastack_push
+ret
 
 
 @stub
