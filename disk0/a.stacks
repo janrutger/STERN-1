@@ -1,10 +1,12 @@
 begin
-0 as a 
-1024 as b 
+    0 as a 
+    42 as b 
 
-label loop
-a print 
-a 1 + as a 
-b a > ( goto loop )
+    label loop
+    a plot
+    a print
+    a 1 + as a 
+    b a > ( goto loop ) a print
+
 
 end

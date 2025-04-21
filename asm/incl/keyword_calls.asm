@@ -49,6 +49,52 @@ ret
 :open_kw_end
 ret
 
+@enable_kw
+    call @datastack_pop
+    call @open_channel
+ret
+
+@disable_kw
+    call @datastack_pop
+    call @close_channel
+ret
+
+@plot_kw
+    call @datastack_pop
+    ld B A 
+    ldi A 0
+    call @write_channel
+ret
+
+@gcd_kw
+    call @datastack_pop
+    ld B A
+    call @datastack_pop
+
+    tst B 0
+    jmpt :gcd_kw_returnA
+
+    tst A 0
+    jmpt :returnB
+
+    :loop_gcd
+        tste A B 
+        jmpt :gcd_kw_returnA
+
+        tstg A B 
+        jmpt :subAB
+            sub B A
+            jmp :loop_gcd
+
+        :subAB
+            sub A B 
+            jmp :loop_gcd
+
+    :returnB
+        ld A B
+    :gcd_kw_returnA
+        call @datastack_push
+ret
 
 
 

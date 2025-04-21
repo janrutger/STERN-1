@@ -28,7 +28,11 @@
 . $DU0_baseadres 1 
 % $DU0_baseadres 12303
 
+. $SIO_baseadres 1
+% $SIO_baseadres 12295
+
 INCLUDE printing
+INCLUDE serialIO
 INCLUDE errors
 
 @init_stern

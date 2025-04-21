@@ -39,8 +39,14 @@
 
         :tst_gt
             tst A \>
-            jmpf :tst_dot
+            jmpf :tst_eq
             ldi A @do_gt
+            jmp :store_operator_token
+        
+        :tst_eq
+            tst A \=
+            jmpf :tst_dot
+            ldi A @do_eq
             jmp :store_operator_token
             
         :tst_dot

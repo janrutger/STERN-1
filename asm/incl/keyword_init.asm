@@ -93,6 +93,34 @@
         
         call :init_keyword
         sto M $load_hash
+    
+    # keyword @enable
+        ldi K $enable_kw
+        ldi L @enable_kw
+        
+        call :init_keyword
+        sto M $enable_hash
 
+    # keyword @disable
+        ldi K $disable_kw
+        ldi L @disable_kw
+        
+        call :init_keyword
+        sto M $disable_hash
+
+    # keyword @plot
+        ldi K $plot_kw
+        ldi L @plot_kw
+        
+        call :init_keyword
+        sto M $plot_hash
+
+    # keyword @gcd
+        ldi K $gcd_kw
+        ldi L @gcd_kw
+        
+        call :init_keyword
+        sto M $gcd_hash
+    
   
 ret

@@ -1,9 +1,12 @@
 from memory import Memory
 from cpu import Cpu
 from assembler import Assembler
-from display6 import CharDisplay as Display
+#from display7 import CharDisplay as Display
+from hw_IO_manager import DeviceIO 
+from plotter2 import Plotter
 from interrupts import Interrupts
 from virtualdisk import VirtualDisk as Vdisk
+from serialIO import serialIO as Serial
 from FileIO import readFile
 from stringtable import makechars
 
@@ -23,7 +26,8 @@ def main():
     MainMem = Memory(1024 * 16) 
     StackPointer = MainMem.MEMmax() - VideoSize
     start_var  = StackPointer - 2024
-    IOmem_du0  = start_var - 8 # its just one/first device
+    IOmem_du0  = start_var - 8  # first device
+    IOmem_sio  = start_var - 16 # second device
 
     start_loader  = 0
     start_kernel  = start_loader + 512
@@ -31,9 +35,11 @@ def main():
     intVectors = 4096
     start_prog = intVectors + 512
 
-    DU0    = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")    
-    CPU    = Cpu(MainMem, interrupts, StackPointer, intVectors) 
-    screen = Display(myASCII, interrupts, DU0, Vw, Vh, MainMem, 15)
+    SIO     = Serial(MainMem, IOmem_sio)
+    plotter = Plotter(SIO)
+    DU0     = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")   
+    CPU     = Cpu(MainMem, SIO, interrupts, StackPointer, intVectors) 
+    devices  = DeviceIO(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 16)
 
     # load fonts into MainMem
     font  = readFile("standard.font", 2)
@@ -65,9 +71,10 @@ def main():
     # Start the CPU thread
     cpu_thread = threading.Thread(target=CPU.run, args=(start_kernel,))
     cpu_thread.start()
+    
 
-    # Start the screen main loop (tK)
-    screen.display.mainloop()
+    # Start the devices main loop (tK)
+    devices.display.mainloop()
 
     print("SYSTEM HALTED")
 
