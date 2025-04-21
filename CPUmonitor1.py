@@ -116,6 +116,8 @@ class CpuMonitor:
 
         if self._cycle_times_ns:
             total_cycle_time_ns = sum(self._cycle_times_ns)
+            total_cycle_time_s = total_cycle_time_ns / 1_000_000_000
+            
             avg_cycle_time_ns = total_cycle_time_ns / self._cycle_count
             avg_cycle_ms = avg_cycle_time_ns / 1_000_000
         else:
@@ -124,23 +126,26 @@ class CpuMonitor:
         print(f"  - Fastest Cycle: {min_cycle_ms:.6f} ms")
         print(f"  - Slowest Cycle: {max_cycle_ms:.6f} ms")
         print(f"  - Average Cycle: {avg_cycle_ms:.6f} ms")
+        print(f"  - Total time   : {total_cycle_time_s:.4f} seconds")
 
         # --- SIO Report ---
         print("\n  -   --- Serial IO Performance ---")
         if self._sio_call_count > 0:
             total_sio_ms = self._total_sio_time_ns / 1_000_000
+            total_sio_s  = self._total_sio_time_ns / 1_000_000_000
             avg_sio_ms = total_sio_ms / self._sio_call_count
-            sio_percentage = (self._total_sio_time_ns / (total_duration_sec * 1_000_000_000)) * 100 if total_duration_sec > 0 else 0
+            #sio_percentage = (self._total_sio_time_ns / (total_duration_sec * 1_000_000_000)) * 100 if total_duration_sec > 0 else 0
+            sio_percentage = (self._total_sio_time_ns / (total_cycle_time_ns)) * 100 if total_duration_sec > 0 else 0
 
             # Convert min/max SIO from nanoseconds to milliseconds
             min_sio_ms = self._min_sio_time_ns / 1_000_000 if self._min_sio_time_ns != float('inf') else 0
             max_sio_ms = self._max_sio_time_ns / 1_000_000
 
             # --- Updated Report Lines ---
-            print(f"    - Total SIO Time: {total_sio_ms:.4f} ms")
             print(f"    - Fastest SIO Call: {min_sio_ms:.6f} ms") # <-- Report Min
             print(f"    - Slowest SIO Call: {max_sio_ms:.6f} ms") # <-- Report Max
             print(f"    - Average SIO Call: {avg_sio_ms:.6f} ms")
+            print(f"    - Total SIO Time: {total_sio_s:.4f} seconds")
             if total_duration_sec > 0:
                 print(f"    - SIO Time as % of Total: {sio_percentage:.2f}%")
             # --- End Updated Report Lines ---
