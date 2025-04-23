@@ -107,9 +107,9 @@ class CpuMonitor:
         else:
             cycles_per_second = self._cycle_count / total_duration_sec
             clock_speed_mhz = cycles_per_second / 1_000_000
-            print(f"  - Total Execution Time: {total_duration_sec:.4f} seconds")
+            print(f"  - Total Execution Time : {total_duration_sec:.4f} seconds")
             print(f"  - Total Cycles Executed: {self._cycle_count}")
-            print(f"  - Estimated Clock Speed: {clock_speed_mhz:.4f} MHz ({cycles_per_second:.2f} Hz)")
+            print(f"  - Estimated Clock Speed: {clock_speed_mhz:.4f} MHz ({cycles_per_second:.2f} Hz)\n")
 
         min_cycle_ms = self._min_cycle_ns / 1_000_000 if self._min_cycle_ns != float('inf') else 0
         max_cycle_ms = self._max_cycle_ns / 1_000_000
@@ -126,7 +126,12 @@ class CpuMonitor:
         print(f"  - Fastest Cycle: {min_cycle_ms:.6f} ms")
         print(f"  - Slowest Cycle: {max_cycle_ms:.6f} ms")
         print(f"  - Average Cycle: {avg_cycle_ms:.6f} ms")
-        print(f"  - Total time   : {total_cycle_time_s:.4f} seconds")
+        print(f"  - Total Core time     : {total_cycle_time_s:.4f} seconds")
+
+        core_cycles_per_second = self._cycle_count / total_cycle_time_s
+        core_speed_mhz = core_cycles_per_second / 1_000_000
+        print(f"  - Estimated Core Speed: {core_speed_mhz:.4f} MHz ({core_cycles_per_second:.2f} Hz)")
+
 
         # --- SIO Report ---
         print("\n  -   --- Serial IO Performance ---")

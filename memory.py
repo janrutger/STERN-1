@@ -12,11 +12,21 @@ class Memory:
         self.validAddress(address)
         return self.memory[address]
 
+    # def validAddress(self, address) -> bool:
+    #     if address <= self.MEMmax() and address >= 0:
+    #         return True
+    #     else:
+    #         exit("FATAL: Memory adress out of range")
+
     def validAddress(self, address) -> bool:
-        if address <= self.MEMmax() and address >= 0:
+        # Use len() directly, MEMmax() was just len()-1
+        if 0 <= address < len(self.memory):
             return True
         else:
-            exit("FATAL: Memory adress out of range")
+            # Consider raising an exception instead of exiting directly
+            # exit(f"FATAL: Memory address {address} out of range")
+            raise IndexError(f"Memory address {address} out of range (0-{len(self.memory)-1})")
+
 
     def MEMmax(self) -> int:
         return (len(self.memory)-1)

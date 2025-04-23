@@ -44,10 +44,15 @@ class Cpu:
         # ends running after the HALT instruction
 
         runState = True
+        runCounter = 0
         self.PC = startAdres
         self.monitor.start_monitoring()
         while runState:
-            sleep(0)
+            if runCounter % 500 == 0:  
+                sleep(0.001)
+                runCounter = 0
+            runCounter += 1
+
             self.monitor.start_cycle()
             
             # read instruction from memory
