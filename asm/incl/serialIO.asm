@@ -16,6 +16,14 @@
     ldi M 1
     ldi I 3
     stx M $SIO_baseadres
+
+    :wait_for_ack_open_channel
+        # read status register
+        ldi I 3
+        ldx M $SIO_baseadres
+        # check for ack (0) from SIO
+        tst M 0
+    jmpf :wait_for_ack_open_channel
 ret
 
 
@@ -42,6 +50,19 @@ ret
     ldi M 1
     ldi I 3
     stx M $SIO_baseadres
+
+    :wait_for_ack_write_channel
+        # read status register
+        ldi I 3
+        ldx M $SIO_baseadres
+
+        # check for error (3) from SIO
+        tst M 3
+        jmpt :fatal_sio_error
+
+        # check for ack (0) from SIO
+        tst M 0
+    jmpf :wait_for_ack_write_channel
 ret
 
 
@@ -63,5 +84,22 @@ ret
     ldi M 1
     ldi I 3
     stx M $SIO_baseadres
+
+    :wait_for_ack_close_channel
+        # read status register
+        ldi I 3
+        ldx M $SIO_baseadres
+        
+        # check for error (3) from SIO
+        tst M 3
+        jmpt :fatal_sio_error
+        
+        # check for ack (0) from SIO
+        tst M 0
+    jmpf :wait_for_ack_close_channel
 ret
+
+
+:fatal_sio_error
+    call @fatal_error
 

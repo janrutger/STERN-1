@@ -49,6 +49,7 @@ class Cpu:
         self.monitor.start_monitoring()
         while runState:
             if runCounter % 500 == 0:  
+                # Give GUI some time, yielding 
                 sleep(0.001)
                 runCounter = 0
             runCounter += 1
