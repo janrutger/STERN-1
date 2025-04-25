@@ -1,7 +1,7 @@
 from memory import Memory
-from cpu import Cpu
+from cpu1 import Cpu
 from assembler import Assembler
-from hw_IO_manager import DeviceIO 
+from hw_IO_manager1 import DeviceIO 
 from plotter2 import Plotter
 from interrupts import Interrupts
 from rtc import RTC as Rtc
@@ -39,8 +39,8 @@ def main():
     SIO     = Serial(MainMem, IOmem_sio)
     plotter = Plotter(SIO)
     DU0     = Vdisk(myASCII, MainMem, IOmem_du0,"./disk0")   
-    CPU     = Cpu(MainMem, SIO, RTC, interrupts, StackPointer, intVectors) 
-    devices  = DeviceIO(myASCII, interrupts, DU0, plotter, Vw, Vh, MainMem, 16)
+    CPU     = Cpu(MainMem, RTC, interrupts, StackPointer, intVectors) 
+    devices = DeviceIO(myASCII, interrupts, DU0, plotter, SIO, Vw, Vh, MainMem, 16)
 
     # load fonts into MainMem
     font  = readFile("standard.font", 2)
