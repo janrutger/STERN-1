@@ -1,3 +1,11 @@
 begin
-42 print
+    0 enable
+    0 as start
+
+    label loop
+    start plot
+    start 1 + as start
+
+    5000 start > ( goto loop )
+
 end

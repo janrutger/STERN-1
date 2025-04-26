@@ -68,7 +68,7 @@ class DeviceIO():
 
             # --- Schedule next call ---
             # Use a regular interval (e.g., 50ms)
-            self.display.after(50, self.my_tasks)
+            self.display.after(10, self.my_tasks)
 
         except Exception as e:
             # Catch errors to prevent the update loop from stopping unexpectedly

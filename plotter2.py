@@ -11,7 +11,7 @@ class Plotter:
         self.x_buffer = []
         self.y_buffer = []
         self.last_update_time = 0
-        self.update_interval = 2 # Redraw every ...
+        self.update_interval = 1.5 # Redraw every ...
 
         # --- ADD A PERSISTENT COUNTER ---
         self.sample_count = 0
@@ -125,7 +125,9 @@ class Plotter:
                 if new_data_received and (current_time - self.last_update_time > self.update_interval):
                     if self.x_buffer:
                         # print(f"Plotting batch up to sample {self.sample_count-1}")
-                        self.ax.scatter(self.x_buffer, self.y_buffer, s=10, c='blue')
+                        #self.ax.scatter(self.x_buffer, self.y_buffer, s=10, c='blue')
+                        self.ax.plot(self.x_buffer, self.y_buffer, 'o', color='blue', markersize=1)
+
 
                         # --- IMPORTANT: Auto-scaling is needed now ---
                         #self.ax.relim() # Recalculate limits based on ALL data (including previous batches if not clearing plot)
