@@ -19,6 +19,9 @@
 . $prog_start 1
 % $prog_start 4608
 
+. $random_seed 1
+% $random_seed 1234
+
 
 . $KBD_BUFFER 16
 . $KBD_BUFFER_ADRES 1
@@ -35,6 +38,7 @@
 
 INCLUDE printing
 INCLUDE serialIO
+INCLUDE random
 INCLUDE errors
 
 @init_stern

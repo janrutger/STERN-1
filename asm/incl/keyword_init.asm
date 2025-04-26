@@ -129,5 +129,12 @@
         call :init_keyword
         sto M $now_hash
 
+    # keyword @rand
+        ldi K $rand_kw
+        ldi L @rand_kw
+        
+        call :init_keyword
+        sto M $rand_hash
     
+
 ret

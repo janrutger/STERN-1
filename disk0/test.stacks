@@ -3,9 +3,10 @@ begin
     0 as start
 
     label loop
-    start plot
-    start 1 + as start
 
-    5000 start > ( goto loop )
+    rand 32 * 100 / 1 + plot
+
+    start 1 + as start
+    3000 start > ( goto loop )
 
 end

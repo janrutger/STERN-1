@@ -72,6 +72,12 @@
     % $now_kw \n \o \w \null
     . $now_hash 1
 
+    . $rand_kw 5
+    % $rand_kw \r \a \n \d \null
+    . $rand_hash 1
+
+
+
 
 
 

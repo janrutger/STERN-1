@@ -52,7 +52,7 @@ class Cpu:
         while runState:
             if runCounter % 500 == 0:
                 # Give GUI some time, yielding
-                sleep(0.001)
+                sleep(0.005)
                 runCounter = 0
             runCounter += 1
 

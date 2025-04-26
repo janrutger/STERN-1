@@ -103,6 +103,12 @@ ret
     call @datastack_push
 ret
 
+@rand_kw
+    call @random
+    call @datastack_push
+ret
+
+
 
 @stub
     # stub
