@@ -1,12 +1,14 @@
 begin
     0 enable
-    0 as start
+    now as start
+    start 20 + as stop
+    start print stop print
 
     label loop
 
     rand 32 * 100 / 1 + plot
 
-    start 1 + as start
-    8000 start > ( goto loop )
+    stop now > ( goto loop )
+    now print
 
 end

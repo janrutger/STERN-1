@@ -2,7 +2,6 @@
 import matplotlib.pyplot as plt
 from time import time
 from collections import deque # Use deque for efficient fixed-size buffer
-import traceback # Import traceback for better error reporting
 
 class PlotterOptimized:
     def __init__(self, sio, max_points=1000, update_interval=1.5) -> None: # Reduced interval
@@ -19,6 +18,7 @@ class PlotterOptimized:
         self.update_interval = update_interval # Update more frequently if faster
 
         self.sample_count = 0 # Keep track of total samples for x-axis
+        self.new_data_received = False # Flag to indicate new data
 
         self.fig = None
         self.ax = None
@@ -66,7 +66,7 @@ class PlotterOptimized:
                 return True
             except Exception as e:
                 print(f"Error initializing plot: {e}")
-                traceback.print_exc() # Print full traceback
+                #traceback.print_exc() # Print full traceback
                 self.fig = None
                 self.ax = None # Ensure ax is also cleared
                 self.line = None
@@ -81,7 +81,6 @@ class PlotterOptimized:
                 plt.close(self.fig)
             except Exception as e:
                 print(f"Error closing plot: {e}")
-                traceback.print_exc()
             finally:
                 # Ensure all plot-related attributes are reset
                 self.fig = None
@@ -112,7 +111,6 @@ class PlotterOptimized:
             except Exception as e:
                 # Handle potential errors during redraw (e.g., window closed unexpectedly)
                 print(f"Error during plot redraw: {e}")
-                traceback.print_exc()
                 # If redraw fails, it's safer to go offline and attempt cleanup
                 self.status = 'offline'
                 self._close_plot()
@@ -167,7 +165,6 @@ class PlotterOptimized:
                 # --- End Ensure Plot Exists ---
 
                 # --- Batch Read Data ---
-                #new_data_received = False # Initialize to False for this update cycle
                 while True:
                     data = self.sio.read_channel(self.channel)
                     if data is not None:
@@ -175,25 +172,23 @@ class PlotterOptimized:
                         self.x_buffer.append(self.sample_count)
                         self.y_buffer.append(data)
                         self.sample_count += 1
-                        #new_data_received = True # Set flag ONLY if data was read
+                        self.new_data_received = True # Set flag ONLY if data was read
                     else:
                         break # No more data available in the channel for now
                 # --- End Batch Read Data ---
 
                 # --- Efficient Plot Update (based on interval AND new data) ---
                 current_time = time()
-                # Check if there's anything in the buffer *now*
-                buffer_has_data = bool(self.x_buffer) # True if deque is not empty
 
-
-                if buffer_has_data and (current_time - self.last_update_time > self.update_interval):
-                    # print(f"Redrawing. Buffer size: {len(self.x_buffer)}, Time since last: {current_time - self.last_update_time:.2f}s") # Debug
+                if self.new_data_received and (current_time - self.last_update_time > self.update_interval):
                     self._redraw_plot()
+                    self.new_data_received = False # Reset flag after redraw
+                # else:
+                #     print(self.new_data_received )
                 # --- End Efficient Plot Update ---
 
         except Exception as e:
             # Catch-all for unexpected errors during the update process
             print(f"Error during plotter update: {e}")
-            traceback.print_exc() # Print full traceback for debugging
             self.status = 'offline' # Go offline on error
             self._close_plot() # Attempt to close plot window cleanly
