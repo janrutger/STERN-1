@@ -7,8 +7,15 @@
 . $rand_c 1
 . $rand_m 1
 
-% $rand_a 75
-% $rand_c 77
+# common values
+# zx81 = 75, borland c++ = 205 
+# 134775813 = glibc
+;% $rand_a 75
+% $rand_a 134775813
+
+# default = 77, 1 = glibc
+;% $rand_c 77
+% $rand_c 1
 % $rand_m 65536
 
 @random
@@ -24,7 +31,7 @@
     dmod A B 
     sto B $random_seed
 
-    ;ld A B
+    # returns a value [0 .. 99]
     ldi A 100
     dmod B A
 ret

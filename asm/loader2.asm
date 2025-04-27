@@ -20,7 +20,7 @@
 % $prog_start 4608
 
 . $random_seed 1
-% $random_seed 1234
+% $random_seed 12345 
 
 
 . $KBD_BUFFER 16

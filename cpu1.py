@@ -50,9 +50,9 @@ class Cpu:
         self.PC = startAdres
         self.monitor.start_monitoring()
         while runState:
-            if runCounter % 500 == 0:
+            if runCounter % 1000 == 0:
                 # Give GUI some time, yielding
-                sleep(0.005)
+                sleep(0.004)
                 runCounter = 0
             runCounter += 1
 

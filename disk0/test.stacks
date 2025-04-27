@@ -7,6 +7,6 @@ begin
     rand 32 * 100 / 1 + plot
 
     start 1 + as start
-    3000 start > ( goto loop )
+    150 start > ( goto loop )
 
 end

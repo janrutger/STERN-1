@@ -126,7 +126,7 @@ class Plotter:
                     if self.x_buffer:
                         # print(f"Plotting batch up to sample {self.sample_count-1}")
                         #self.ax.scatter(self.x_buffer, self.y_buffer, s=10, c='blue')
-                        self.ax.plot(self.x_buffer, self.y_buffer, 'o', color='blue', markersize=1)
+                        self.ax.plot(self.x_buffer, self.y_buffer, 'o', color='blue', markersize=2)
 
 
                         # --- IMPORTANT: Auto-scaling is needed now ---
