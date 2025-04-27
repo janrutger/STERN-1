@@ -4,7 +4,7 @@ from time import time
 from collections import deque # Use deque for efficient fixed-size buffer
 
 class PlotterOptimized:
-    def __init__(self, sio, max_points=1000, update_interval=1.5) -> None: # Reduced interval
+    def __init__(self, sio, max_points=1024, update_interval=2) -> None: # Reduced interval
         self.sio = sio
         self.channel = 0
         self.status = 'offline'

@@ -2,7 +2,6 @@ from memory import Memory
 from cpu1 import Cpu
 from assembler import Assembler
 from hw_IO_manager1 import DeviceIO 
-#from plotter2 import Plotter
 from plotter_optimized import PlotterOptimized as Plotter
 from memory import Memory
 from interrupts import Interrupts
