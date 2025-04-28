@@ -78,8 +78,8 @@ def main():
         A.assemble("loader2.asm", start_loader, "loader.bin")
         A.assemble("kernel2.asm",  start_kernel, "kernel.bin")
         # Example: Assemble a program that uses the XY plotter
-        # A.assemble("xy_test.asm", start_prog,   "program.bin") # Make sure program.bin is the correct one
-        A.assemble("spritewalker.asm", start_prog,   "program.bin") # Or keep the old one if testing that
+        A.assemble("test.asm", start_prog,   "program.bin") # Make sure program.bin is the correct one
+        # A.assemble("spritewalker.asm", start_prog,   "program.bin") # Or keep the old one if testing that
 
         # Function to load a binary file safely
         def load_bin(filename, expected_len=None):

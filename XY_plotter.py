@@ -9,7 +9,7 @@ class XYPlotter:
     Plots X, Y coordinate pairs received sequentially via an SIO channel
     onto a Matplotlib scatter plot with fixed axes.
     """
-    def __init__(self, sio, channel=1, width=640, height=480, update_interval=0.1):
+    def __init__(self, sio, channel=1, width=640, height=480, update_interval=1.5):
         self.sio = sio
         self.channel = channel # SIO Channel to listen on
         self.status = 'offline'
@@ -53,7 +53,7 @@ class XYPlotter:
 
                 # Create an empty scatter plot object and store it
                 # Use small markers '.' for pixels, adjust size 's'
-                self.scatter = self.ax.scatter([], [], s=5, marker='.', c='blue')
+                self.scatter = self.ax.scatter([], [], s=1, marker='.', c='blue')
 
                 self.ax.set_title(f"XY Plotter (Channel {self.channel})")
                 self.ax.set_xlabel("X Coordinate")
@@ -214,6 +214,8 @@ class XYPlotter:
                 if self.new_data_received and (current_time - self.last_update_time > self.update_interval):
                     self._redraw_plot()
                     self.new_data_received = False # Reset flag after redraw
+                # else:
+                #     print(self.new_data_received)
 
         except Exception as e:
             print(f"Error during XY plotter update: {e}")

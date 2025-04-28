@@ -51,7 +51,7 @@ class Assembler:
                 if line == "" or line[0] == "#" or line[0] == ";":
                     continue
                 self.assembly.append(line)
-        print(self.assembly, len(self.assembly))
+        #print(self.assembly, len(self.assembly))
 
     def parse_symbols(self, prg_start):
         pc = prg_start
@@ -78,7 +78,7 @@ class Assembler:
                 continue
             else:
                 pc += 1
-        print(self.symbols, self.labels, self.NextVarPointer, pc)
+        #print(self.symbols, self.labels, self.NextVarPointer, pc)
 
     def get_adres(self, label: str) -> str:
         if label in self.symbols.keys():
@@ -143,7 +143,7 @@ class Assembler:
             else:
                 raise ValueError("ERROR Unkown instruction " + instruction[0])
         writeBin(self.binary, output_file)
-        print(self.binary, len(self.binary))
+        #print(self.binary, len(self.binary))
 
     def assemble(self, filename, prog_start, output="out.bin"):
         self.read_source(filename)

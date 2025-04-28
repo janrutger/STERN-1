@@ -1,0 +1,14 @@
+begin
+    1 enable
+
+    0 as x 
+    400 as y 
+
+    label loop
+
+        y x point
+        x 1 + as x 
+
+    640 x > ( goto loop )
+
+end

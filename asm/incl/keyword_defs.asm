@@ -64,6 +64,10 @@
     % $plot_kw \p \l \o \t \null
     . $plot_hash 1
 
+    . $point_kw 6
+    % $point_kw \p \o \i \n \t \null
+    . $point_hash 1
+
     . $gcd_kw 4
     % $gcd_kw \g \c \d \null
     . $gcd_hash 1

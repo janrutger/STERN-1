@@ -3,7 +3,7 @@ from tkinter import *
 from time import time
 from tkinter import TclError # Import TclError for specific exception handling
 # Import the new XYPlotter
-from XY_plotter import XYPlotter
+# from XY_plotter import XYPlotter
 
 class DeviceIO():
     # Add 'xy_plotter' to the __init__ signature
@@ -218,37 +218,25 @@ class DeviceIO():
 
 
     def key_pressed(self, event):
-        if not self._running: return
+        # ... (key_pressed implementation remains the same)
+        if not self._running: return # Ignore keys if closing
 
         value = -1
         key_name = None
 
-        # Check if ASCII map exists
-        if not self.ASCII:
-            print("Warning: ASCII map not available in key_pressed.")
-            return
-
-        if event.keysym in self.ASCII:
+        if event.keysym in self.ASCII: # Prefer keysym for special keys (Return, Up, etc.)
             key_name = event.keysym
             value = self.ASCII[key_name]
             if key_name == "Return":
-                try:
-                    # Check if input_bar still exists
-                    if self.input_bar.winfo_exists():
-                        self.input_var.set("")
-                except TclError:
-                    pass # Input bar might be gone
-        elif event.char and event.char in self.ASCII:
+                self.input_var.set("") # Clear input box
+        elif event.char and event.char in self.ASCII: # Use char for printable characters
              key_name = event.char
              value = self.ASCII[key_name]
 
         if value != -1:
-            # Check if interrupt handler exists
-            if self.int:
-                self.int.interrupt(0, value) # Assuming interrupt 0 is keyboard
-            else:
-                print("Warning: Interrupt handler not available.")
+            # print(f"Key pressed: {key_name}, Value: {value}")
+            self.int.interrupt(0, value) # Assuming interrupt 0 is keyboard
         else:
+            # Don't print every unknown key, can be noisy
             # print(f"Unknown key pressed: char='{event.char}', keysym='{event.keysym}'")
             pass
-

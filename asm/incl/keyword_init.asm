@@ -115,6 +115,13 @@
         call :init_keyword
         sto M $plot_hash
 
+    # keyword @point
+        ldi K $point_kw
+        ldi L @point_kw
+        
+        call :init_keyword
+        sto M $point_hash
+
     # keyword @gcd
         ldi K $gcd_kw
         ldi L @gcd_kw
