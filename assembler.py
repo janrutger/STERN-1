@@ -161,4 +161,4 @@ if __name__ == "__main__":
     assembler.assemble("kernel2.asm", prog_start)
 
     prog_start = 5 * 1024
-    assembler.assemble("test.asm", prog_start)
+    assembler.assemble("ChaosGame.asm", prog_start)

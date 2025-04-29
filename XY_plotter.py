@@ -70,7 +70,7 @@ class XYPlotter:
                 # self.ax.set_ylim(0, self.plot_height)
 
                 # Ensure aspect ratio is equal if needed (pixels are square)
-                # self.ax.set_aspect('equal', adjustable='box')
+                self.ax.set_aspect('equal', adjustable='box')
 
                 # Show non-blocking
                 if hasattr(self.fig.canvas.manager, 'show'):

@@ -1,0 +1,139 @@
+# /home/janrutger/git/STERN-1/asm/chaos_game.asm
+# Uses external @random, @open_channel, @write_channel, @close_channel
+
+# --- Constants and Variables ---
+.       @VertexAX       1       ; Vertex A X-coordinate
+.       @VertexAY       1       ; Vertex A Y-coordinate
+.       @VertexBX       1       ; Vertex B X-coordinate
+.       @VertexBY       1       ; Vertex B Y-coordinate
+.       @VertexCX       1       ; Vertex C X-coordinate
+.       @VertexCY       1       ; Vertex C Y-coordinate
+
+.       @CurrentPX      1       ; Current point X
+.       @CurrentPY      1       ; Current point Y
+
+.       @TargetVX       1       ; Chosen target vertex X
+.       @TargetVY       1       ; Chosen target vertex Y
+
+.       @Iterations     1       ; Number of points to generate
+
+# @SIOBase is no longer needed here if the routines handle it internally via $SIO_baseadres
+# .       @SIOBase        1
+
+.       @TempA          1       ; Temporary storage for calculations
+.       @TempB          1       ; Temporary storage for calculations
+
+# --- Initialization Data ---
+# Set initial values for variables (will be loaded into memory)
+# Ensure these addresses match the '.' definitions above
+
+% @VertexAX 10          ; A = (10, 10)
+% @VertexAY 10
+% @VertexBX 630         ; B = (630, 10)
+% @VertexBY 10
+% @VertexCX 320         ; C = (320, 470)
+% @VertexCY 470
+
+% @CurrentPX 10         ; Start near A
+% @CurrentPY 10
+
+% @Iterations 5000      ; How many points to plot
+
+# --- Code Start ---
+
+# Assume Kernel/Loader loads the required routines (@random, @open_channel, etc.)
+
+# --- Open SIO Channel 1 for XY Plotter ---
+    LDI  A, 1           ; Channel number 1 into A
+    CALL @open_channel  ; Call the routine from serialIO.asm
+    # @open_channel waits for ACK internally
+
+# --- Main Loop ---
+:LoopStart
+    # Check loop counter
+    LDM  C, @Iterations
+    TSTE C, C           ; Test if C == 0
+    JMPT :EndOfProgram  ; Jump to end if iterations are done
+    SUBI C, 1           ; Decrement counter
+    STO  C, @Iterations
+
+    # 1. Generate Random Number using the external routine
+    CALL @random        ; Call the random function (result expected in A)
+
+    # 2. Calculate result % 3 (to get 0, 1, or 2)
+    LDI  B, 3           ; Load divisor 3 into B
+    DMOD A, B           ; A = quotient, B = remainder (random_value % 3)
+    MOV  A, B           ; Move the remainder (0, 1, or 2) into A
+
+    # 3. Select Target Vertex based on random number in A
+    TSTE A, A           ; Test if A == 0
+    JMPT :SelectVertexA
+    SUBI A, 1           ; A = A - 1
+    TSTE A, A           ; Test if A == 0 (original value was 1)
+    JMPT :SelectVertexB
+    # If we reach here, original value was 2
+    JMP :SelectVertexC
+
+:SelectVertexA
+    LDM  A, @VertexAX
+    STO  A, @TargetVX
+    LDM  A, @VertexAY
+    STO  A, @TargetVY
+    JMP :VertexSelected
+
+:SelectVertexB
+    LDM  A, @VertexBX
+    STO  A, @TargetVX
+    LDM  A, @VertexBY
+    STO  A, @TargetVY
+    JMP :VertexSelected
+
+:SelectVertexC
+    LDM  A, @VertexCX
+    STO  A, @TargetVX
+    LDM  A, @VertexCY
+    STO  A, @TargetVY
+    # Fall through to :VertexSelected
+
+:VertexSelected
+    # 4. Calculate Midpoint: NewP = (CurrentP + TargetV) / 2
+    # Calculate X coordinate
+    LDM  A, @CurrentPX  ; A = CurrentPX
+    LDM  B, @TargetVX   ; B = TargetVX
+    ADD  A, B           ; A = CurrentPX + TargetVX
+    DIVI A, 2           ; A = (CurrentPX + TargetVX) / 2
+    STO  A, @CurrentPX  ; Store new CurrentPX
+
+    # Calculate Y coordinate
+    LDM  A, @CurrentPY  ; A = CurrentPY
+    LDM  B, @TargetVY   ; B = TargetVY
+    ADD  A, B           ; A = CurrentPY + TargetVY
+    DIVI A, 2           ; A = (CurrentPY + TargetVY) / 2
+    STO  A, @CurrentPY  ; Store new CurrentPY
+
+    # 5. Plot the new point (Send X, then Y to SIO Channel 1)
+    # Send X
+    LDI  A, 1           ; Channel number 1 into A
+    LDM  B, @CurrentPX  ; Load the new X coordinate into B
+    CALL @write_channel ; Call the routine from serialIO.asm
+    # @write_channel waits for ACK internally
+
+    # Send Y
+    LDI  A, 1           ; Channel number 1 into A
+    LDM  B, @CurrentPY  ; Load the new Y coordinate into B
+    CALL @write_channel ; Call the routine from serialIO.asm
+    # @write_channel waits for ACK internally
+
+    # Loop back
+    JMP :LoopStart
+
+:EndOfProgram
+    # Optional: Close SIO Channel 1
+    LDI  A, 1           ; Channel number 1 into A
+    CALL @close_channel ; Call the routine from serialIO.asm
+    # @close_channel waits for ACK internally
+
+    HALT
+
+# --- REMOVED SendSIO subroutine ---
+# --- REMOVED GetRandomMod3 subroutine ---

@@ -172,7 +172,7 @@ class Cpu:
                     adres = int(self.memory.read(op2)) + self.registers[0]
                     self.registers[op1] = self.registers[op1] ^ int(self.memory.read(adres))
                 case _:
-                    print("CPU: Invalid instruction")
+                    print("CPU: Invalid instruction", inst, op1, op2)
                     exit("Invalid instruction")
 
 
