@@ -28,7 +28,7 @@
 % $CurrentPX 10
 % $CurrentPY 10
 
-% $Iterations 10000
+% $Iterations 500
 
 
 ldi A 1

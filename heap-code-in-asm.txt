@@ -1,0 +1,79 @@
+# --- In kernel2.asm ---
+
+# --- Define Heap Constants (Adjust addresses/size as needed) ---
+. HEAP_START 10000  # Example: Start heap at address 10000
+. HEAP_SIZE  2048   # Example: 2KB heap size
+HEAP_END:   % HEAP_START HEAP_SIZE # Calculate end address (useful for checks)
+
+# --- Kernel Variables for Allocator ---
+. NextFreePtr 1      # Stores the address of the next available byte in the heap
+. HeapEndAddr 1      # Store the calculated end address for quick checks
+
+# --- Kernel Initialization Code (Run once at boot) ---
+KernelInit:
+    # ... other kernel init ...
+
+    # Initialize Heap Manager
+    LDI A, HEAP_START  # Load heap start address
+    STO A, NextFreePtr # Store it in our pointer variable
+    LDI B, HEAP_END    # Load heap end address calculation result
+    STO B, HeapEndAddr # Store it
+
+    # ... rest of kernel init ...
+    RET
+
+# --- Interrupt Handler (Part of existing handler) ---
+InterruptHandler:
+    # ... check for other interrupts (keyboard, RTC, etc.) ...
+
+    # Check for Memory Allocation Interrupt (INT 10)
+    TSTE A, 10         # Assuming interrupt number is passed in R1 (A)
+    JMPF CheckFreeInt  # If not INT 10, check next
+    CALL runtime_alloc # Call the allocation routine
+    RTI                # Return from interrupt
+
+CheckFreeInt:
+    # Check for Memory Free Interrupt (INT 11) - Not implemented for bump allocator
+    TSTE A, 11
+    JMPF OtherInterrupts
+    # CALL runtime_free # Would call free routine if implemented
+    RTI
+
+OtherInterrupts:
+    # ... handle other interrupts ...
+    RTI
+
+
+# --- Bump Allocator Routine ---
+# Expects: Size to allocate in R2 (B)
+# Returns: Address in R2 (B), or 0 on failure
+runtime_alloc:
+    LDM A, NextFreePtr  # Load current free pointer into R1 (A)
+    LDM C, HeapEndAddr  # Load heap end address into R3 (C)
+
+    # Calculate potential new free pointer
+    ADD A, B            # A = CurrentFreePtr + Size
+
+    # Check if allocation exceeds heap bounds
+    TSTG A, C           # Is (CurrentFreePtr + Size) > HeapEndAddr?
+    JMPF AllocOK        # If not greater (fits), jump to AllocOK
+
+    # Allocation failed (out of memory)
+    LDI B, 0            # Return 0 in R2 (B) to signal failure
+    RET
+
+AllocOK:
+    # Allocation succeeded
+    LDM A, NextFreePtr  # Reload original NextFreePtr into R1 (A) (address to return)
+    MOV B, A            # Copy return address to R2 (B)
+
+    # Update NextFreePtr
+    ADD A, B            # Calculate new NextFreePtr (Original + Size) - Reuse A
+    STO A, NextFreePtr  # Store the updated pointer
+
+    RET                 # Return to interrupt handler (address is in R2)
+
+# --- runtime_free (Not implemented for bump allocator) ---
+# runtime_free:
+#    # Bump allocator doesn't free individual blocks
+#    RET

@@ -2,14 +2,13 @@
 import matplotlib.pyplot as plt
 import numpy as np # Needed for efficient scatter plot updates
 from time import time
-import traceback # For more detailed error printing if needed
 
 class XYPlotter:
     """
     Plots X, Y coordinate pairs received sequentially via an SIO channel
     onto a Matplotlib scatter plot with fixed axes.
     """
-    def __init__(self, sio, channel=1, width=640, height=480, update_interval=1.5):
+    def __init__(self, sio, channel=1, width=640, height=480, update_interval=5):
         self.sio = sio
         self.channel = channel # SIO Channel to listen on
         self.status = 'offline'
@@ -24,7 +23,7 @@ class XYPlotter:
         self.x_buffer = []
         self.y_buffer = []
         self.pending_x = None # Temporarily store X value while waiting for Y
-        self.plotted_points = set()
+        self.plotted_points = set() # keep track of the already plottet pixels
 
 
         # --- Timing and State ---
@@ -93,7 +92,6 @@ class XYPlotter:
                 return True
             except Exception as e:
                 print(f"Error initializing XY plot: {e}")
-                # traceback.print_exc() # Uncomment for full error details
                 self._close_plot() # Ensure cleanup on failure
                 return False
         return True # Already initialized
@@ -209,7 +207,7 @@ class XYPlotter:
                                     self.new_data_received = True
                                     # print(f"Received NEW point: {current_point}") # Debug
                                 # else:
-                                    # print(f"Skipping duplicate point: {current_point}") # Debug
+                                #     print(f"Skipping duplicate point: {current_point}") # Debug
 
                                 self.pending_x = None # Reset for the next X
                         except ValueError:
