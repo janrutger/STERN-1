@@ -24,8 +24,6 @@ class XYPlotter:
         self.x_buffer = []
         self.y_buffer = []
         self.pending_x = None # Temporarily store X value while waiting for Y
-        self.plotted_points = set()
-
 
         # --- Timing and State ---
         self.last_update_time = 0
@@ -86,7 +84,6 @@ class XYPlotter:
                 # Reset buffers and state
                 self.x_buffer.clear()
                 self.y_buffer.clear()
-                self.plotted_points.clear() # Add this line
                 self.pending_x = None
                 self.last_update_time = time()
                 print("XY Plotter window initialized.")
@@ -112,7 +109,6 @@ class XYPlotter:
                 self.scatter = None
                 self.x_buffer.clear()
                 self.y_buffer.clear()
-                self.plotted_points.clear() # Add this line
                 self.pending_x = None
                 # Don't reset status here, plot_update handles transitions
 
@@ -190,34 +186,26 @@ class XYPlotter:
                 # --- Read X/Y Data Pairs ---
                 while True:
                     data = self.sio.read_channel(self.channel)
-                    # Inside the while loop after getting 'data'
                     if data is not None:
                         try:
-                            value = int(data)
+                            value = int(data) # Ensure data is numeric
                             if self.pending_x is None:
+                                # This is the X value
                                 self.pending_x = value
                             else:
-                                # We have a complete pair (self.pending_x, value)
-                                current_point = (self.pending_x, value) # Create a tuple
-
-                                # *** Check if the point is already plotted ***
-                                if current_point not in self.plotted_points:
-                                    # Only append and add to set if it's new
-                                    self.x_buffer.append(self.pending_x)
-                                    self.y_buffer.append(value)
-                                    self.plotted_points.add(current_point) # Add to the set
-                                    self.new_data_received = True
-                                    # print(f"Received NEW point: {current_point}") # Debug
-                                # else:
-                                    # print(f"Skipping duplicate point: {current_point}") # Debug
-
-                                self.pending_x = None # Reset for the next X
+                                # This is the Y value, we have a complete pair
+                                self.x_buffer.append(self.pending_x)
+                                self.y_buffer.append(value) # 'value' is the Y value
+                                self.new_data_received = True
+                                # print(f"Received point: ({self.pending_x}, {value})") # Debug
+                                self.pending_x = None # Reset to wait for the next X
                         except ValueError:
-                            print(f"Warning: Received non-integer data '{data}' on channel {self.channel}. Skipping.")
-                            self.pending_x = None
+                             print(f"Warning: Received non-integer data '{data}' on channel {self.channel}. Skipping.")
+                             # If we get bad data, reset pending_x to avoid mismatched pairs
+                             self.pending_x = None
                     else:
+                        # No more data currently available in the SIO channel buffer
                         break
-
                 # --- End Data Reading ---
 
                 # --- Efficient Plot Update ---
