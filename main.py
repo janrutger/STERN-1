@@ -1,7 +1,7 @@
 # /home/janrutger/git/STERN-1/main.py
 from memory import Memory
 from cpu1 import Cpu
-from assembler import Assembler
+from assembler1 import Assembler
 from hw_IO_manager2 import DeviceIO
 from plotter_optimized import PlotterOptimized as Plotter
 # --- Import the new XYPlotter ---

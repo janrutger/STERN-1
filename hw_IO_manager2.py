@@ -2,12 +2,10 @@
 from tkinter import *
 from time import time
 from tkinter import TclError # Import TclError for specific exception handling
-# Import the new XYPlotter
-# from XY_plotter import XYPlotter
+
 
 class DeviceIO():
-    # Add 'xy_plotter' to the __init__ signature
-    def __init__(self, myASCII, interrupts, vdisk, plotter, xy_plotter, sio, width, height, memory, scale=10): # <-- Add xy_plotter
+    def __init__(self, myASCII, interrupts, vdisk, plotter, xy_plotter, sio, width, height, memory, scale=10): 
         self.ASCII = myASCII
         self.int = interrupts
         self.vdisk = vdisk
@@ -65,7 +63,7 @@ class DeviceIO():
 
 
     def my_tasks(self):
-        """Periodically update screen, disk, plotters, and SIO.""" # <-- Updated docstring
+        """Periodically update screen, disk, plotters, and SIO.""" 
         if not self._running:
             return
 
