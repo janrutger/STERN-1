@@ -34,6 +34,9 @@
 ldi A 1
 call @open_channel
 
+ldi M 500
+sto M $Iterations
+
 :LoopStart
     ldm C $Iterations
     tste C Z
