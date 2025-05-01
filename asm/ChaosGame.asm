@@ -13,8 +13,6 @@
 
 . $Iterations 1
 
-. $TempA 1
-. $TempB 1
 
 % $VertexAX 10
 % $VertexAY 10
@@ -28,13 +26,15 @@
 % $CurrentPX 10
 % $CurrentPY 10
 
-% $Iterations 500
+
+EQU ~Max_iterations 400
+;% $Iterations 500
 
 
 ldi A 1
 call @open_channel
 
-ldi M 500
+ldi M ~Max_iterations
 sto M $Iterations
 
 :LoopStart

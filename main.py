@@ -1,12 +1,10 @@
 # /home/janrutger/git/STERN-1/main.py
 from memory import Memory
 from cpu1 import Cpu
-from assembler1a import Assembler
+from assembler1b import Assembler
 from hw_IO_manager2 import DeviceIO
 from plotter_optimized import PlotterOptimized as Plotter
-# --- Import the new XYPlotter ---
 from XY_plotter import XYPlotter
-# --- End Import ---
 from memory import Memory
 from interrupts import Interrupts
 from rtc import RTC as Rtc
@@ -126,7 +124,7 @@ def main():
     # Start the CPU thread
     print(f"Starting CPU at address: {start_kernel}")
     cpu_thread = threading.Thread(target=CPU.run, args=(start_kernel,))
-    #cpu_thread.daemon = True # Allow main thread to exit even if CPU thread is running
+    cpu_thread.daemon = True # Allow main thread to exit even if CPU thread is running
     cpu_thread.start()
 
 

@@ -1,4 +1,4 @@
-# /home/janrutger/git/STERN-1/assembler1.py
+# /home/janrutger/git/STERN-1/assembler1a.py
 from FileIO import readFile, writeBin
 from stringtable import makechars
 import sys # Import sys for stderr
@@ -27,31 +27,31 @@ class Assembler:
             "I": '0', "A": '1', "B": '2', "C": '3', "K": '4', "L": '5', "M": '6', "X": '7', "Y": '8', "Z": '9'
         }
         self.myASCII = makechars()
-        self.symbols = {}
-        self.labels = {}
+        self.symbols = {} # Global symbols (@, $)
+        self.labels = {}  # Local labels (:) - cleared per file
+        self.constants = {} # Global constants (~) - NEW
         self.assembly = []
         self.binary = []
         self.source = []
         self._current_filename = "" # Store filename for error messages
+        self._line_map = {} # Map assembly index to (orig_line, orig_file)
 
     # --- Helper to format and raise/exit with error ---
     def _error(self, line_num, line_content, message):
-        error_message = f"ERROR in '{self._current_filename}', Line ~{line_num}: {message}\n  > {line_content.strip()}"
-        # Option 1: Raise custom exception
+        # Ensure line_num is displayed correctly, even if 0
+        display_line_num = line_num if line_num is not None else '?'
+        error_message = f"ERROR in '{self._current_filename}', Line ~{display_line_num}: {message}\n  > {line_content.strip()}"
         raise AssemblyError(error_message)
-        # Option 2: Print to stderr and exit (less flexible)
-        # print(error_message, file=sys.stderr)
-        # sys.exit(1)
     # --- End Helper ---
 
+    # --- read_source, include_source remain the same ---
     def read_source(self, sourcefile):
         try:
+            # Assuming readFile prepends './asm/'
             self.source = readFile(sourcefile, 1)
         except FileNotFoundError:
-             # Error handled in assemble method where filename is known
-             raise
+             raise # Handled in assemble
         except Exception as e:
-             # Error handled in assemble method
              raise AssemblyError(f"Could not read source file '{sourcefile}': {e}")
 
 
@@ -65,6 +65,8 @@ class Assembler:
         except Exception as e:
             self._error(included_from_line, f"INCLUDE {include_filename}", f"Could not read include file './asm/{include_filename}': {e}")
 
+
+    # --- parse_source remains the same ---
     def parse_source(self):
         self.assembly = []
         raw_assembly_lines = [] # Store tuples of (line_content, original_line_num, filename)
@@ -85,9 +87,6 @@ class Assembler:
                 else:
                     # Use the stored raw line info for the error message
                     self._error(line_num, stripped_line, "INCLUDE instruction requires exactly one filename argument")
-            # else:
-                # We store all lines initially, including directives/comments for accurate line mapping later
-                # self.assembly.append(line) # Don't populate self.assembly yet
 
         # --- Process includes ---
         processed_assembly = []
@@ -132,29 +131,66 @@ class Assembler:
         pc = prg_start
         current_pass_labels = {}
 
-        # Use enumerate(self.assembly) which now contains processed lines
         for idx, line in enumerate(self.assembly):
-            orig_line_num, orig_filename = self._line_map.get(idx, (idx + 1, self._current_filename)) # Get mapped info
+            orig_line_num, orig_filename = self._line_map.get(idx, (idx + 1, self._current_filename))
 
-            # Skip comments and empty lines *before* parsing directives/instructions
             if not line or line.startswith("#") or line.startswith(";"):
                 continue
 
-            parts = line.split(maxsplit=2)
+            parts = line.split(maxsplit=2) # Split max 3: directive/label, name/arg1, value/arg2
             directive = parts[0]
 
             try:
-                if directive.startswith("@"):
+                # --- Handle EQU Directive ---
+                if directive.upper() == "EQU":
+                    if len(parts) != 3:
+                        self._error(orig_line_num, line, "EQU directive requires a constant name and a value (e.g., EQU ~NAME 123)")
+                    const_name = parts[1]
+                    value_str = parts[2]
+
+                    if not const_name.startswith("~"):
+                        self._error(orig_line_num, line, f"Constant name '{const_name}' must start with '~'.")
+
+                    if const_name in self.constants:
+                        # Allow redefinition? Usually not for constants. Error if already defined.
+                        self._error(orig_line_num, line, f"Constant '{const_name}' already defined.")
+
+                    # --- Resolve the constant's value ---
+                    # Use a simplified version of get_value here, as full symbol/label resolution
+                    # might not be ready or appropriate for constant definition.
+                    # Allow numbers and character literals for now.
+                    resolved_value = None
+                    value_str_stripped = value_str.strip()
+                    if value_str_stripped.isdigit() or (value_str_stripped.startswith(('-', '+')) and value_str_stripped[1:].isdigit()):
+                        # TODO: Add range check if needed for constants
+                        resolved_value = str(value_str_stripped) # Store as string
+                    elif value_str_stripped.startswith("\\"):
+                        char_name = value_str_stripped[1:]
+                        if char_name in self.myASCII:
+                            resolved_value = str(self.myASCII[char_name]) # Store ASCII value as string
+                        else:
+                            self._error(orig_line_num, line, f"Unknown character literal '{value_str_stripped}' for constant value.")
+                    # Add support for other constants? e.g., EQU ~WIDTH ~BASE_WIDTH+10 (More complex)
+                    # elif value_str_stripped.startswith("~"): ... look up in self.constants ...
+                    else:
+                        self._error(orig_line_num, line, f"Invalid value '{value_str}' for EQU. Only numbers (e.g., 123) and character literals (e.g., \\a) are currently supported.")
+                    # --- End Resolve Value ---
+
+                    if resolved_value is not None:
+                        self.constants[const_name] = resolved_value
+                    # EQU does not advance PC
+                    continue # Move to next line
+
+                # --- Existing Symbol/Label/Variable Handling ---
+                elif directive.startswith("@"):
                     symbol_name = directive
                     if symbol_name in self.symbols:
-                        # Provide context of previous definition if possible (though address might be enough)
                         self._error(orig_line_num, line, f"Symbol '{symbol_name}' already defined (at address {self.symbols[symbol_name]}) in a previous assembly pass.")
                     self.symbols[symbol_name] = pc
                 elif directive.startswith(":"):
                     label_name = directive
                     if label_name in current_pass_labels:
                          self._error(orig_line_num, line, f"Label '{label_name}' already defined in this file/pass.")
-                    # No warning for self.labels collision needed if cleared correctly in assemble()
                     self.labels[label_name] = pc
                     current_pass_labels[label_name] = pc
                 elif directive.startswith("."):
@@ -164,13 +200,11 @@ class Assembler:
                     size_str = parts[2]
                     try:
                         size = int(size_str)
-                        if size <= 0:
-                             raise ValueError("Size must be positive")
+                        if size <= 0: raise ValueError("Size must be positive")
                     except ValueError:
                          self._error(orig_line_num, line, f"Invalid size '{size_str}' for directive '.'. Must be a positive integer.")
 
                     if not symbol_name.startswith("$"):
-                         # Make this an error? Or keep as warning? Let's make it an error for consistency.
                          self._error(orig_line_num, line, f"Variable symbol '{symbol_name}' defined with '.' must start with '$'.")
 
                     if symbol_name in self.symbols:
@@ -181,32 +215,45 @@ class Assembler:
                 elif directive.startswith("%"):
                     continue # PC doesn't advance
                 elif directive.upper() == "INCLUDE":
-                     # Includes are processed in parse_source, skip here
-                     continue
+                     continue # Already processed
                 else:
                     # This line represents an actual instruction
                     pc += 1
-            except AssemblyError: # Re-raise errors from _error()
+            except AssemblyError:
                  raise
-            except Exception as e: # Catch unexpected errors during symbol parsing
+            except Exception as e:
                  self._error(orig_line_num, line, f"Unexpected error during symbol parsing: {e}")
 
 
+    # --- get_adres remains the same ---
     def get_adres(self, label: str, line_num: int, line_content: str) -> str:
         if label.startswith(":") and label in self.labels:
             return str(self.labels[label])
         elif label.startswith(("@", "$")) and label in self.symbols:
             return str(self.symbols[label])
+        # --- Constants generally shouldn't be addresses, but you could add support if needed ---
+        # elif label.startswith("~") and label in self.constants:
+        #     # This implies the constant holds an address value. Use with caution.
+        #     print(f"WARNING (Line ~{line_num}): Using constant '{label}' as address. Ensure this is intended.\n  > {line_content.strip()}", file=sys.stderr)
+        #     return str(self.constants[label])
         else:
-            # Use _error helper
-            self._error(line_num, line_content, f"Unknown Symbol or Label '{label}'. Check spelling and definition.")
+            self._error(line_num, line_content, f"Unknown Symbol, Label, or invalid Address reference '{label}'.")
+
 
     def get_value(self, value_str: str, line_num: int, line_content: str) -> str:
         value_str = value_str.strip()
         if not value_str:
              self._error(line_num, line_content, "Value cannot be empty.")
 
-        if value_str.isdigit() or (value_str.startswith(('-', '+')) and value_str[1:].isdigit()):
+        # --- Handle Constants ---
+        if value_str.startswith("~"):
+            if value_str in self.constants:
+                return str(self.constants[value_str]) # Return the stored value
+            else:
+                self._error(line_num, line_content, f"Unknown constant '{value_str}'.")
+        # --- End Handle Constants ---
+
+        elif value_str.isdigit() or (value_str.startswith(('-', '+')) and value_str[1:].isdigit()):
             # TODO: Add range check
             return str(value_str)
         elif value_str.startswith("\\"):
@@ -219,16 +266,15 @@ class Assembler:
              if value_str in self.symbols:
                  return str(self.symbols[value_str])
              else:
-                 # Check labels only if it starts with ':' - prevents accidental label use
                  if value_str.startswith(":") and value_str in self.labels:
-                      # Keep warning for this specific case
                       print(f"WARNING (Line ~{line_num}): Using label '{value_str}' as immediate value. Ensure this is intended.\n  > {line_content.strip()}", file=sys.stderr)
                       return str(self.labels[value_str])
                  else:
                       self._error(line_num, line_content, f"Unknown symbol '{value_str}' used as value.")
         else:
-            self._error(line_num, line_content, f"Invalid value format '{value_str}'. Expected number, \\char, or symbol.")
+            self._error(line_num, line_content, f"Invalid value format '{value_str}'. Expected number, \\char, symbol (@,$), or constant (~).")
 
+    # --- generate_binary remains largely the same, but benefits from updated get_value/get_adres ---
     def generate_binary(self, prg_start, output_file):
         self.binary = []
         pc = prg_start
@@ -238,7 +284,8 @@ class Assembler:
         temp_pc = prg_start
         for idx, line in enumerate(self.assembly):
             # Skip non-instruction lines for PC mapping
-            if not line or line.startswith(("@", ".", ":", "%", "#", ";")) or line.upper() == "INCLUDE":
+            # Also skip EQU as it doesn't generate code at a PC
+            if not line or line.startswith(("@", ".", ":", "%", "#", ";")) or line.upper() == "INCLUDE" or line.upper().startswith("EQU"):
                 continue
             else:
                 pc_to_idx_map[temp_pc] = idx
@@ -253,8 +300,8 @@ class Assembler:
 
             op = instruction[0]
 
-            # Skip directives and comments
-            if op.startswith(("@", ".", ":", "#", ";")) or op.upper() == "INCLUDE":
+            # Skip directives and comments (including EQU now)
+            if op.startswith(("@", ".", ":", "#", ";")) or op.upper() == "INCLUDE" or op.upper() == "EQU":
                 continue
 
             # Use current index/line info for directives like '%'
@@ -264,7 +311,7 @@ class Assembler:
             try:
                 if op.startswith("%"):
                     if len(instruction) < 3:
-                         self._error(current_line_num_for_error, current_line_content_for_error, "Directive '%' requires a target symbol and at least one value (e.g., % $myVar 10 20 \\a)")
+                         self._error(current_line_num_for_error, current_line_content_for_error, "Directive '%' requires a target symbol and at least one value (e.g., % $myVar 10 ~COUNT \\a)")
                     target_symbol = instruction[1]
                     if not target_symbol.startswith("$") or target_symbol not in self.symbols:
                          self._error(current_line_num_for_error, current_line_content_for_error, f"Invalid or undefined target symbol '{target_symbol}' for '%'. Must be a defined '$' variable.")
@@ -273,7 +320,7 @@ class Assembler:
                     values_to_write = instruction[2:]
 
                     for value_str in values_to_write:
-                        # Pass line info to get_value
+                        # get_value now handles constants (~), numbers, chars, symbols (@,$)
                         value_to_write = self.get_value(value_str, current_line_num_for_error, current_line_content_for_error)
                         newLine = (adres, value_to_write)
                         self.binary.append(newLine)
@@ -282,19 +329,17 @@ class Assembler:
 
                 # --- Handle actual instructions ---
                 current_pc = pc # PC for *this* instruction
-                # Find the original line info using the PC map if possible
                 mapped_idx = pc_to_idx_map.get(current_pc)
                 if mapped_idx is not None:
                      orig_line_num_instr, _ = self._line_map.get(mapped_idx, (orig_line_num, orig_filename))
                      line_content_instr = self.assembly[mapped_idx]
                      current_line_num_for_error = orig_line_num_instr
                      current_line_content_for_error = line_content_instr
-                # else: Fallback to current idx info (shouldn't happen often)
+                # else: Fallback (should be rare)
 
-
-                # --- Instruction Argument Validation ---
+                # --- Instruction Argument Validation (No changes needed here, relies on get_value/get_adres) ---
                 num_args = len(instruction)
-                expected_args = -1 # Placeholder
+                expected_args = -1
 
                 if op in ['nop', 'halt', 'ret', 'rti', 'ei', 'di']:
                     expected_args = 1
@@ -314,6 +359,7 @@ class Assembler:
                     if num_args != expected_args: raise IndexError(f"needs register and value arguments")
                     reg_str, val_str = instruction[1], instruction[2]
                     if reg_str not in self.registers: raise ValueError(f"Invalid register '{reg_str}'")
+                    # get_value handles constants here
                     value = self.get_value(val_str, current_line_num_for_error, current_line_content_for_error)
                     newLine = (current_pc, self.instructions[op] + self.registers[reg_str] + value)
 
@@ -322,6 +368,7 @@ class Assembler:
                     if num_args != expected_args: raise IndexError(f"needs register and address/symbol arguments")
                     reg_str, addr_str = instruction[1], instruction[2]
                     if reg_str not in self.registers: raise ValueError(f"Invalid register '{reg_str}'")
+                    # get_adres handles addresses/symbols
                     address = self.get_adres(addr_str, current_line_num_for_error, current_line_content_for_error)
                     newLine = (current_pc, self.instructions[op] + self.registers[reg_str] + address)
 
@@ -336,75 +383,77 @@ class Assembler:
                     expected_args = 2
                     if num_args != expected_args: raise IndexError(f"needs one integer value argument")
                     val_str = instruction[1]
+                    # get_value handles constants here too
                     value = self.get_value(val_str, current_line_num_for_error, current_line_content_for_error)
                     newLine = (current_pc, self.instructions[op] + value)
 
                 else:
-                    # Unknown instruction
                     raise ValueError(f"Unknown instruction '{op}'")
 
-                # If we got here, arguments were okay (or handled by get_value/get_adres)
                 self.binary.append(newLine)
                 pc += 1
 
             except (ValueError, IndexError, KeyError) as e:
-                 # Catch errors during generation and provide context using _error
                  error_detail = str(e)
-                 # Improve message for argument count errors
                  if isinstance(e, IndexError) and expected_args != -1:
                       error_detail = f"Instruction '{op}' {error_detail}. Expected {expected_args-1}, got {num_args-1}."
                  self._error(current_line_num_for_error, current_line_content_for_error, f"{error_detail}")
-            except AssemblyError: # Re-raise errors from get_value/get_adres
+            except AssemblyError:
                  raise
             except Exception as e:
-                 # Catch unexpected errors
                  self._error(current_line_num_for_error, current_line_content_for_error, f"Unexpected error during binary generation: {e}")
 
-
-        # Write the generated binary to the output file
+        # --- Write binary file ---
         try:
             writeBin(self.binary, output_file)
         except Exception as e:
-             # Use _error, though line number isn't directly applicable here
              raise AssemblyError(f"Failed to write binary output to '{output_file}': {e}")
 
 
+    # --- assemble method remains the same ---
     def assemble(self, filename, prog_start, output="out.bin"):
         # print(f"\n--- Assembling {filename} ---")
         self._current_filename = filename # Store for error messages
         self.labels = {} # Clear labels for this pass
+        # self.constants is NOT cleared - constants are global
 
         try:
             self.read_source(filename)
             self.parse_source() # Parses includes, builds self.assembly and self._line_map
-            self.parse_symbols(prog_start)
+            self.parse_symbols(prog_start) # Parses symbols, labels, AND constants
             self.generate_binary(prog_start, output)
             print(f"--- Successfully assembled {filename} -> {output} ---")
 
         except FileNotFoundError:
-             # Handle file not found for the main assembly file
              print(f"ERROR: Assembly source file not found: {filename}", file=sys.stderr)
              sys.exit(1)
         except AssemblyError as e:
-             # Catch specific assembly errors raised by _error()
-             print(str(e), file=sys.stderr) # The message is already formatted
+             print(str(e), file=sys.stderr)
              print(f"--- Assembly failed for {filename} ---")
              sys.exit(1)
         except Exception as e:
-             # Catch any other unexpected errors
              print(f"FATAL ERROR during assembly of {filename}: {e}", file=sys.stderr)
-             # Optional: Add traceback for debugging unexpected errors
              # import traceback
              # traceback.print_exc()
              print(f"--- Assembly failed for {filename} ---")
              sys.exit(1)
 
 
-# Example usage (remains the same)
+# --- Example Usage (Illustrative) ---
 if __name__ == "__main__":
-    start_var_pointer = 1024 * 8
+    start_var_pointer = 1024 * 12
     assembler = Assembler(start_var_pointer)
     try:
+        # You might define common constants in a separate file and include it
+        # e.g., in constants.asm:
+        # EQU ~SCREEN_WIDTH 64
+        # EQU ~SCREEN_HEIGHT 32
+        # EQU ~MAX_SPRITES 10
+        # EQU ~KEYCODE_LEFT \Left
+
+        # Then in your main files:
+        # INCLUDE constants
+
         loader_start = 0
         assembler.assemble("loader2.asm", loader_start, "loader.bin")
         kernel_start = 512
@@ -417,9 +466,12 @@ if __name__ == "__main__":
         print("Final Symbols Table:")
         for symbol, address in assembler.symbols.items():
             print(f"  {symbol}: {address}")
+        print("Final Constants Table:") # <-- Print constants too
+        for name, value in assembler.constants.items():
+            print(f"  {name}: {value}")
         print(f"Next Available Variable Address: {assembler.NextVarPointer}")
 
-    except SystemExit: # Catch exits from assemble()
+    except SystemExit:
         print("\nAssembly process halted due to errors.")
     except Exception as e:
         print(f"\nAn unexpected error occurred during the assembly process: {e}")
