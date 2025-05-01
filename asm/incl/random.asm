@@ -32,6 +32,6 @@
     sto B $random_seed
 
     # returns a value [0 .. 99]
-    ldi A 1000
+    ldi A 100
     dmod B A
 ret

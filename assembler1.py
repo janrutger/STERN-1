@@ -364,7 +364,7 @@ if __name__ == "__main__":
         # Assemble program - defines its symbols/labels, can use loader's & kernel's symbols
         program_start = 4096 + 512 # Example start address
         # assembler.assemble("spritewalker.asm", program_start, "program.bin")
-        assembler.assemble("ChaosGame.asm", program_start, "program.bin")
+        assembler.assemble("ChaosGame4.asm", program_start, "program.bin")
 
         print("\nAssembly process completed.")
         print("Final Symbols Table:")
