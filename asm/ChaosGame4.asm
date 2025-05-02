@@ -21,13 +21,13 @@
 % $VertexAX 10
 % $VertexAY 10
 
-% $VertexBX 630
+% $VertexBX 470
 % $VertexBY 10
 
-% $VertexCX 320
+% $VertexCX 470
 % $VertexCY 470
 
-% $VertexDX 630
+% $VertexDX 10
 % $VertexDY 470
 
 % $CurrentPX 10
@@ -56,7 +56,7 @@ sto M $Iterations
     ld A C
     call @print_to_BCD
 
-    ; Calculate next_vertex using: ( (rand() % 3) + 1 + previous_vertex ) % 4
+    ; Calculate next_vertex using: ( (rand % 3) + 1 + previous_vertex ) % 4
     call @random
     ldi B 3      
 
