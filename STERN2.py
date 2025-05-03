@@ -46,13 +46,13 @@ def run_stern_instance(instance_id, config):
     start_font = 2024
     intVectors = 4096
     # Start addresses might be common or configured
-    start_loader = config.get("start_loader", 0)
-    start_kernel = config.get("start_kernel", 512)
-    start_prog = config.get("start_prog", intVectors + 512)
+    start_kernel = config.get("kernel_start_adres", 512)
+    rom_file = config.get("start_rom", "program.bin")
 
     # --- Ensure Directories Exist ---
     # Bin dir is assumed to be ./bin relative to execution
     os.makedirs(config["disk_dir"], exist_ok=True)
+    os.makedirs(config["bin_dir"], exist_ok=True)
 
     # --- Instantiate Devices with Instance Config ---
     # IMPORTANT: Modify Serial/NetworkIO to use config['network_port'] etc. for IPC
@@ -112,7 +112,8 @@ def run_stern_instance(instance_id, config):
     print(f"[Instance {instance_id}] Loading binaries from ./bin/...")
     load_bin("loader.bin")
     load_bin("kernel.bin")
-    load_bin("program.bin") # Load the specific program binary
+    load_bin(rom_file)
+    #load_bin("program.bin") # Load the specific program binary
 
     # --- Start CPU in this process ---
     print(f"[Instance {instance_id}] Starting CPU at address: {start_kernel}")
@@ -141,6 +142,13 @@ if __name__ == "__main__":
 
     print("--- STERN-2 Multi-Instance Launcher ---")
 
+    # --- Define general attibutes
+    boot = {
+        "start_loader": 0,
+        "start_kernel": 512,
+        "start_prog": 4096 + 512,  
+    }
+
     # --- Define Configurations for Each Instance ---
     config1 = {
         "instance_id": 1,
@@ -149,9 +157,8 @@ if __name__ == "__main__":
         "window_title": "STERN-1 (Instance 1)",
         "network_role": "server", # Example for IPC
         "network_port": 12345,    # Example for IPC
-        "start_loader": 0,
-        "start_kernel": 512,
-        "start_prog": 4096 + 512,
+        "kernel_start_adres": 512,
+        "start_rom": "rom0.bin",
         # Add other specific settings if needed
     }
 
@@ -162,9 +169,8 @@ if __name__ == "__main__":
         "window_title": "STERN-1 (Instance 2)",
         "network_role": "client", # Example for IPC
         "network_port": 12345,    # Example for IPC (client connects to server's port)
-        "start_loader": 0,
-        "start_kernel": 512,
-        "start_prog": 4096 + 512,
+        "kernel_start_adres": 512,
+        "start_rom": "rom1.bin",
         # Add other specific settings if needed
     }
 
@@ -173,10 +179,12 @@ if __name__ == "__main__":
     try:
         # Ensure output goes to the shared ./bin directory
         assembler = Assembler(1024 * 12) # Use appropriate start_var pointer (consistent with instance layout)
-        assembler.assemble("loader2.asm", config1["start_loader"], "loader.bin") # Output relative to ./bin/
-        assembler.assemble("kernel2.asm", config1["start_kernel"], "kernel.bin") # Output relative to ./bin/
+        assembler.assemble("loader2.asm", boot["start_loader"], "loader.bin") # Output relative to ./bin/
+        assembler.assemble("kernel2.asm", boot["start_kernel"], "kernel.bin") # Output relative to ./bin/
         # Assemble the *same* program for both instances? Or different ones?
-        assembler.assemble("ChaosGame4.asm", config1["start_prog"], "program.bin") # Output relative to ./bin/
+        #assembler.assemble("ChaosGame3.asm", boot["start_prog"], "rom0.bin") # Output relative to ./bin/
+        assembler.assemble("ChaosGame4.asm", boot["start_prog"], "rom1.bin") # Output relative to ./bin/
+        assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Output relative to ./bin/
         print("Assembly complete.")
     except Exception as e:
         print(f"Assembly failed: {e}")

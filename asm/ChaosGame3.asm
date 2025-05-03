@@ -27,7 +27,7 @@
 % $CurrentPY 10
 
 
-EQU ~Max_iterations 400
+EQU ~Max_iterations 3500
 ;% $Iterations 500
 
 
