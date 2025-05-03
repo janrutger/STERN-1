@@ -37,7 +37,7 @@
 ; Initialize to a value that won't match (0-3)
 
 
-EQU ~Max_iterations 5000
+EQU ~Max_iterations 500
 ;% $Iterations 500
 
 

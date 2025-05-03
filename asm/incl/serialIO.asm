@@ -12,7 +12,7 @@
     stx M $SIO_baseadres
 
     # set status in register (3)
-    # 1 = data ready
+    # 1 = data ready 
     ldi M 1
     ldi I 3
     stx M $SIO_baseadres
