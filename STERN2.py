@@ -10,6 +10,7 @@ from stern_computer import SternComputer # Import the new class
 from assembler1b import Assembler # Use your latest assembler
 from FileIO import readFile, writeBin # Need writeBin if assembling per instance
 from stringtable import makechars
+from networkHub import NetworkHub
 
 # --- Configuration ---
 Vh = 32
@@ -29,48 +30,8 @@ def run_stern_instance(instance_id, config):
     except Exception as e:
         print(f"[Instance {instance_id}] FATAL ERROR during setup/run: {e}")
 
-
-# --- Main Execution Block ---
-if __name__ == "__main__":
-    multiprocessing.freeze_support() # Recommended for cross-platform compatibility
-
-    print("--- STERN-2 Multi-Instance Launcher ---")
-
-    # --- Define general attributes ---
-    # Base directory for relative paths (like disk dirs)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    boot = {
-        "start_loader": 0,
-        "start_kernel": 512,
-        "start_prog": 4096 + 512,
-    }
-
-    # --- Define Configurations for Each Instance ---
-    instance1_config = {
-        "instance_id": 1,
-        "bin_dir": "./", # Explicitly state shared bin dir
-        "disk_dir": "./disk0",
-        "window_title": "STERN-1 (Instance 1)",
-        "network_role": "server", # Example for IPC
-        "network_port": 12345,    # Example for IPC
-        "kernel_start_adres": 512,
-        "start_rom": "rom0.bin",
-        # Add other specific settings if needed
-    }
-
-    instance2_config = {
-        "instance_id": 2,
-        "bin_dir": "./", # Explicitly state shared bin dir
-        "disk_dir": "./disk0", # Use a separate disk dir for instance 2
-        "window_title": "STERN-1 (Instance 2)",
-        "network_role": "client", # Example for IPC
-        "network_port": 12345,    # Example for IPC (client connects to server's port)
-        "kernel_start_adres": 512,
-        "start_rom": "rom1.bin",
-        # Add other specific settings if needed
-    }
-
-    # --- Assembly Step (Run Once Before Launching Processes) ---
+# --- function to assemble the nessasery code
+def assembly_code():
     print("Assembling code...")
     # Ensure output goes to the shared ./bin directory relative to this script
     bin_output_dir = os.path.join(base_dir, "bin")
@@ -89,6 +50,76 @@ if __name__ == "__main__":
         print(f"Assembly failed: {e}")
         sys.exit(1)
 
+# --- Main Execution Block ---
+if __name__ == "__main__":
+    multiprocessing.freeze_support() # Recommended for cross-platform compatibility
+
+
+    print("--- STERN-2 Multi-Instance Launcher ---")
+
+    # --- Define general attributes ---
+    # Base directory for relative paths (like disk dirs)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    boot = {
+        "start_loader": 0,
+        "start_kernel": 512,
+        "start_prog": 4096 + 512,
+        "hub_max_connections": 3,
+    }
+
+    # --- set the shared object
+    max_connections = boot.get("hub_max_connections", 0)
+    receive_queues = []
+    send_queue = None
+    if max_connections != 0:
+        manager = multiprocessing.Manager()  # Create the manager first
+        send_queue = manager.Queue()    # Create the single send queue
+        # Create the receive queues and add them to the list
+        receive_queues = [manager.Queue() for _ in range(max_connections)]   
+
+    # --- Define Configurations for Each Instance ---
+    instance1_config = {
+        "instance_id": 0,
+        "bin_dir": "./", # Explicitly state shared bin dir
+        "disk_dir": "./disk0",
+        "window_title": "STERN-1 (Instance 1)",
+        "kernel_start_adres": 512,
+        "start_rom": "rom0.bin",
+        "send_queue": send_queue,
+        "receive_queue": receive_queues[0],
+        # Add other specific settings if needed
+    }
+
+    instance2_config = {
+        "instance_id": 1,
+        "bin_dir": "./", # Explicitly state shared bin dir
+        "disk_dir": "./disk0", # Use a separate disk dir for instance 2
+        "window_title": "STERN-1 (Instance 2)",
+        "kernel_start_adres": 512,
+        "start_rom": "rom1.bin",
+        "send_queue": send_queue,
+        "receive_queue": receive_queues[1],
+        # Add other specific settings if needed
+    }
+
+    # --- Assembly Step (Run Once Before Launching Processes) ---
+    assembly_code()
+
+
+    # Serial HUB code....    
+    # Define a simple wrapper function if NetworkHub isn't directly callable as a target
+    def run_hub_process(send_queue, receive_queues, max_connections):
+        try:
+            HUB = NetworkHub(send_queue, receive_queues, max_connections)
+            HUB.start() # Assuming NetworkHub has a 'start' method
+        except Exception as e:
+            print(f"[Hub Process] Error: {e}")
+
+    print("Creating and starting Network Hub process...")
+    hub_process = multiprocessing.Process(target=run_hub_process, args=(send_queue, receive_queues, max_connections))
+    hub_process.start()
+    time.sleep(1)
+
     # --- Create and Start Processes ---
     print("Creating processes...")
     process1 = multiprocessing.Process(target=run_stern_instance, args=(1, instance1_config))
@@ -106,3 +137,15 @@ if __name__ == "__main__":
     process2.join()
 
     print("\n--- Both STERN instances have halted. ---")
+
+    # --- Clean up Hub Process ---
+    print("Terminating Network Hub process...")
+    # You might need a more graceful shutdown mechanism for the hub
+    # (e.g., sending a 'stop' message via a queue) before terminating.
+    if hub_process.is_alive():
+         hub_process.terminate() # Forceful termination
+         hub_process.join(timeout=5) # Wait for termination
+         if hub_process.is_alive():
+              print("[Warning] Hub process did not terminate cleanly.")
+
+    print("\n--- All processes finished. ---")
