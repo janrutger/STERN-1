@@ -1,21 +1,24 @@
+# /home/janrutger/git/STERN-1/cpu.py
 from decoder import decode
 from time import sleep
 from CPUmonitor1 import CpuMonitor
 
 
 class Cpu:
-    def __init__(self, memory, sio, interrupts, SP, intVector):
+    # Remove 'sio' from the constructor arguments
+    def __init__(self, memory, rtc, interrupts, SP, intVector):
         self.monitor = CpuMonitor()
-        
+
         self.memory     = memory
         self.interrupts = interrupts
-        self.sio        = sio
-        
+        # self.sio        = sio # <-- Remove this line
+        self.rtc        = rtc
+
         self.registers = [0] * 10   # 10 registers
                                     # 0      index register
                                     # 1 .. 9 General registers
 
-                    
+
         self.PC = 0    # init PC
         self.SP = SP   # init SP
         self.statusbit  = 0
@@ -29,7 +32,7 @@ class Cpu:
             'registers': self.registers.copy(),
             'PC': self.PC,
             'statusbit': self.statusbit}
-        
+
     def restore_state(self):
         if self.saved_state:
             self.registers = self.saved_state['registers'].copy()
@@ -43,14 +46,21 @@ class Cpu:
         # ends running after the HALT instruction
 
         runState = True
+        runCounter = 0
         self.PC = startAdres
         self.monitor.start_monitoring()
         while runState:
+            if runCounter % 1000 == 0:
+                # Give GUI some time, yielding
+                sleep(0.004)
+                runCounter = 0
+            runCounter += 1
+
             self.monitor.start_cycle()
-            #sleep(.00001)
+
             # read instruction from memory
             memValue = self.memory.read(self.PC)
-            self.PC = self.PC + 1  
+            self.PC = self.PC + 1
 
             # Decode instruction
             inst, op1, op2 = decode(memValue)
@@ -59,9 +69,10 @@ class Cpu:
 
             # execute instruction
             match inst:
-                case 10:    # NOP 
+                # --- (Instruction cases remain the same) ---
+                case 10:    # NOP
                     continue
-                case 11:    # HALT 
+                case 11:    # HALT
                     self.PC = self.PC - 1
                     runState = False
                 case 12:    # RET
@@ -71,7 +82,7 @@ class Cpu:
                     self.interruptEnable = True
                 case 14:    # DI
                     self.interruptEnable = False
-                case 15:    # RTI              return from interrupt 
+                case 15:    # RTI              return from interrupt
                     self.restore_state()
                     self.interruptEnable = True
                 case 20:    # JMPF adres 		jump when statusbit is false 0
@@ -97,7 +108,7 @@ class Cpu:
                     self.interruptEnable = False
                     self.save_state()
                     self.PC = adres
-                case 30:    # LD r1 r2 
+                case 30:    # LD r1 r2
                     self.registers[op1] = self.registers[op2]
                 case 31:    # LDI r val
                     self.registers[op1] = op2
@@ -125,11 +136,13 @@ class Cpu:
                     self.registers[op1] = self.registers[op1] * op2
                 case 62:    # DIV r1 r2
                     self.registers[op1] = self.registers[op1] // self.registers[op2]
+                case 63:    # DIVI r1 val
+                    self.registers[op1] = self.registers[op1] // op2
                 case 65:    # DMOD	Ra	Rb	    divmod Ra Rb, returns quotiënt in Ra, remainder in Rb
                     quotient, remainder = divmod(self.registers[op1], self.registers[op2])
                     self.registers[op1] = quotient
                     self.registers[op2] = remainder
-                case 70:    # TST Ra integer 	set statusbit when equal 
+                case 70:    # TST Ra integer 	set statusbit when equal
                     if self.registers[op1] == op2:
                         self.statusbit = 1
                     else:
@@ -159,18 +172,20 @@ class Cpu:
                     adres = int(self.memory.read(op2)) + self.registers[0]
                     self.registers[op1] = self.registers[op1] ^ int(self.memory.read(adres))
                 case _:
-                    print("CPU: Invalid instruction")
+                    print("CPU: Invalid instruction", inst, op1, op2)
                     exit("Invalid instruction")
-            
 
-            # --- Measure SIO Call ---
-            self.monitor.start_sio_call()
-            self.sio.IO()
-            self.monitor.end_sio_call()
-            # --- End SIO Measurement ---
-            
+
+            # --- REMOVE SIO Call Block ---
+            # self.monitor.start_sio_call()
+            # self.sio.IO()
+            # self.monitor.end_sio_call()
+            # --- End SIO Removal ---
+
+
             #check for interrupts
             if self.interruptEnable:
+                self.rtc.tick()
                 # print("Interrupts enabled")
                 if self.interrupts.pending():
                     # get interruption and execute
@@ -188,9 +203,4 @@ class Cpu:
         self.monitor.report()
 
         print("CPU halted")
-
-
-
-
-
 

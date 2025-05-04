@@ -93,4 +93,4 @@ def assembler(sourcefile: str, pgr_start: int, var_start: int):
 if __name__ == "__main__":
     prg_start = 0
     var_start = 32
-    assembler("test.asm", prg_start, var_start)
+    assembler("ChaosGame.asm", prg_start, var_start)

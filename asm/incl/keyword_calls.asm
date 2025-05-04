@@ -66,6 +66,20 @@ ret
     call @write_channel
 ret
 
+@point_kw
+    ; set open_channel (1) > A
+    ; set X value, from datastack > B
+    call @datastack_pop
+    ld B A 
+    ldi A 1
+    call @write_channel
+    ; set Y value
+    call @datastack_pop
+    ld B A 
+    ldi A 1
+    call @write_channel
+ret
+
 @gcd_kw
     call @datastack_pop
     ld B A
@@ -96,6 +110,17 @@ ret
         call @datastack_push
 ret
 
+@now_kw
+    ldm A $CURRENT_TIME
+    addi A 5
+    divi A 10
+    call @datastack_push
+ret
+
+@rand_kw
+    call @random
+    call @datastack_push
+ret
 
 
 

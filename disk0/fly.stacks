@@ -1,4 +1,6 @@
 begin
+    now as starttime
+    starttime print
 
     1 as last
     last plot
@@ -18,4 +20,6 @@ begin
             tmp as last
             current 1 + as current
     700 current > ( goto loop )
+
+    now starttime - print
 end

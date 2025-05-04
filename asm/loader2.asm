@@ -19,11 +19,16 @@
 . $prog_start 1
 % $prog_start 4608
 
+. $random_seed 1
+% $random_seed 12345 
+
 
 . $KBD_BUFFER 16
 . $KBD_BUFFER_ADRES 1
 . $KBD_READ_PNTR 1
 . $KBD_WRITE_PNTR 1
+
+. $CURRENT_TIME 1
 
 . $DU0_baseadres 1 
 % $DU0_baseadres 12303
@@ -33,6 +38,7 @@
 
 INCLUDE printing
 INCLUDE serialIO
+INCLUDE random
 INCLUDE errors
 
 @init_stern
@@ -79,8 +85,14 @@ INCLUDE errors
     ldi M @READ_FILE_LINE
     stx M $INT_VECTORS
 
+    # RTC interrupt
+    ldi I 8  
+    ldi M @RTC_ISR
+    stx M $INT_VECTORS
 
-    ## Done interrupt factors
+
+
+    ## Done interrupt vectors
 
     # don't forget to enable Interrupts
     # int 1, clears the screen, 
@@ -361,6 +373,12 @@ rti
     ldi M 0
     ldi I 0
     stx M $DU0_baseadres
+rti
+
+
+# RTC isr
+@RTC_ISR
+    sto A $CURRENT_TIME  
 rti
 
 
