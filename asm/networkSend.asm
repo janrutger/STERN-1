@@ -23,6 +23,6 @@
 
 ret
     # Loop forever (or halt)
-:loop
-    jmp :loop
-ret
+#:loop
+#    jmp :loop
+#ret

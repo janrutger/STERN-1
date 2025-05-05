@@ -22,7 +22,7 @@ import queue # For queue.Empty exception
 #   CPU reads (or can read) the src_ and data_in_ register
 #       do something usefull
 #   sets receive_status to "idle" (0)
-#   
+#    
 
 # --- Status Constants ---
 NIC_STATUS_IDLE = 0
@@ -73,7 +73,7 @@ class VirtualNIC:
             # Use put() for multiprocessing.Queue
             self.send_queue.put(message)
             # Signal host that send is complete (or queued)
-            self.mainmem.write(self.send_status_register, NIC_STATUS_IDLE)
+            self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
             print("NIC ", self.instance_id, " sent message:", message)
             
         # --- Handle Receiving ---
