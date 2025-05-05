@@ -40,9 +40,6 @@ class serialIO:
             if command == 0:  # open channel
                 self.mainmem.write(self.status_register, 2)
                 self.channels[channel] = []
-                #sleep(5)
-                # while int(self.mainmem.read(self.status_register)) == 2:
-                #     sleep(0.01)
 
             elif command == 1: # write to channel
                 if channel in self.channels:
