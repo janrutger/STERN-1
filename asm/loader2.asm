@@ -52,6 +52,8 @@ INCLUDE errors
     ldi M $KBD_BUFFER
     sto M $KBD_BUFFER_ADRES
 
+    # init networkcard (NIC) 
+    call @init_nic_buffer
 
     # set the ISR vectors
     ldi I 0
@@ -89,6 +91,17 @@ INCLUDE errors
     # RTC interrupt
     ldi I 8  
     ldi M @RTC_ISR
+    stx M $INT_VECTORS
+
+    # NIC receive interrupt
+    ldi I 9
+    ldi M @read_nic_isr
+    stx M $INT_VECTORS 
+
+    # NIC send Interrupt
+    equ ~networkSend 10
+    ldi I ~networkSend
+    ldi M @write_nic_isr
     stx M $INT_VECTORS
 
 

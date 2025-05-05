@@ -29,7 +29,7 @@ NIC_STATUS_IDLE = 0
 NIC_STATUS_SEND_REQUEST = 1 # Host wants to send
 NIC_STATUS_DATA_WAITING = 1 # Data has arrived for host
 # --- Interrupt Number ---
-NIC_RX_INTERRUPT_NUM = 1 # Example interrupt number for Receive Ready
+NIC_RX_INTERRUPT_NUM = 9 # Example interrupt number for Receive Ready
 # --- End Status Constants ---
 
 class VirtualNIC:
@@ -74,7 +74,8 @@ class VirtualNIC:
             self.send_queue.put(message)
             # Signal host that send is complete (or queued)
             self.mainmem.write(self.send_status_register, NIC_STATUS_IDLE)
-
+            print("NIC ", self.instance_id, " sent message:", message)
+            
         # --- Handle Receiving ---
         # Check if the NIC is idle (ready for new data) AND if data is available in the queue
         if receive_status == NIC_STATUS_IDLE:
@@ -86,6 +87,7 @@ class VirtualNIC:
                 self.mainmem.write(self.receive_status_register, NIC_STATUS_DATA_WAITING) # Signal host data is ready
                 # Trigger the interrupt *after* data is ready and status is set
                 self.interrupts.interrupt(NIC_RX_INTERRUPT_NUM, 0) # Value 0, could be used later if needed
+                print("NIC ", self.instance_id, " received message:", (source, value))
             except queue.Empty:
                 pass # No data currently in queue, NIC remains idle
         # NOTE: Do NOT reset receive_status here. The CPU must do that after reading.

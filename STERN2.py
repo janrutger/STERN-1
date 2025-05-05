@@ -42,9 +42,9 @@ def assembly_code():
         assembler.assemble("kernel2.asm", boot["start_kernel"], "kernel.bin")
         # Assemble the *same* program for both instances? Or different ones?
         # Assemble ROMs specified in configs
-        # assembler.assemble("ChaosGame4.asm", boot["start_prog"], instance1_config["start_rom"])
-        assembler.assemble("ChaosGame3.asm", boot["start_prog"], instance2_config["start_rom"])
-        # assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Example if needed
+        assembler.assemble("networkSend.asm", boot["start_prog"], instance1_config["start_rom"])
+        assembler.assemble("networkReceive.asm", boot["start_prog"], instance2_config["start_rom"])
+        assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Example if needed
         print("Assembly complete.")
     except Exception as e:
         print(f"Assembly failed: {e}")
@@ -124,8 +124,8 @@ if __name__ == "__main__":
 
     # --- Create and Start Processes ---
     print("Creating processes...")
-    process1 = multiprocessing.Process(target=run_stern_instance, args=(1, instance1_config))
-    process2 = multiprocessing.Process(target=run_stern_instance, args=(2, instance2_config))
+    process1 = multiprocessing.Process(target=run_stern_instance, args=(0, instance1_config))
+    process2 = multiprocessing.Process(target=run_stern_instance, args=(1, instance2_config))
 
     print("Starting processes...")
     process1.start()

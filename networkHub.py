@@ -26,7 +26,8 @@ class NetworkHub:
                     break # Exit the loop gracefully
 
                 if message[0] < self.max_connection:
-                    self.output_queues[message[0]].append((message[1], message[2]))
+                    print("HUB received message:", message )
+                    self.output_queues[message[0]].put((message[1], message[2])) # Use put() instead of append()
                 else:
                     # print warning and continue
                     print(f"WARNING: Hub received message for out-of-range destination {message[0]} from {message[1]}")
