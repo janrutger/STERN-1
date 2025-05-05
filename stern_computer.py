@@ -7,12 +7,13 @@ import time # Or sleep from time
 from memory import Memory
 from cpu1 import Cpu
 # assembler1b is not needed here if assembly happens before instantiation
-from hw_IO_manager2 import DeviceIO
+from hw_IO_manager3 import DeviceIO # verion 3 has network support
 from plotter_optimized import PlotterOptimized as Plotter
 from XY_plotter import XYPlotter
 from interrupts import Interrupts
 from rtc import RTC as Rtc
 from virtualdisk import VirtualDisk
+from networkNIC import VirtualNIC
 # TODO: Replace with a networked version for actual IPC
 from serialIO import serialIO as Serial # Placeholder - NEEDS MODIFICATION FOR IPC
 from FileIO import readFile
@@ -50,6 +51,7 @@ class SternComputer:
         start_var = self.StackPointer - 2024 # TODO: Make configurable?
         IOmem_du0 = start_var - 8
         IOmem_sio = start_var - 16 # Base address for SIO
+        IOmem_nic = start_var - 24 # Base address for NIC
 
         self.start_font = 2024 # TODO: Make configurable?
         self.intVectors = 4096 # TODO: Make configurable?
@@ -67,13 +69,22 @@ class SternComputer:
         self.plotter = Plotter(self.SIO) # Assumes plotter uses SIO channel 0
         self.xy_plotter = XYPlotter(self.SIO) # Assumes XY uses SIO channel 1
 
+        # --- Instantiate NIC ---
+        self.NIC = VirtualNIC(
+            self.instance_id, self.MainMem, IOmem_nic,
+            self.config.get("send_queue"), # Get from config
+            self.config.get("receive_queue"), # Get from config
+            self.interrupts
+        )
+        # --- End Instantiate NIC ---
+
         self.DU0 = VirtualDisk(self.myASCII, self.MainMem, IOmem_du0, disk_path)
         self.CPU = Cpu(self.MainMem, self.RTC, self.interrupts, self.StackPointer, self.intVectors)
 
         # --- DeviceIO (Tkinter window) ---
         # TODO: Add window_title support to DeviceIO if desired
         self.devices = DeviceIO(
-            self.myASCII, self.interrupts, self.DU0, self.plotter, self.xy_plotter, self.SIO,
+            self.myASCII, self.interrupts, self.DU0, self.plotter, self.xy_plotter, self.SIO, self.NIC,
             Vw, Vh, self.MainMem, 16 # Scale
             # window_title=self.config.get("window_title", f"STERN-{self.instance_id}")
         )

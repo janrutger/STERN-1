@@ -38,6 +38,7 @@
 
 INCLUDE printing
 INCLUDE serialIO
+include network
 INCLUDE random
 INCLUDE errors
 
