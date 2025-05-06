@@ -1,5 +1,6 @@
 # create an virtial networkcard for the stern
 import queue # For queue.Empty exception
+import time
 # Like orther devices of the Stern-1 it works with Memory mapped IO
 
 # when the host want to send
@@ -50,8 +51,8 @@ class VirtualNIC:
         self.data_out_register = BaseAdres + 5
 
         # Initialize status registers to IDLE
-        self.mainmem.write(self.receive_status_register, NIC_STATUS_IDLE)
-        self.mainmem.write(self.send_status_register, NIC_STATUS_IDLE)
+        self.mainmem.write(self.receive_status_register, str(NIC_STATUS_IDLE))
+        self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
 
 
     def update(self):

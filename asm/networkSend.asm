@@ -1,12 +1,15 @@
 @main
     # --- Send a message ---
     # Destination address (e.g., instance 1)
-    ldi A 1
+    ldi A 0
     # Data to send (e.g., ASCII 'H')
     ldi B \h
-
+nop
     # Call the write routine (A=dest, B=data)
     int ~networkSend
+
+    call @print_char
+    call @print_nl
 
     # Optional: Print confirmation to screen
     #ldi A \s

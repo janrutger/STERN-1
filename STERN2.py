@@ -36,15 +36,21 @@ def assembly_code():
     # Ensure output goes to the shared ./bin directory relative to this script
     bin_output_dir = os.path.join(base_dir, "bin")
     os.makedirs(bin_output_dir, exist_ok=True) # Ensure bin dir exists
+    # Calculate the assembler's variable pointer consistent with stern_computer.py's layout
+    mem_size_sim = 1024 * 16
+    video_size_sim = Vw * Vh
+    stack_pointer_sim = mem_size_sim - 1 - video_size_sim
+    assembler_var_pointer = stack_pointer_sim - 2024 # This correctly calculates to 12311
     try:
-        assembler = Assembler(1024 * 12) # Use appropriate start_var pointer (consistent with instance layout)
+        #assembler = Assembler(1024 * 12) # Use appropriate start_var pointer (consistent with instance layout)
+        assembler = Assembler(assembler_var_pointer)
         assembler.assemble("loader2.asm", boot["start_loader"], "loader.bin")
         assembler.assemble("kernel2.asm", boot["start_kernel"], "kernel.bin")
         # Assemble the *same* program for both instances? Or different ones?
         # Assemble ROMs specified in configs
         assembler.assemble("networkSend.asm", boot["start_prog"], instance1_config["start_rom"])
-        assembler.assemble("networkReceive.asm", boot["start_prog"], instance2_config["start_rom"])
-        assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Example if needed
+        #assembler.assemble("networkReceive.asm", boot["start_prog"], instance2_config["start_rom"])
+        #assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Example if needed
         print("Assembly complete.")
     except Exception as e:
         print(f"Assembly failed: {e}")

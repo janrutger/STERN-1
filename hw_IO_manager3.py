@@ -73,9 +73,10 @@ class DeviceIO():
             self.update_disk()
             self.update_videoMemory()
             self.update_sio()
+            self.update_nic() # <-- Call NIC update method
             self.update_plotter() # <-- Call plotter update method
             self.update_xy_plotter() # <-- Call XY plotter update method
-            self.update_nic() # <-- Call NIC update method
+            
 
             # Schedule next call
             self.display.after(20, self.my_tasks) # Keep interval consistent

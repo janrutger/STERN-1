@@ -22,11 +22,13 @@
 . $random_seed 1
 % $random_seed 12345 
 
-
+# define a buffer for incomming keystrokes
 . $KBD_BUFFER 16
 . $KBD_BUFFER_ADRES 1
 . $KBD_READ_PNTR 1
 . $KBD_WRITE_PNTR 1
+
+
 
 . $CURRENT_TIME 1
 
@@ -35,6 +37,9 @@
 
 . $SIO_baseadres 1
 % $SIO_baseadres 12295
+
+. $NIC_baseadres 1
+% $NIC_baseadres 12287
 
 INCLUDE printing
 INCLUDE serialIO

@@ -1,5 +1,4 @@
-. $NIC_baseadres 1
-% $NIC_baseadres 12287
+
 
 # Define a buffer for incoming network messages
 . $NET_RCV_BUFFER 16 
@@ -49,6 +48,7 @@ ret
         # check for ACK
         tst M 0
     jmpf :wait_for_nic_sending_ack
+    nop
 rti
 
 

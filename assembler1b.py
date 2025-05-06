@@ -442,7 +442,7 @@ class Assembler:
 # --- Example Usage (Illustrative) ---
 if __name__ == "__main__":
     start_var_pointer = 1024 * 12
-    assembler = Assembler(start_var_pointer)
+    assembler = Assembler(12311)
     try:
         # You might define common constants in a separate file and include it
         # e.g., in constants.asm:
@@ -459,7 +459,7 @@ if __name__ == "__main__":
         kernel_start = 512
         assembler.assemble("kernel2.asm", kernel_start, "kernel.bin")
         program_start = 4096 + 512
-        assembler.assemble("ChaosGame4.asm", program_start, "program.bin")
+        assembler.assemble("networkSend.asm", program_start, "program.bin")
         # assembler.assemble("spritewalker.asm", program_start, "program.bin")
 
         print("\nAssembly process completed.")

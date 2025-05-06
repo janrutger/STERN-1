@@ -4,7 +4,7 @@ import threading
 import time # Or sleep from time
 
 # Import necessary components from your STERN-1 project
-from memory1 import Memory
+from memory import Memory
 from cpu1 import Cpu
 # assembler1b is not needed here if assembly happens before instantiation
 from hw_IO_manager3 import DeviceIO # verion 3 has network support

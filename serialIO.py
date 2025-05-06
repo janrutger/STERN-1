@@ -8,7 +8,7 @@ class serialIO:
         self.channels = {}
         
         self.channel = BaseAdres
-
+ 
         # commands
         # 00 (0) open channel
         # 01 (1) write to channel
