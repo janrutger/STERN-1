@@ -105,30 +105,28 @@ rti
     # return \null when no message is waiting
     di 
     # check for empty buffer
-    ldm I $NET_RCV_READ_PNTR
-    ldm M $NET_RCV_WRITE_PNTR   
-    tste I M 
+    ldm M $NET_RCV_READ_PNTR  
+    ldm L $NET_RCV_WRITE_PNTR 
+    tste M L 
     jmpt :no_message
-        # when not empty, read buffer to a
+        ; Buffer not empty
+        ; I = old $NET_RCV_READ_PNTR value, $NET_RCV_READ_PNTR is incremented in memory
+        inc I $NET_RCV_READ_PNTR    
         ldx A $NET_RCV_BUFFER_ADRES
 
-        addi I 1
-        sto I $NET_RCV_READ_PNTR
-
-        # check for last adres in buffer
-        # check modulo 16, by andi 15
-        ldm M $NET_RCV_READ_PNTR
-        andi M 15
-        # cycle to 0 when mod = 0
-        tste M Z
-        jmpf :end_read_nic_message
-            sto Z $NET_RCV_READ_PNTR 
-            jmp :end_read_nic_message  
+        ; Wrap-around for $NET_RCV_READ_PNTR
+        ; M = new $NET_RCV_READ_PNTR value
+        ldm M $NET_RCV_READ_PNTR  
+        ; M = (new $NET_RCV_READ_PNTR) % 16  
+        andi M 15     
+        ; Store the wrapped pointer value back              
+        sto M $NET_RCV_READ_PNTR    
+        jmp :end_read_nic_message_logic
     
     :no_message
         ldi A \null
 
-:end_read_nic_message 
+:end_read_nic_message_logic 
     
     ei
 ret

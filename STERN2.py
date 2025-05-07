@@ -48,9 +48,11 @@ def assembly_code():
         assembler.assemble("kernel2.asm", boot["start_kernel"], "kernel.bin")
         # Assemble the *same* program for both instances? Or different ones?
         # Assemble ROMs specified in configs
+        #assembler.assemble("ChaosGame3.asm", boot["start_prog"], instance1_config["start_rom"])
+        #assembler.assemble("ChaosGame4.asm", boot["start_prog"], instance1_config["start_rom"])
         assembler.assemble("networkSend.asm", boot["start_prog"], instance1_config["start_rom"])
-        #assembler.assemble("networkReceive.asm", boot["start_prog"], instance2_config["start_rom"])
-        #assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Example if needed
+        assembler.assemble("networkReceive.asm", boot["start_prog"], instance2_config["start_rom"])
+        assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Example if needed
         print("Assembly complete.")
     except Exception as e:
         print(f"Assembly failed: {e}")
@@ -92,7 +94,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0",
         "window_title": "STERN-1 (Instance 1)",
         "kernel_start_adres": 512,
-        "start_rom": "rom0.bin",
+        "start_rom": "networkReceive.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[0],
         # Add other specific settings if needed
@@ -104,7 +106,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0", # Use a separate disk dir for instance 2
         "window_title": "STERN-1 (Instance 2)",
         "kernel_start_adres": 512,
-        "start_rom": "rom1.bin",
+        "start_rom": "networkSend.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[1],
         # Add other specific settings if needed
