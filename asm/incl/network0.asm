@@ -56,27 +56,20 @@ rti
 # Triggered when NIC has received data (~receive_status != 0)
 @read_nic_isr
     # --- Optional: Check if buffer is full ---
-    # A software ring buffer is full if the next write position
-    # (write_pointer + 1) % BUFFER_SIZE would be equal to the read_pointer.
     ldm M $NET_RCV_WRITE_PNTR
     addi M 1
     # Assuming buffer size is 16
     andi M 15 
     ldm L $NET_RCV_READ_PNTR
     tste M L
-    # If buffer is full, jump to skip storing the packet.
-    # The NIC will still be acknowledged, and the packet dropped.
-    jmpt :skip_packet_storage_due_to_full_buffer
+    # If full, maybe just drop packet?
+    jmpt :net_buffer_full 
 
-    # Buffer is not full. Proceed to read from NIC and store the data.
     # Read source address
     # Store source address in A (or elsewhere)
-    # Note: The current implementation only stores the data byte (from B)
-    # in the ring buffer. The source address (A) is read but not stored.
     ldi I ~src_adres
     ldx A $NIC_baseadres 
 
-    # Read data byte
     # Store data in B (or elsewhere)
     ldi I ~data_in
     ldx B $NIC_baseadres 
@@ -85,31 +78,23 @@ rti
     # This part needs refinement based on how you want to store packets
     # (e.g., store source addr then data, or just data?)
     # Store data (from B) into buffer
-    # The 'inc I $address' instruction, as you described:
-    # 1. Loads the value from memory at $address into register I.
-    # 2. Increments the value in memory at $address.
     inc I $NET_RCV_WRITE_PNTR
-    # Register I now holds the original write pointer (the index for storing).
-    # The $NET_RCV_WRITE_PNTR variable in memory has been incremented.
-    # Store data byte B at the buffer location indicated by I.
     stx B $NET_RCV_BUFFER_ADRES 
 
-    # Finalize the $NET_RCV_WRITE_PNTR update in memory:
-    # Load the (already incremented by 'inc I') write pointer from memory.
+    # Check for buffer wrap-around
     ldm M $NET_RCV_WRITE_PNTR
     # Assuming buffer size is 16
-    # Apply modulo operation for wrap-around.
     andi M 15 
     # Store potentially wrapped pointer
     sto M $NET_RCV_WRITE_PNTR 
 
-:skip_packet_storage_due_to_full_buffer
-    # This point is reached whether the packet was stored or skipped (due to full buffer).
-    # Crucially, we must always acknowledge the NIC to clear the current interrupt
-    # and allow it to signal new incoming data in the future.
+    # Acknowledge receipt to NIC by clearing status
     ldi M 0
     ldi I ~receive_status
     stx M $NIC_baseadres
+
+# Label for buffer full case (optional)
+:net_buffer_full 
 rti
 
 
