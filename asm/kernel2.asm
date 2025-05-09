@@ -1,6 +1,6 @@
 
 @kernel_init
-    call @init_stern
+    call @init_stern 
     call @init_keywords
 
 @kernel
@@ -37,6 +37,6 @@ INCLUDE keyword_init
 INCLUDE var_handling
 INCLUDE stacks
 
-
+INCLUDE printing
 
 

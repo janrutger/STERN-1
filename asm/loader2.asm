@@ -41,9 +41,9 @@
 . $NIC_baseadres 1
 % $NIC_baseadres 12287
 
-INCLUDE printing
+#INCLUDE printing
 INCLUDE serialIO
-include network
+include networkR2
 INCLUDE random
 INCLUDE errors
 
