@@ -13,7 +13,7 @@ from XY_plotter import XYPlotter
 from interrupts import Interrupts
 from rtc import RTC as Rtc
 from virtualdisk import VirtualDisk
-from networkNIC import VirtualNIC
+from networkNICr2 import VirtualNIC
 # TODO: Replace with a networked version for actual IPC
 from serialIO import serialIO as Serial # Placeholder - NEEDS MODIFICATION FOR IPC
 from FileIO import readFile

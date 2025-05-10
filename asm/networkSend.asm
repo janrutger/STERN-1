@@ -4,35 +4,55 @@
     ldi A 1
 
     # Data to send (e.g., ASCII 'H')
-    ldi B \h
+    ldi B \0
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
-    ldi B \e
+    ldi B \1
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
-    ldi B \l
+    ldi B \2
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
-    ldi B \l
+    ldi B \3
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
-    ldi B \o
+    ldi B \4
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
-    ldi B \w
+    ldi B \5
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
-    ldi B \o 
+    ldi B \6
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
-    ldi B \r
+    ldi B \7
+    # Call the write routine (A=dest, B=data)
+    int ~networkSend
+
+    ldi B \8
+    # Call the write routine (A=dest, B=data)
+    int ~networkSend
+
+    ldi B \9
+    # Call the write routine (A=dest, B=data)
+    int ~networkSend    
+
+    ldi B \a
+    # Call the write routine (A=dest, B=data)
+    int ~networkSend
+
+    ldi B \b
+    # Call the write routine (A=dest, B=data)
+    int ~networkSend
+
+    ldi B \c
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
@@ -40,9 +60,18 @@
     # Call the write routine (A=dest, B=data)
     int ~networkSend
 
-    ldi B \!
+    ldi B \e
+    # Call the write routine (A=dest, B=data)
+    int ~networkSend
+
+    ldi B \f
     # Call the write routine (A=dest, B=data)
     int ~networkSend    
+
+
+
+
+
 
     ldi B \space
     call @print_char

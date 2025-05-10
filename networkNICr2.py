@@ -54,54 +54,8 @@ class VirtualNIC:
         # each update (every 20ms) had to:
         # read the device registers
         receive_status = int(self.mainmem.read(self.receive_status_register))
-        send_status    = int(self.mainmem.read(self.send_status_register))
-        # These are read when send_status is NIC_STATUS_SEND_REQUEST
-        # dst             = int(self.mainmem.read(self.dst_register))
-        # data_out        = int(self.mainmem.read(self.data_out_register))
-        # packetnumber_reg_val = int(self.mainmem.read(self.packetnumber_register)) # Renamed for clarity
-        ack_status      = int(self.mainmem.read(self.ack_status_register))
-        message_type    = int(self.mainmem.read(self.message_type_register))
-
-        # (DATA_TYPE, dst (src, packetnumber, data))
-        # (DATA_TYPE, dst (packetnumber, ACK_STATUS))
-        # --- Handle Sending ---
-        # Check if the host has requested a send
-        if send_status == NIC_STATUS_SEND_REQUEST and message_type == DATA_TYPE: 
-            dst_nic_id = int(self.mainmem.read(self.dst_register))
-            data_payload = self.mainmem.read(self.data_out_register) # Data is string
-
-            # Use the NIC's own instance_id as the source
-            # Protocol payload: (MSG_TYPE, packet_number, actual_data)
-            protocol_payload = (DATA_TYPE, self.packetnumber, data_payload)
-            # Message for Hub: (destination_nic_id, source_nic_id, protocol_payload)
-            hub_message = (dst_nic_id, self.instance_id, protocol_payload)
-            
-            self.sent_packets_buffer[self.packetnumber] = { # save the packet for potential resend
-                'dst' : dst_nic_id, # Store the actual destination NIC ID
-                'data': data_payload # Store the string data
-            }
-            self.send_queue.put(hub_message)
-            
-            print(f"NIC {self.instance_id}: Sent DATA packet {self.packetnumber} to {dst_nic_id}")
-            self.packetnumber += 1
-            # Signal host that send is complete (or queued)
-            self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
-
-        elif send_status == NIC_STATUS_SEND_REQUEST and message_type == ACK_TYPE:
-            dst_nic_id = int(self.mainmem.read(self.dst_register)) # Original sender of DATA
-            packet_num_to_ack = int(self.mainmem.read(self.packetnumber_register)) # Packet num being ACK/NACKed
-            # ack_status is already read
-
-            # Protocol payload: (MSG_TYPE, packet_number_being_acked, ack_or_nack_value)
-            protocol_payload = (ACK_TYPE, packet_num_to_ack, ack_status)
-            # Message for Hub: (destination_nic_id, source_nic_id, protocol_payload)
-            hub_message = (dst_nic_id, self.instance_id, protocol_payload)
-
-            self.send_queue.put(hub_message)
-            status_text = "ACK" if ack_status == ACK_STATUS_ACK else "NACK"
-            print(f"NIC {self.instance_id}: Sent {status_text} for packet {packet_num_to_ack} to {dst_nic_id}")
-            # Signal host that send is complete (or queued) 
-            self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
+        # send_status and message_type for CPU requests are read later, before the actual send logic.
+        # Other registers (dst_register, data_out_register, etc.) are read on demand.
 
         # --- Handle Receiving ---
         # Hub sends: (original_source_nic_id, (protocol_message_type, packet_id_or_num, content))
@@ -161,4 +115,47 @@ class VirtualNIC:
                 print(f"NIC {self.instance_id}: Error processing register value: {e}")
             except Exception as e:
                 print(f"NIC {self.instance_id}: Error processing incoming message: {e}")
+        
+        # --- Handle Sending (Moved after Receiving) ---
+        # Re-read send_status and message_type as they might have been set by CPU
+        # while the receive block was executing or if this is a new cycle.
+        # However, for atomicity of one CPU request, we use the initially read values.
+        # If CPU sets send_status to SEND_REQUEST, it expects it to be handled.
+        # The key is that NACK processing above has already queued GBN packets.
+        
+        send_status = int(self.mainmem.read(self.send_status_register)) # Read current send status
+        message_type = int(self.mainmem.read(self.message_type_register)) # Read current message type
+
+        if send_status == NIC_STATUS_SEND_REQUEST:
+            if message_type == DATA_TYPE:
+                dst_nic_id = int(self.mainmem.read(self.dst_register))
+                data_payload = self.mainmem.read(self.data_out_register) # Data is string
+
+                # Protocol payload: (MSG_TYPE, packet_number, actual_data)
+                protocol_payload = (DATA_TYPE, self.packetnumber, data_payload)
+                hub_message = (dst_nic_id, self.instance_id, protocol_payload)
+                
+                self.sent_packets_buffer[self.packetnumber] = { # save the packet for potential resend
+                    'dst' : dst_nic_id, 
+                    'data': data_payload 
+                }
+                self.send_queue.put(hub_message)
+                
+                print(f"NIC {self.instance_id}: Sent NEW DATA packet {self.packetnumber} to {dst_nic_id}")
+                self.packetnumber += 1
+                self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
+
+            elif message_type == ACK_TYPE: # CPU is sending an ACK/NACK for data it received
+                dst_nic_id = int(self.mainmem.read(self.dst_register)) 
+                packet_num_to_ack = int(self.mainmem.read(self.packetnumber_register))
+                ack_status_val = int(self.mainmem.read(self.ack_status_register))
+
+                protocol_payload = (ACK_TYPE, packet_num_to_ack, ack_status_val)
+                hub_message = (dst_nic_id, self.instance_id, protocol_payload)
+
+                self.send_queue.put(hub_message)
+                status_text = "ACK" if ack_status_val == ACK_STATUS_ACK else "NACK"
+                print(f"NIC {self.instance_id}: Sent CPU-initiated {status_text} for packet {packet_num_to_ack} to {dst_nic_id}")
+                self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
+
         # NOTE: Do NOT reset receive_status here. The CPU must do that after reading.
