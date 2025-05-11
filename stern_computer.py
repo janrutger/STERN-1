@@ -49,9 +49,9 @@ class SternComputer:
         # --- Calculate Memory Layout ---
         self.StackPointer = self.MainMem.MEMmax() - VideoSize
         start_var = self.StackPointer - 2024 # TODO: Make configurable?
-        IOmem_du0 = start_var - 8
-        IOmem_sio = start_var - 16 # Base address for SIO
-        IOmem_nic = start_var - 24 # Base address for NIC
+        IOmem_du0 = start_var - 8  # Base address for DU0 (8)
+        IOmem_sio = start_var - 16 # Base address for SIO (+8)
+        IOmem_nic = start_var - 28 # Base address for NIC (+12)
 
         self.start_font = 2024 # TODO: Make configurable?
         self.intVectors = 4096 # TODO: Make configurable?

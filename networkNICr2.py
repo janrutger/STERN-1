@@ -12,6 +12,7 @@ NIC_STATUS_SEND_REQUEST = 1 # Host wants to send
 NIC_STATUS_DATA_WAITING = 1 # Data has arrived for host
 ACK_STATUS_ACK  = 0
 ACK_STATUS_NACK = 1
+ACK_STATUS_NORESEND = 2
 
 
 # --- Interrupt Number ---
@@ -108,6 +109,10 @@ class VirtualNIC:
                         else:
                             print(f"NIC {self.instance_id}: Received NACK for unknown/already ACKed packet {acked_packet_number}.")
                         # self.mainmem.write(self.receive_status_register, str(NIC_STATUS_IDLE)) # Already IDLE
+                    elif received_ack_status == ACK_STATUS_NORESEND:
+                        #print(f"NIC {self.instance_id}: Received NORESEND for sent packet {acked_packet_number} from {original_sender_id}.")
+                        print(f"NIC {self.instance_id}: Received NORESEND from {original_sender_id}, receiver expects packet {acked_packet_number}.")
+
 
             except queue.Empty:
                 pass # No data currently in queue, NIC remains idle

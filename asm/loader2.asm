@@ -39,7 +39,7 @@
 % $SIO_baseadres 12295
 
 . $NIC_baseadres 1
-% $NIC_baseadres 12287
+% $NIC_baseadres 12283
 
 #INCLUDE printing
 INCLUDE serialIO

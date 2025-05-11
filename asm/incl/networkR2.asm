@@ -25,8 +25,7 @@ equ ~ack_type  1
 equ ~idle  0
 equ ~ack   0
 equ ~nack  1
-
-
+equ ~noresend 2 
 
 
 @init_nic_buffer
@@ -189,16 +188,16 @@ ret
 
 :handle_out_of_sequence_packet
     # received an unexpected pakketnumber
-    # discard the message and send a nack and expected pack
+    # discard the message and send a NORESEND with the expected packet number
     ldm C $NET_RCV_EXPECTED_PACKET_NUM
     ldi I ~packetnumbber
     stx C $NIC_baseadres
 
-    # A-reg  NOT contains already the dst adres
+    # A-reg needs to contain the destination address for the NORESEND (source of the incoming packet)
     ldi I ~src_adres
     ldx A $NIC_baseadres
 
-    ldi B ~nack
+    ldi B ~noresend 
     call @write_ack_message
 
     jmp :read_nic_isr_end
