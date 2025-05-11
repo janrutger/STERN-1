@@ -5,7 +5,7 @@
 . $NET_RCV_BUFFER_ADRES 1
 . $NET_RCV_READ_PNTR 1
 . $NET_RCV_WRITE_PNTR 1
-. $NET_RCV_EXPECTED_SEQ_NUM 1 # Stores the next expected packet sequence number
+. $NET_RCV_EXPECTED_PACKET_NUM 1
 
 equ ~receive_status 0
 equ ~src_adres 1
@@ -34,9 +34,11 @@ equ ~nack  1
     ldi Z 0
     sto Z $NET_RCV_READ_PNTR
     sto Z $NET_RCV_WRITE_PNTR
-    sto Z $NET_RCV_EXPECTED_SEQ_NUM ; Initialize expected sequence number to 0
     ldi M $NET_RCV_BUFFER
     sto M $NET_RCV_BUFFER_ADRES
+
+    # Initialize expected packet number to 0
+    sto Z $NET_RCV_EXPECTED_PACKET_NUM
 ret
 
 
@@ -106,96 +108,108 @@ ret
 # Network Receive Interrupt Service Routine
 # Triggered when NIC has received data (~receive_status != 0)
 @read_nic_isr
-    ld C A ; C = incoming_packet_seq_num (from NIC, A is clobbered by ldx)
-
-    ldm M $NET_RCV_EXPECTED_SEQ_NUM ; M = expected_seq_num
-    tste M C ; Test if incoming_seq_num (C) == expected_seq_num (M)
-    jmpf :handle_out_of_sequence_packet
-
-; :handle_in_sequence_packet (implicit label if tste M C is true)
-    ; Packet is the one we expect. Check buffer.
-    ldm X $NET_RCV_WRITE_PNTR ; X = current_write_ptr
-    ldm Y $NET_RCV_READ_PNTR  ; Y = current_read_ptr
-
-    ld K X ; K = current_write_ptr
-    addi K 1
-    andi K 15 ; K = (current_write_ptr + 1) % 16 (potential next_write_ptr)
+    # packetnumber is in A after calling this interrupt
+    # store it in C
+    ld C A
+    ldm M $NET_RCV_EXPECTED_PACKET_NUM
+    tste C M 
+    jmpt :handle_expected_packet_number
+    # when the received packetnumber is lower then expected
+    tstg M C
+    jmpt :send_ack_on_old_message
+    # otherwise handle packet out of sequence
+    jmp :handle_out_of_sequence_packet
     
-    tste K Y ; Test if (write_ptr + 1) % 16 == read_ptr (buffer full)
-    jmpt :buffer_full_for_in_sequence_packet ; Buffer is full
 
-    ; Buffer not full, store the in-sequence packet
-    ; Get sender's address for ACK
-    ldi I ~src_adres
-    ldx A $NIC_baseadres ; A = sender's address (destination for ACK)
-
-    ; Get data byte
-    ldi I ~data_in
-    ldx B $NIC_baseadres ; B = data byte to store
-
-    ; Store data B into buffer at index X (current_write_ptr)
-    ldm L $NET_RCV_BUFFER_ADRES ; L = base address of the actual buffer
-    add L X                     ; L = absolute address to write to (base + current_write_index X)
-    st B L                      ; Store B into M[L]
-
-    ; Update $NET_RCV_WRITE_PNTR to K (which is (original_write_ptr + 1) % 16)
-    sto K $NET_RCV_WRITE_PNTR
-
-    ; Increment expected sequence number (M still holds $NET_RCV_EXPECTED_SEQ_NUM)
+    # when here the packet is expected
+    :handle_expected_packet_number
+    # --- Check if buffer is full ---
+    # A software ring buffer is full if the next write position
+    # (write_pointer + 1) % BUFFER_SIZE would be equal to the read_pointer.
+    ldm M $NET_RCV_WRITE_PNTR
     addi M 1
-    ; Assuming sequence numbers can be > 15, handle wrap-around based on actual max sequence number.
-    ; If sequence numbers are e.g. 0-255, then 'addi M 1' will naturally wrap in an 8-bit context.
-    ; If M is a word and sequence numbers are smaller, an ANDI might be needed.
-    ; For now, assume sequence numbers fit and wrap appropriately for the protocol.
-    sto M $NET_RCV_EXPECTED_SEQ_NUM
+    # Assuming buffer size is 16
+    andi M 15 
+    ldm L $NET_RCV_READ_PNTR
+    tste M L
+    # If buffer is full, jump to skip storing the packet.
+    # The NIC will be NACK the packet.
+    jmpt :skip_packet_storage_due_to_full_buffer
 
-    ; Send ACK for the received packet (C contains its sequence number)
-    ; A already has dst_adres for ACK
-    mov L B              ; Save data B in L if needed, B will be used for ack_type
-    ldi B ~ack           ; B = ACK type for @write_ack_message
+    call @write_to_networkbuffer
     
+    
+    # Send a ack
+    # This point the data is stored, 
+    # and send a ACK to the sender 
     ldi I ~packetnumbber
-    stx C $NIC_baseadres ; Set packet number for ACK (original incoming seq_num C)
-    
-    call @write_ack_message ; write_ack_message expects dest in A, type in B
-    jmp :clear_nic_and_rti
+    stx C $NIC_baseadres
 
-:buffer_full_for_in_sequence_packet
-    ; Expected packet (C) arrived, but buffer is full. Send NACK for it.
-    ; M still holds $NET_RCV_EXPECTED_SEQ_NUM (which is equal to C here)
-    ldi I ~src_adres
-    ldx A $NIC_baseadres ; A = sender's address (for NACK destination)
-    ldi B ~nack          ; B = NACK type
+    # A-reg  contains the dst-adres
     
-    ldi I ~packetnumbber
-    stx C $NIC_baseadres ; Set packet number for NACK (the one that just arrived, C)
+    ldi B ~ack
 
     call @write_ack_message
-    jmp :clear_nic_and_rti
+
+    addi C 1
+    sto C $NET_RCV_EXPECTED_PACKET_NUM
+    jmp :read_nic_isr_end
+
+# resend ACK on earlier processed message
+:send_ack_on_old_message
+    ldi I ~packetnumbber
+    stx C $NIC_baseadres
+    # A-reg  NOT contains already the dst adres
+    # Load destination address for the NACK (source address of the incoming packet)
+    ldi I ~src_adres
+    ldx A $NIC_baseadres
+    ldi B ~ack
+    call @write_ack_message
+    jmp :read_nic_isr_end
+
+
+:skip_packet_storage_due_to_full_buffer
+    # This point is reached when the buffer is full.
+    # In this case, we want to send an NACK to the sender.
+    # This NACK send the expected packetnumber
+    # send a nack
+    ldm C $NET_RCV_EXPECTED_PACKET_NUM
+    ldi I ~packetnumbber
+    stx C $NIC_baseadres
+
+    # A-reg  NOT contains already the dst adres
+    # Load destination address for the NACK (source address of the incoming packet)
+    ldi I ~src_adres
+    ldx A $NIC_baseadres
+
+    ldi B ~nack
+    call @write_ack_message
+
+    jmp :read_nic_isr_end
 
 :handle_out_of_sequence_packet
-    ; Incoming packet C is not $NET_RCV_EXPECTED_SEQ_NUM (M)
-    ; Discard this packet.
-    ; Send NACK for the *expected* sequence number (M) to inform the sender.
-    ldi I ~src_adres
-    ldx A $NIC_baseadres ; A = sender's address (for NACK destination)
-    ldi B ~nack
-    
-    ; Packet number for NACK should be $NET_RCV_EXPECTED_SEQ_NUM (which is in M)
+    # received an unexpected pakketnumber
+    # discard the message and send a nack and expected pack
+    ldm C $NET_RCV_EXPECTED_PACKET_NUM
     ldi I ~packetnumbber
-    stx M $NIC_baseadres ; NACKing the one we EXPECT (M)
+    stx C $NIC_baseadres
 
+    # A-reg  NOT contains already the dst adres
+    ldi I ~src_adres
+    ldx A $NIC_baseadres
+
+    ldi B ~nack
     call @write_ack_message
-    ; Fall through to :clear_nic_and_rti
 
-:clear_nic_and_rti
-    ; Clear the NIC's receive status to indicate this packet event has been handled
-    ; Ensure M is not needed beyond this point or use a different register
+    jmp :read_nic_isr_end
+
+
+
+:read_nic_isr_end
+    # Clear the NIC's receive status to indicate this packet event has been handled
     ldi M 0
     ldi I ~receive_status
     stx M $NIC_baseadres
-    
-:read_nic_isr_end
 rti
 
 
@@ -230,4 +244,51 @@ rti
 :end_read_nic_message_logic 
     
     ei
+ret
+
+
+
+
+@write_to_networkbuffer
+ # Buffer is not full. Proceed to read from NIC and store the data.
+    # Read source address
+    # Store source address in A is the destination for ack/nack 
+    # Note: The current implementation only stores the data byte (from B)
+    # in the ring buffer. The source address (A) is read but not stored.
+    ldi I ~src_adres
+    ldx A $NIC_baseadres 
+
+    # Read data byte
+    # Store data in B (or elsewhere)
+    ldi I ~data_in
+    ldx B $NIC_baseadres 
+
+    # packetnumber is still in C  
+
+    # --- Store data in buffer (Example: store data only) ---
+    # This part needs refinement based on how you want to store packets
+    # (e.g., store source addr then data, or just data?)
+    # Store data (from B) into buffer
+    # The 'inc I $address' instruction, as you described:
+    # 1. Loads the value from memory at $address into register I.
+    # 2. Increments the value in memory at $address.
+    inc I $NET_RCV_WRITE_PNTR
+    # Register I now holds the original write pointer (the index for storing).
+    # The $NET_RCV_WRITE_PNTR variable in memory has been incremented.
+    # Store data byte B at the buffer location indicated by I.
+    stx B $NET_RCV_BUFFER_ADRES 
+
+    # Finalize the $NET_RCV_WRITE_PNTR update in memory:
+    # Load the (already incremented by 'inc I') write pointer from memory.
+    ldm M $NET_RCV_WRITE_PNTR
+    # Assuming buffer size is 16
+    # Apply modulo operation for wrap-around.
+    andi M 15 
+    # Store potentially wrapped pointer
+    sto M $NET_RCV_WRITE_PNTR 
+
+    # Not here, is done at the end of ISR
+    ;ldi M 0
+    ;ldi I ~receive_status
+    ;stx M $NIC_baseadres
 ret

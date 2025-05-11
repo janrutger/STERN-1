@@ -68,6 +68,10 @@
     # Call the write routine (A=dest, B=data)
     int ~networkSend    
 
+    ldi B \g
+    # Call the write routine (A=dest, B=data)
+    int ~networkSend 
+
 
 
 
