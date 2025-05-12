@@ -40,12 +40,19 @@ class VirtualNIC:
         self.message_type_register = BaseAdres + 7
         self.packetnumber_register = BaseAdres + 8
 
+        # registers for Serivice ID
+        self.service_id_out_register = BaseAdres + 9
+        self.service_id_in_register = BaseAdres + 10
+
+
 
         # Initialize status registers to IDLE
         self.mainmem.write(self.receive_status_register, str(NIC_STATUS_IDLE))
         self.mainmem.write(self.send_status_register,    str(NIC_STATUS_IDLE))
         self.mainmem.write(self.ack_status_register,     str(ACK_STATUS_ACK))
         self.mainmem.write(self.message_type_register,   str(DATA_TYPE))
+        self.mainmem.write(self.service_id_out_register,str(0))
+        self.mainmem.write(self.service_id_in_register, str(0))
 
         self.packetnumber = 0
         self.sent_packets_buffer = {}
@@ -59,21 +66,25 @@ class VirtualNIC:
         # Other registers (dst_register, data_out_register, etc.) are read on demand.
 
         # --- Handle Receiving ---
-        # Hub sends: (original_source_nic_id, (protocol_message_type, packet_id_or_num, content))
+        # Hub sends: (original_source_nic_id, (protocol_message_type, packet_id_or_num, service_id, content)) for DATA
+        # Hub sends: (original_source_nic_id, (protocol_message_type, packet_id_or_num, ack_status_content)) for ACK
         # Check if the NIC is idle (ready for new data) AND if data is available in the queue
         if receive_status == NIC_STATUS_IDLE:
             try:
                 # Try to get data without blocking
                 original_sender_id, protocol_payload = self.receive_queue.get_nowait()
-                actual_msg_type, pk_id_or_num, content = protocol_payload
+                actual_msg_type = protocol_payload[0] 
 
                 if actual_msg_type == DATA_TYPE:
-                    received_packet_num = pk_id_or_num
-                    received_data = content
+                    # Unpack: (DATA_TYPE, packet_num, service_id, data_content)
+                    _, received_packet_num, received_service_id, received_data = protocol_payload
 
-                    print(f"NIC {self.instance_id}: Received DATA packet {received_packet_num} from {original_sender_id}")
+                    print(f"NIC {self.instance_id}: Received DATA packet {received_packet_num} from {original_sender_id} for service {received_service_id}")
+                    
                     self.mainmem.write(self.src_register, str(original_sender_id)) 
                     self.mainmem.write(self.data_in_register, str(received_data)) # Data is string
+                    self.mainmem.write(self.service_id_in_register, str(received_service_id)) # Make Service ID available to CPU
+
                     # CPU needs packet number to ACK/NACK, so pass it via interrupt or a register.
                     # self.mainmem.write(self.packetnumber_register, str(received_packet_num)) # Option 1: Write to packetnumber_register
                 
@@ -82,8 +93,8 @@ class VirtualNIC:
                     self.interrupts.interrupt(NIC_RX_INTERRUPT_NUM, received_packet_num) # Option 2: Pass via interrupt value
 
                 elif actual_msg_type == ACK_TYPE:
-                    acked_packet_number = pk_id_or_num
-                    received_ack_status = content # This is ACK_STATUS_ACK or ACK_STATUS_NACK
+                    # Unpack: (ACK_TYPE, packet_num, ack_status)
+                    _, acked_packet_number, received_ack_status = protocol_payload
 
                     if received_ack_status == ACK_STATUS_ACK:
                         if acked_packet_number in self.sent_packets_buffer:
@@ -102,8 +113,9 @@ class VirtualNIC:
                             for pid_to_resend in ids_to_resend_sorted:
                                 if pid_to_resend in self.sent_packets_buffer: # Check again
                                     packet_info = self.sent_packets_buffer[pid_to_resend]
-                                    resend_protocol_payload = (DATA_TYPE, pid_to_resend, packet_info['data'])
-                                    resend_hub_message = (packet_info['dst'], self.instance_id, resend_protocol_payload)
+                                    # Resend must include service_id
+                                    resend_protocol_payload = (DATA_TYPE, pid_to_resend, packet_info['service_id'], packet_info['data'])
+                                    resend_hub_message = (packet_info['dst'], self.instance_id, resend_protocol_payload) # Hub expects (dst, src, payload)
                                     self.send_queue.put(resend_hub_message)
                                     print(f"NIC {self.instance_id}: Resent (GBN) DATA packet {pid_to_resend} to {packet_info['dst']}")
                         else:
@@ -135,18 +147,22 @@ class VirtualNIC:
             if message_type == DATA_TYPE:
                 dst_nic_id = int(self.mainmem.read(self.dst_register))
                 data_payload = self.mainmem.read(self.data_out_register) # Data is string
+                service_id_payload = int(self.mainmem.read(self.service_id_out_register)) # outgoing serivce ID
 
-                # Protocol payload: (MSG_TYPE, packet_number, actual_data)
-                protocol_payload = (DATA_TYPE, self.packetnumber, data_payload)
-                hub_message = (dst_nic_id, self.instance_id, protocol_payload)
+
+                # Protocol payload: (MSG_TYPE, packet_number, service_id, actual_data)
+                protocol_payload = (DATA_TYPE, self.packetnumber, service_id_payload, data_payload)
+                hub_message = (dst_nic_id, self.instance_id, protocol_payload) # Hub expects (dst, src, payload)
+
                 
                 self.sent_packets_buffer[self.packetnumber] = { # save the packet for potential resend
                     'dst' : dst_nic_id, 
-                    'data': data_payload 
+                    'data': data_payload,
+                    'service_id': service_id_payload 
                 }
                 self.send_queue.put(hub_message)
                 
-                print(f"NIC {self.instance_id}: Sent NEW DATA packet {self.packetnumber} to {dst_nic_id}")
+                print(f"NIC {self.instance_id}: Sent NEW DATA packet {self.packetnumber} to {dst_nic_id} for service {service_id_payload}")
                 self.packetnumber += 1
                 self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
 
@@ -156,7 +172,8 @@ class VirtualNIC:
                 ack_status_val = int(self.mainmem.read(self.ack_status_register))
 
                 protocol_payload = (ACK_TYPE, packet_num_to_ack, ack_status_val)
-                hub_message = (dst_nic_id, self.instance_id, protocol_payload)
+                hub_message = (dst_nic_id, self.instance_id, protocol_payload) # Hub expects (dst, src, payload)
+
 
                 self.send_queue.put(hub_message)
                 status_text = "ACK" if ack_status_val == ACK_STATUS_ACK else "NACK"

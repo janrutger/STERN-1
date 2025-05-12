@@ -19,6 +19,9 @@ equ ~ack_status 6
 equ ~message_type 7
 equ ~packetnumbber 8
 
+equ ~service_id_out 9   
+equ ~service_id_in 10   
+
 equ ~data_type  0
 equ ~ack_type  1
 
@@ -286,8 +289,4 @@ ret
     # Store potentially wrapped pointer
     sto M $NET_RCV_WRITE_PNTR 
 
-    # Not here, is done at the end of ISR
-    ;ldi M 0
-    ;ldi I ~receive_status
-    ;stx M $NIC_baseadres
 ret
