@@ -29,7 +29,6 @@
 . $KBD_WRITE_PNTR 1
 
 
-
 . $CURRENT_TIME 1
 
 . $DU0_baseadres 1 

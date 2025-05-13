@@ -50,13 +50,20 @@ ret
 @write_nic_isr
     # expects dest-adres in A 
     # expects data to send in B 
+    # expects service_id in C
+
 
     ldi I ~dst_adres
     stx A $NIC_baseadres
 
+    # Set message type to DATA_TYPE
     ldi M ~data_type
     ldi I ~message_type
     stx M $NIC_baseadres
+
+    # Store the Service ID for the outgoing packet
+    ldi I ~service_id_out
+    stx C $NIC_baseadres
 
     ldi I ~data_out
     stx B $NIC_baseadres
@@ -111,13 +118,13 @@ ret
 # Triggered when NIC has received data (~receive_status != 0)
 @read_nic_isr
     # packetnumber is in A after calling this interrupt
-    # store it in C
-    ld C A
+    # store it in K
+    ld K A
     ldm M $NET_RCV_EXPECTED_PACKET_NUM
-    tste C M 
+    tste K M 
     jmpt :handle_expected_packet_number
     # when the received packetnumber is lower then expected
-    tstg M C
+    tstg M K
     jmpt :send_ack_on_old_message
     # otherwise handle packet out of sequence
     jmp :handle_out_of_sequence_packet
@@ -145,7 +152,7 @@ ret
     # This point the data is stored, 
     # and send a ACK to the sender 
     ldi I ~packetnumbber
-    stx C $NIC_baseadres
+    stx K $NIC_baseadres
 
     # A-reg  contains the dst-adres
     
@@ -153,14 +160,14 @@ ret
 
     call @write_ack_message
 
-    addi C 1
-    sto C $NET_RCV_EXPECTED_PACKET_NUM
+    addi K 1
+    sto K $NET_RCV_EXPECTED_PACKET_NUM
     jmp :read_nic_isr_end
 
 # resend ACK on earlier processed message
 :send_ack_on_old_message
     ldi I ~packetnumbber
-    stx C $NIC_baseadres
+    stx K $NIC_baseadres
     # A-reg  NOT contains already the dst adres
     # Load destination address for the NACK (source address of the incoming packet)
     ldi I ~src_adres
@@ -175,9 +182,9 @@ ret
     # In this case, we want to send an NACK to the sender.
     # This NACK send the expected packetnumber
     # send a nack
-    ldm C $NET_RCV_EXPECTED_PACKET_NUM
+    ldm K $NET_RCV_EXPECTED_PACKET_NUM
     ldi I ~packetnumbber
-    stx C $NIC_baseadres
+    stx K $NIC_baseadres
 
     # A-reg  NOT contains already the dst adres
     # Load destination address for the NACK (source address of the incoming packet)
@@ -192,9 +199,9 @@ ret
 :handle_out_of_sequence_packet
     # received an unexpected pakketnumber
     # discard the message and send a NORESEND with the expected packet number
-    ldm C $NET_RCV_EXPECTED_PACKET_NUM
+    ldm K $NET_RCV_EXPECTED_PACKET_NUM
     ldi I ~packetnumbber
-    stx C $NIC_baseadres
+    stx K $NIC_baseadres
 
     # A-reg needs to contain the destination address for the NORESEND (source of the incoming packet)
     ldi I ~src_adres
@@ -265,12 +272,17 @@ ret
     ldi I ~data_in
     ldx B $NIC_baseadres 
 
-    # packetnumber is still in C  
+    # Read Service ID from NIC
+    ldi I ~service_id_in
+    ldx C $NIC_baseadres 
+
+    # packetnumber is still in K  
 
     # --- Store data in buffer (Example: store data only) ---
     # This part needs refinement based on how you want to store packets
     # (e.g., store source addr then data, or just data?)
     # Store data (from B) into buffer
+
     # The 'inc I $address' instruction, as you described:
     # 1. Loads the value from memory at $address into register I.
     # 2. Increments the value in memory at $address.

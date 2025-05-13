@@ -51,8 +51,8 @@ class VirtualNIC:
         self.mainmem.write(self.send_status_register,    str(NIC_STATUS_IDLE))
         self.mainmem.write(self.ack_status_register,     str(ACK_STATUS_ACK))
         self.mainmem.write(self.message_type_register,   str(DATA_TYPE))
-        self.mainmem.write(self.service_id_out_register,str(0))
-        self.mainmem.write(self.service_id_in_register, str(0))
+        self.mainmem.write(self.service_id_out_register, str(0))
+        self.mainmem.write(self.service_id_in_register,  str(0))
 
         self.packetnumber = 0
         self.sent_packets_buffer = {}

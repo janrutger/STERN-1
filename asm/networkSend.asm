@@ -3,9 +3,11 @@
     # Destination address (e.g., instance 1)
     ldi A 1
 
+    ldi C 999
+
     # Data to send (e.g., ASCII 'H')
     ldi B \0
-    # Call the write routine (A=dest, B=data)
+    # Call the write routine (A=dest, B=data C=service_id)
     int ~networkSend
 
     ldi B \1
