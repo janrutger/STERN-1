@@ -134,7 +134,7 @@ ret
     ldi I ~data_in
     ldx B $NIC_baseadres 
 
-    # packetnumber is still in C 
+    # packetnumber is still in C  
 
     # --- Store data in buffer (Example: store data only) ---
     # This part needs refinement based on how you want to store packets

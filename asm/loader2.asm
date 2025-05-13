@@ -28,8 +28,12 @@
 . $KBD_READ_PNTR 1
 . $KBD_WRITE_PNTR 1
 
-
+# define RTC based params
 . $CURRENT_TIME 1
+
+# Define a pointer for the scheduler routine to be called by RTC
+. $scheduler_routine_ptr 1
+% $scheduler_routine_ptr @dummy_scheduler_task
 
 . $DU0_baseadres 1 
 % $DU0_baseadres 12303
@@ -55,6 +59,10 @@ INCLUDE errors
     sto Z $KBD_WRITE_PNTR
     ldi M $KBD_BUFFER
     sto M $KBD_BUFFER_ADRES
+
+    # Initialize the scheduler pointer to the dummy scheduler
+    ;ldi M @dummy_scheduler_task
+    ;sto M $scheduler_routine_ptr
 
     # init networkcard (NIC) 
     call @init_nic_buffer
@@ -397,6 +405,10 @@ rti
 # RTC isr
 @RTC_ISR
     sto A $CURRENT_TIME  
+
+    ldm I $scheduler_routine_ptr
+    callx $mem_start
+
 rti
 
 
@@ -505,4 +517,7 @@ ret
     jmpt :row_loop_sprite 
 ret
 
-
+@dummy_scheduler_task
+    # This is a placeholder. The kernel will replace the pointer
+    # to $scheduler_routine_ptr with its own scheduler.
+ret

@@ -1,7 +1,7 @@
 
 @kernel_init
     call @init_stern 
-    call @init_keywords
+    call @init_keywords 
 
 @kernel
     call @prompt_system
