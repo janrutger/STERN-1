@@ -79,7 +79,6 @@ ret
         # check for ACK
         tst M 0
     jmpf :wait_for_nic_sending_ack
-    nop
 rti
 
 
