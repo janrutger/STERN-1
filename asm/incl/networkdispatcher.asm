@@ -75,7 +75,7 @@ ret
     # Assuming buffer size is 16, Apply modulo operation for wrap-around.
     ldm M $SERVICE0_WRITE_PNTR
     andi M 15 
-    ldm M $SERVICE0_WRITE_PNTR
+    sto M $SERVICE0_WRITE_PNTR
 ret
 
 @service_handler_echo
