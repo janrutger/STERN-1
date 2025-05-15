@@ -1,7 +1,7 @@
 
 @kernel_init
-    call @init_stern
-    call @init_keywords
+    call @init_stern 
+    call @init_keywords 
 
 @kernel
     call @prompt_system
@@ -37,6 +37,8 @@ INCLUDE keyword_init
 INCLUDE var_handling
 INCLUDE stacks
 
+INCLUDE printing
 
+INCLUDE networkdispatcher
 
 

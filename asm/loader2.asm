@@ -22,13 +22,18 @@
 . $random_seed 1
 % $random_seed 12345 
 
-
+# define a buffer for incomming keystrokes
 . $KBD_BUFFER 16
 . $KBD_BUFFER_ADRES 1
 . $KBD_READ_PNTR 1
 . $KBD_WRITE_PNTR 1
 
+# define RTC based params
 . $CURRENT_TIME 1
+
+# Define a pointer for the scheduler routine to be called by RTC
+. $scheduler_routine_ptr 1
+% $scheduler_routine_ptr @dummy_scheduler_task
 
 . $DU0_baseadres 1 
 % $DU0_baseadres 12303
@@ -36,8 +41,12 @@
 . $SIO_baseadres 1
 % $SIO_baseadres 12295
 
-INCLUDE printing
+. $NIC_baseadres 1
+% $NIC_baseadres 12283
+
+#INCLUDE printing
 INCLUDE serialIO
+include networkR2
 INCLUDE random
 INCLUDE errors
 
@@ -51,6 +60,12 @@ INCLUDE errors
     ldi M $KBD_BUFFER
     sto M $KBD_BUFFER_ADRES
 
+    # Initialize the scheduler pointer to the dummy scheduler
+    ;ldi M @dummy_scheduler_task
+    ;sto M $scheduler_routine_ptr
+
+    # init networkcard (NIC) 
+    call @init_nic_buffer
 
     # set the ISR vectors
     ldi I 0
@@ -88,6 +103,17 @@ INCLUDE errors
     # RTC interrupt
     ldi I 8  
     ldi M @RTC_ISR
+    stx M $INT_VECTORS
+
+    # NIC receive interrupt
+    ldi I 9
+    ldi M @read_nic_isr
+    stx M $INT_VECTORS 
+
+    # NIC send Interrupt
+    equ ~networkSend 10
+    ldi I ~networkSend
+    ldi M @write_nic_isr
     stx M $INT_VECTORS
 
 
@@ -379,6 +405,10 @@ rti
 # RTC isr
 @RTC_ISR
     sto A $CURRENT_TIME  
+
+    ldm I $scheduler_routine_ptr
+    callx $mem_start
+
 rti
 
 
@@ -487,4 +517,7 @@ ret
     jmpt :row_loop_sprite 
 ret
 
-
+@dummy_scheduler_task
+    # This is a placeholder. The kernel will replace the pointer
+    # to $scheduler_routine_ptr with its own scheduler.
+ret

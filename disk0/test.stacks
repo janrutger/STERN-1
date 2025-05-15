@@ -1,7 +1,7 @@
 begin
     0 enable
     now as start
-    start 120 + as stop
+    start 2 + as stop
     start print stop print
 
     label loop
