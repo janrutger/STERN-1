@@ -16,9 +16,6 @@
 
 % $SERVICE0_DATA_BUFFER_ADRES $SERVICE0_DATA_BUFFER
 
-;. $temp_src_addr 1    
-;. $temp_data 1
-;. $temp_service_id 1
 
 @network_message_dispatcher
     call @read_nic_message

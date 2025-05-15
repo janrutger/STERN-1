@@ -1,7 +1,9 @@
 
 
 # Define a buffer for incoming network messages
-. $NET_RCV_BUFFER 16 
+. $NET_RCV_BUFFER 64
+equ ~net_rcv_buffer_wrap 63
+
 . $NET_RCV_BUFFER_ADRES 1
 . $NET_RCV_READ_PNTR 1
 . $NET_RCV_WRITE_PNTR 1
@@ -137,7 +139,7 @@ ret
     ldm M $NET_RCV_WRITE_PNTR
     addi M 1
     # Assuming buffer size is 16
-    andi M 15 
+    andi M ~net_rcv_buffer_wrap 
     ldm L $NET_RCV_READ_PNTR
     tste M L
     # If buffer is full, jump to skip storing the packet.
@@ -241,7 +243,7 @@ rti
         ; M = new $NET_RCV_READ_PNTR value
         ldm M $NET_RCV_READ_PNTR  
         ; M = (new $NET_RCV_READ_PNTR) % 16  
-        andi M 15     
+        andi M ~net_rcv_buffer_wrap   
         ; Store the wrapped pointer value back              
         sto M $NET_RCV_READ_PNTR    
         jmp :end_read_nic_message_logic
@@ -296,7 +298,7 @@ ret
     ldm M $NET_RCV_WRITE_PNTR
     # Assuming buffer size is 16
     # Apply modulo operation for wrap-around.
-    andi M 15 
+    andi M ~net_rcv_buffer_wrap 
     # Store potentially wrapped pointer
     sto M $NET_RCV_WRITE_PNTR 
 
