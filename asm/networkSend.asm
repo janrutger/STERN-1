@@ -3,7 +3,8 @@
     # Destination address (e.g., instance 1)
     ldi A 1
 
-    ldi C 999
+    # Service ID (e.g., echo) now just 0
+    ldi C 0
 
     # Data to send (e.g., ASCII 'H')
     ldi B \0

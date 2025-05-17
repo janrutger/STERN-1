@@ -19,12 +19,13 @@
 
 @network_message_dispatcher
     call @read_nic_message
-
     ; Expects from @read_nic_message:
     ; A = src_addr, B = data, C = service_id.
-    ; If no message, A = \null.
+    ; Status bit:
+    ;   - SET (true) if the buffer was empty (A will be \null).
+    ;   - CLEARED (false) if a message was successfully read.
 
-    tst A \null
+    ; Jump if status bit is SET (true), meaning no message was read
     jmpt :nmd_no_message 
 
     ; Validate service_id (C)
