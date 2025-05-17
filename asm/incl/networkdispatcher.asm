@@ -1,7 +1,10 @@
 ## Network Message Dispatcher and Service Handlers
 
 . $SERVICE_JUMP_TABLE 2             
-% $SERVICE_JUMP_TABLE @service_handler_0 @service_handler_echo
+% $SERVICE_JUMP_TABLE  @service_handler_0 @service_handler_echo
+. $SERVICE_JUMP_TABLE_ADRES 1
+% $SERVICE_JUMP_TABLE_ADRES $SERVICE_JUMP_TABLE
+
 . $MAX_SERVICE_ID 1                 
 % $MAX_SERVICE_ID 1
 
@@ -34,10 +37,14 @@
     jmpt :nmd_invalid_service_id 
     
     ld I C
-    ldx M $SERVICE_JUMP_TABLE
+    ldx M $SERVICE_JUMP_TABLE_ADRES
 
     ld I M 
     callx $mem_start
+
+    # After the service handler successfully returns,
+    # jump to the dispatcher's exit point.
+    jmp :nmd_no_message
 
 :nmd_invalid_service_id
     ; Optional: Handle invalid service ID (e.g., log error, send NACK)
@@ -193,7 +200,7 @@ ret
     ; Set status bit to 1 (data available)
     ldi M 1 
     ; Sets status bit to 1 because M (1) is not equal to 0.
-    tst M 0 
+    tst M 1 
     jmp :s0_read_done
 
 :s0_buffer_empty_set_status
@@ -201,7 +208,7 @@ ret
     ; We need to set status bit to 0 to indicate buffer empty.
     ldi M 0 
     ; Sets status bit to 0 because M (0) is equal to 0.
-    tst M 0 
+    tst M 1 
     ; Register A's content is not guaranteed here / can be considered garbage.
 
 :s0_read_done

@@ -322,6 +322,7 @@ class Assembler:
                     for value_str in values_to_write:
                         # get_value now handles constants (~), numbers, chars, symbols (@,$)
                         value_to_write = self.get_value(value_str, current_line_num_for_error, current_line_content_for_error)
+                        print(f"DEBUG ASSEMBLER: For % target '{target_symbol}', attempting to write value '{value_to_write}' (from '{value_str}') into memory address {adres}", file=sys.stderr)
                         newLine = (adres, value_to_write)
                         self.binary.append(newLine)
                         adres += 1
@@ -459,7 +460,7 @@ if __name__ == "__main__":
         kernel_start = 512
         assembler.assemble("kernel2.asm", kernel_start, "kernel.bin")
         program_start = 4096 + 512
-        assembler.assemble("networkSend.asm", program_start, "program.bin")
+        assembler.assemble("service0Receive.asm", program_start, "program.bin")
         # assembler.assemble("spritewalker.asm", program_start, "program.bin")
 
         print("\nAssembly process completed.")

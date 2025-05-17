@@ -113,7 +113,6 @@ rti
         # check for ACK
         tst M ~idle
     jmpf :wait_for_nic_sending_ack1
-    nop
 ret
 
 
@@ -325,7 +324,7 @@ ret
 
 
     # It as subroutine, but interrupts are diabled
-    di 
+    # di 
     # Load read and write pointers to check if the buffer is empty
     ldm M $NET_RCV_READ_PNTR  
     ldm L $NET_RCV_WRITE_PNTR 
@@ -369,11 +368,10 @@ ret
 :read_nic_msg_buffer_empty
     # Buffer is empty (status bit is SET from tste M L).
     # Set A to \null to indicate no message.
-    ;ldi A \null
-    ldi A \x
+    ldi A \null
     # B and C are undefined in this case.
 
 :read_nic_msg_end
     # Enable interrupts
-    ei
+    # ei
 ret

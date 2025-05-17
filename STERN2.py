@@ -51,7 +51,7 @@ def assembly_code():
         #assembler.assemble("ChaosGame3.asm", boot["start_prog"], instance1_config["start_rom"])
         #assembler.assemble("ChaosGame4.asm", boot["start_prog"], instance1_config["start_rom"])
         assembler.assemble("networkSend.asm", boot["start_prog"], instance1_config["start_rom"])
-        assembler.assemble("networkReceive.asm", boot["start_prog"], instance2_config["start_rom"])
+        assembler.assemble("service0Receive.asm", boot["start_prog"], instance2_config["start_rom"])
         assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Example if needed
         print("Assembly complete.")
     except Exception as e:

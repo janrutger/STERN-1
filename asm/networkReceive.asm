@@ -22,7 +22,10 @@
 :receive_loop
     # Check if a message is available in the buffer
 
+    di
     call @read_nic_message
+    ei
+
     # After @read_nic_message:
     #   A = Source Address (or \null if no message)
     #   B = Data Value
