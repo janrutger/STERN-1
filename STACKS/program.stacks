@@ -1,0 +1,16 @@
+DEFINE
+        VALUE x 100
+        ARRAY myArr [20]
+    END
+
+    FUNCTION main
+        x PRINT
+        `anotherFunc
+    END
+
+    FUNCTION anotherFunc
+        "in another func" PRINT
+    END
+
+    LABEL myLabel
+    GOTO myLabel
