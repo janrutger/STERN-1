@@ -50,8 +50,8 @@ def assembly_code():
         # Assemble ROMs specified in configs
         #assembler.assemble("ChaosGame3.asm", boot["start_prog"], instance1_config["start_rom"])
         #assembler.assemble("ChaosGame4.asm", boot["start_prog"], instance1_config["start_rom"])
-        assembler.assemble("networkSend.asm", boot["start_prog"], instance1_config["start_rom"])
-        assembler.assemble("service0Receive.asm", boot["start_prog"], instance2_config["start_rom"])
+        assembler.assemble("networkEcho.asm", boot["start_prog"], instance1_config["start_rom"])
+        #assembler.assemble("service0Receive.asm", boot["start_prog"], instance2_config["start_rom"])
         assembler.assemble("spritewalker.asm", boot["start_prog"], "program.bin") # Example if needed
         print("Assembly complete.")
     except Exception as e:
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0", # Use a separate disk dir for instance 2
         "window_title": "STERN-1 (Instance 2)",
         "kernel_start_adres": 512,
-        "start_rom": "networkSend.bin",
+        "start_rom": "program.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[1],
         # Add other specific settings if needed
