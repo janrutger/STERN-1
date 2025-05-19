@@ -1,5 +1,6 @@
 import sys
-from lexV2 import *
+#from lexV2 import *
+from lexV2 import Lexer, Token, TokenType
 from emitV2 import Emitter # Assuming Emitter is in emitV2
 from typing import Set, Optional
 
@@ -233,8 +234,11 @@ class Parser:
                 self.nl()
 
     # expression ::= INTEGER | STRING | "`" ident "`" | ident | word
+    # An expression is a sequence of numbers, strings, identifiers (variable loads or function calls),
+    # backticked assembly calls, or RPN operations/words.
     def expression(self):
-        while self.checkToken(TokenType.NUMBER) or self.checkToken(TokenType.STRING) or self.checkToken(TokenType.IDENT) or self.checkToken(TokenType.BT) or self.checkToken(TokenType.WORD):
+        # Loop to consume a sequence of items that can form an RPN expression.
+        while True:
             if self.checkToken(TokenType.NUMBER):
                 self.emitter.emitLine("push " + self.curToken.text)
                 self.nextToken()
@@ -247,66 +251,71 @@ class Parser:
                 self.match(TokenType.IDENT)
             elif self.checkToken(TokenType.IDENT):
                 self.ident()
-            else:  #Must be an word
+            # Check for specific operator tokens OR general RPN words (lexed as TokenType.WORD)
+            elif self.checkToken(TokenType.PLUS) or \
+                 self.checkToken(TokenType.MINUS) or \
+                 self.checkToken(TokenType.ASTERISK) or \
+                 self.checkToken(TokenType.SLASH) or \
+                 self.checkToken(TokenType.PCT) or \
+                 self.checkToken(TokenType.EQEQ) or \
+                 self.checkToken(TokenType.NOTEQ) or \
+                 self.checkToken(TokenType.LT) or \
+                 self.checkToken(TokenType.GT) or \
+                 self.checkToken(TokenType.BANG) or \
+                 self.checkToken(TokenType.WORD): # Catches DUP, SWAP, GCD, INPUT, RAWIN (as op) etc.
                 self.word()
+            else:
+                # No more number, string, ident, bt, operator, or RPN word found. End of expression.
+                break 
         
 
-    # word ::=	 ('+'|'-'|'*'|'/'|'%'|'=='|'!='|'>'|'<'|'GCD'|'!'|'DUP'|'SWAP'|'OVER'|'DROP'|'INPUT' |'RAWIN')
+    # word ::= (operator_token | rpn_command_word_token)
+    # Handles tokens that represent operations in RPN.
     def word(self) -> None:
-        if self.curToken.text == '+':
+        # Handle specific operator tokens
+        if self.checkToken(TokenType.PLUS):
             self.emitter.emitLine("call @plus")
-            self.nextToken()
-        elif self.curToken.text == '-':
+        elif self.checkToken(TokenType.MINUS):
             self.emitter.emitLine("call @minus")
-            self.nextToken()
-        elif self.curToken.text == '*':
+        elif self.checkToken(TokenType.ASTERISK):
             self.emitter.emitLine("call @mul")
-            self.nextToken()
-        elif self.curToken.text == '/':
+        elif self.checkToken(TokenType.SLASH):
             self.emitter.emitLine("call @div")
-            self.nextToken()
-        elif self.curToken.text == '%':
+        elif self.checkToken(TokenType.PCT):
             self.emitter.emitLine("call @mod")
-            self.nextToken()
-        elif self.curToken.text == '!':
+        elif self.checkToken(TokenType.BANG): # Factorial '!'
             self.emitter.emitLine("call @factorial")
-            self.nextToken()
-        elif self.curToken.text == '==':
+        elif self.checkToken(TokenType.EQEQ):
             self.emitter.emitLine("call @eq")
-            self.nextToken()
-        elif self.curToken.text == '!=':
+        elif self.checkToken(TokenType.NOTEQ):
             self.emitter.emitLine("call @neq")
-            self.nextToken()
-        elif self.curToken.text == '<':
+        elif self.checkToken(TokenType.LT):
             self.emitter.emitLine("call @lt")
-            self.nextToken()
-        elif self.curToken.text == '>':
+        elif self.checkToken(TokenType.GT):
             self.emitter.emitLine("call @gt")
-            self.nextToken()
-        elif self.curToken.text == 'GCD':
-            self.emitter.emitLine("call @_gcd")
-            self.nextToken()
-        elif self.curToken.text == 'DUP':
-            self.emitter.emitLine("call @dup")
-            self.nextToken()
-        elif self.curToken.text == 'OVER':
-            self.emitter.emitLine("call @over")
-            self.nextToken()
-        elif self.curToken.text == 'DROP':
-            self.emitter.emitLine("pull")
-            self.nextToken()
-        elif self.curToken.text == 'SWAP':
-            self.emitter.emitLine("call @swap")
-            self.nextToken()
-        elif self.curToken.text == 'INPUT':
-            self.emitter.emitLine("call @input")
-            self.nextToken()
-        elif self.curToken.text == 'RAWIN':
-            self.emitter.emitLine("call @rawin")
-            self.nextToken()
+        # Handle named RPN words (which are lexed as TokenType.WORD)
+        elif self.checkToken(TokenType.WORD):
+            if self.curToken.text.upper() == 'GCD': # Using .upper() for robustness
+                self.emitter.emitLine("call @_gcd") # Using underscore to avoid conflict if GCD is a keyword elsewhere
+            elif self.curToken.text.upper() == 'DUP':
+                self.emitter.emitLine("call @dup")
+            elif self.curToken.text.upper() == 'OVER':
+                self.emitter.emitLine("call @over")
+            elif self.curToken.text.upper() == 'DROP':
+                self.emitter.emitLine("pull") # This is a direct stack operation, needs runtime support
+            elif self.curToken.text.upper() == 'SWAP':
+                self.emitter.emitLine("call @swap")
+            elif self.curToken.text.upper() == 'INPUT':
+                self.emitter.emitLine("call @input")
+            elif self.curToken.text.upper() == 'RAWIN': # This is RAWIN used as an RPN operation
+                self.emitter.emitLine("call @rawin_op") # Differentiate from structural RAWIN keyword if necessary
+            else:
+                self.abort("Unknown RPN word: " + self.curToken.text)
         else:
-            self.abort("UNKOWN Operator word: " + self.curToken.text)
-
+            # This case should ideally not be reached if expression() calls word() correctly
+            self.abort("Expected an operator or RPN word, got: " + self.curToken.kind.name + " (" + self.curToken.text + ")")
+        
+        self.nextToken() # Consume the operator or RPN word token
 
     # ident ::=	STRING
     def ident(self) -> None:

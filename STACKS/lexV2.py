@@ -51,15 +51,15 @@ class Lexer:
         # Check the first character of this token to see if we can decide what it is.
         # If it is a multiple character operator (e.g., !=), number, identifier, or keyword then we will process the rest.
         if self.curChar == '+':
-            token = Token(self.curChar, TokenType.WORD)
+            token = Token(self.curChar, TokenType.PLUS)
         elif self.curChar == '-':
-            token = Token(self.curChar, TokenType.WORD)
+            token = Token(self.curChar, TokenType.MINUS)
         elif self.curChar == '*':
-            token = Token(self.curChar, TokenType.WORD)
+            token = Token(self.curChar, TokenType.ASTERISK)
         elif self.curChar == '/':
-            token = Token(self.curChar, TokenType.WORD)
+            token = Token(self.curChar, TokenType.SLASH)
         elif self.curChar == '%':
-            token = Token(self.curChar, TokenType.WORD)
+            token = Token(self.curChar, TokenType.PCT)
         elif self.curChar == '{':
             token = Token(self.curChar, TokenType.OPENC)
         elif self.curChar == '}':
@@ -76,7 +76,7 @@ class Lexer:
             if self.peek() == '=':
                 lastChar = self.curChar
                 self.nextChar()
-                token = Token(lastChar + self.curChar, TokenType.WORD)
+                token = Token(lastChar + self.curChar, TokenType.EQEQ)
             else:
                 self.abort("Expected ==, got =" + self.peek())
 
@@ -88,7 +88,7 @@ class Lexer:
             #     token = Token(lastChar + self.curChar, TokenType.GTEQ)
             # else:
             #     token = Token(self.curChar, TokenType.GT)
-            token = Token(self.curChar, TokenType.WORD)
+            token = Token(self.curChar, TokenType.GT)
 
         elif self.curChar == '<':
                 # Check whether this is token is < or <=
@@ -98,16 +98,16 @@ class Lexer:
                 #     token = Token(lastChar + self.curChar, TokenType.LTEQ)
                 # else:
                 #     token = Token(self.curChar, TokenType.LT)
-                token = Token(self.curChar, TokenType.WORD)
+                token = Token(self.curChar, TokenType.LT)
 
         elif self.curChar == '!':
             if self.peek() == '=':
                 lastChar = self.curChar
                 self.nextChar()
-                token = Token(lastChar + self.curChar, TokenType.WORD)
+                token = Token(lastChar + self.curChar, TokenType.NOTEQ)
             else:
                 #self.abort("Expected !=, got !" + self.peek())
-                token = Token(self.curChar, TokenType.WORD)
+                token = Token(self.curChar, TokenType.BANG) # Factorial or other unary '!'
     
         elif self.curChar == '.':
             if self.peek() == '.':
@@ -162,15 +162,24 @@ class Lexer:
 
             # Check if the token is in the list of keywords.
             tokText = self.source[startPos : self.curPos + 1] # Get the substring.
-            keyword = Token.checkIfKeyword(tokText)
+            structural_keyword_type = Token.checkIfKeyword(tokText) # Case-sensitive check against enum names
 
-            if keyword == None: # Identifier
+            # RPN operation words. These should be tokenized as TokenType.WORD.
+            # Their .text attribute will be used by the parser's word() method.
+            # Using .upper() for matching these specific words makes them case-insensitive if desired.
+            rpn_operation_words = {'GCD', 'DUP', 'SWAP', 'OVER', 'DROP', 'INPUT', 'RAWIN'}
+
+            if tokText.upper() in rpn_operation_words:
+                # If it's one of these RPN words, classify it as WORD.
+                # This takes precedence over them potentially being structural keywords if their names overlap
+                # and the parser expects them as WORD tokens in expressions.
+                token = Token(tokText, TokenType.WORD)
+            elif structural_keyword_type is not None:
+                # It's a structural keyword (like LABEL, GOTO, DEFINE, AS, PRINT, etc.)
+                token = Token(tokText, structural_keyword_type)
+            else:
+                # Not an RPN operation word, not a structural keyword. Must be an identifier.
                 token = Token(tokText, TokenType.IDENT)
-            else:   # Keyword
-                if tokText in ['GCD','DUP','SWAP','OVER','DROP','INPUT','RAWIN']:
-                    token = Token(tokText, TokenType.WORD)
-                else:
-                    token = Token(tokText, keyword)
 
         elif self.curChar == '\n':
             token = Token(self.curChar, TokenType.NEWLINE)
@@ -202,7 +211,7 @@ class Token:
 
 # TokenType is our enum for all the types of tokens.
 class TokenType(enum.Enum):
-    WORD = -2
+    WORD = -2 # For RPN operators/words like DUP, SWAP, GCD, INPUT, RAWIN (as op), etc.
     EOF = -1
     NEWLINE = 0
     NUMBER = 1
