@@ -1,64 +1,33 @@
-program    ::=	[(define)] {statement}
+program    ::=	{statement}
 
-
-define	::=	"DEFINE" nl
-			[ (("VALUE" variable [INTEGER] nl) | ("ARRAY" array ['['(INTEGER)+']'] nl))+ ]
-			
-			[ ("THING" thing nl 
-				 "INIT" nl {statement} nl "END" nl
-				 "THIS" function nl {statement} nl "END" nl
-				["THIS" function nl {statement} nl "END" nl]+ 
-			   "END" nl)+]
-
-			[ ("USE" thing nl)+]
-			[ "DRAW" ] nl	
-            
-			[ ("FUNCTION" function nl {statement} nl "END" nl)+ ]
-
-		"END" nl
 
 
 statement  ::=  "LABEL" label nl
 			|   "GOTO"  label nl
-
-			|   "USE"   thing nl
-			
 			|   "TIMER" INTEGER ("SET" | "PRINT" | "GET") nl
 			|   "FUNCTION" function nl {statement} nl "END" nl
-			|   "ARRAY" [“THIS”] array ['['(INTEGER)+']'] nl
+			|   "ARRAY" array ['['(INTEGER)+']'] nl
+				"VALUE" variable [INTEGER] nl
 
-			|   “DRAW” (“NOW” | "NEW") nl
-
-			|   “WITH” [“THIS”] array (“EACH” nl {statement} nl "END" | “COPY” [“THIS”] array | "PLOT" ["NEW"]) nl
 			|   "{" (expression) "}" "DO" nl {statement} nl "END" nl		
-			|   (expression | tos) ( "PRINT" nl
-							| "PLOT"  nl
 
-							| “DRAW” [“RATE”] nl
-
-							| ¨WAIT¨  nl
-							| "AS" [“THIS”] (variable | '['array']') nl
-							| “MATCH” nl 
-								  "ON" (expression) "DO" ['=='|'!='|'>'|'<'] nl {statement} nl "END" nl 
-								[("ON" (expression) "DO" ['=='|'!='|'>'|'<'] nl {statement} nl "END" nl)+]
-								[ "NO" nl {statement} nl "END" nl]
-							  "END" nl
-							| "DO" nl {statement} nl "END" nl
-							| "GOTO" label nl
-							|  nl )
-
-expression ::=	(INTEGER | STRING ["SHOW"] | function | "`"function | [“THIS”] (variable | array | '['array']') | thing function | word)+
-word       ::=	('+'|'-'|'*'|'/'|'%'|'=='|'!='|'>'|'<'|'GCD'|'!'|'DUP'|'SWAP'|'OVER'|'DROP'|'DEPTH'|'INPUT'|'RAWIN')
+			|   “WITH” array (“EACH” nl {statement} nl "END" | “COPY” array | "PLOT" ["NEW"]) nl
+			|   (expression | st) ( "PRINT" nl
+									| "PLOT"  nl
+									| ¨WAIT¨  nl
+									| "AS" (variable | '['array']') nl
+									| "DO" nl {statement} nl "END" nl
+									| "GOTO" label nl
+									|  nl )
+expression ::=	(INTEGER | STRING | function | "`"function | variable |'['array']'| word)+
+word       ::=	('+'|'-'|'*'|'/'|'%'|'=='|'!='|'>'|'<'|'GCD'|'!'|'DUP'|'SWAP'|'OVER'|'DROP'|'INPUT'|'RAWIN')
      	             		  
 label      ::=  ident
 array	   ::=  ident
 function   ::=  ident
 variable   ::=  ident
-thing      ::=  ident
 
 
-tos        ::=	('.'|'..')
+st         ::=	('.'|'..')
 nl         ::= '\n'+
 ident      ::= [a-zA-Z][a-zA-Z0-9]*
-
-comment_line ::= "#" (ident)+ nl

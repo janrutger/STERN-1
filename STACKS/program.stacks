@@ -1,16 +1,6 @@
-DEFINE
-        VALUE x 100
-        ARRAY myArr [20]
-    END
+10 12 + PRINT
 
-    FUNCTION main
-        x PRINT
-        `anotherFunc
-    END
+12 AS a
+10 AS b
 
-    FUNCTION anotherFunc
-        "in another func" PRINT
-    END
-
-    LABEL myLabel
-    GOTO myLabel
+a b + PRINT
