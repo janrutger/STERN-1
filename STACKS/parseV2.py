@@ -22,6 +22,8 @@ class Parser:
         self.curToken: Optional[Token] = None
         self.peekToken: Optional[Token] = None
         self.labelnumber: int = -1
+        self._indent_level: int = 0
+        self._indent_str: str = "  "
         self.nextToken()
         self.nextToken()    # Call this twice to initialize current and peek.
 
@@ -29,6 +31,19 @@ class Parser:
         self.labelnumber = self.labelnumber + 1
         return(str(self.labelnumber))
 
+    def _print_trace(self, message: str):
+        print(f"{self._indent_str * self._indent_level}TRACE: {message}")
+
+    def _print_info(self, message: str):
+        print(f"{self._indent_str * self._indent_level}INFO: {message}")
+
+    def _indent(self):
+        self._indent_level += 1
+
+    def _dedent(self):
+        self._indent_level -= 1
+
+    
     # Return true if the current token matches.
     def checkToken(self, kind: TokenType) -> bool:
         return self.curToken is not None and kind == self.curToken.kind
@@ -59,9 +74,14 @@ class Parser:
 
     # program    ::=	{statement}
     def program(self):
-        self.emitter.headerLine("@main")
-        self.emitter.headerLine("settimer 0")
-        self.emitter.headerLine("speed 0")
+        self._print_trace("Entering program()")
+        self._indent()
+        # self.emitter.headerLine("@main")
+        self._print_info("Program start. STERN-1: Define entry point (e.g., @main).")
+        # self.emitter.headerLine("settimer 0")
+        self._print_info("Initializing timer 0 (old arch). STERN-1: Map to kernel call or remove.")
+        # self.emitter.headerLine("speed 0")
+        self._print_info("Setting speed 0 (old arch). STERN-1: No direct equivalent, remove or map to NOP/config.")
 
         # Since some newlines are required in our grammar, need to skip the excess.
         while self.checkToken(TokenType.NEWLINE):
@@ -72,17 +92,23 @@ class Parser:
             self.statement()
 
         # Wrap things up.
-        self.emitter.emitLine("prttimer 0")
-        self.emitter.emitLine("ret")
+        # self.emitter.emitLine("prttimer 0")
+        self._print_info("Printing timer 0 at program end (old arch). STERN-1: Map to kernel call or remove.")
+        # self.emitter.emitLine("ret")
+        self._print_info("Program end. STERN-1: Emit 'halt' or 'ret' from main.")
 
         # Check that each label referenced in a GOTO is declared.
         for label in self.labelsGotoed:
             if label not in self.labelsDeclared:
                 self.abort("Attempting to GOTO to undeclared label: " + label)
+        self._dedent()
+        self._print_trace("Exiting program()")
 
     # statement  ::=  
         # One of the following statements...
     def statement(self) -> None:
+        self._print_trace("Entering statement()")
+        self._indent()
         # print("STATEMENT") # Removed debug print
         # Check the first token to see what kind of statement this is.
         #   "LABEL" ident nl
@@ -92,8 +118,9 @@ class Parser:
             # Make sure this label doesn't already exist.
             if self.curToken.text in self.labelsDeclared:
                 self.abort("Label already exists: " + self.curToken.text)
-            self.labelsDeclared.add(self.curToken.text)
-            self.emitter.emitLine(":" + self.curToken.text)
+            self.labelsDeclared.add(self.curToken.text) # Still need to track declared labels
+            # self.emitter.emitLine(":" + self.curToken.text)
+            self._print_info(f"Declaring label '{self.curToken.text}'. STERN-1: Emit ':{self.curToken.text}'.")
             self.match(TokenType.IDENT)
             self.nl() 
 
@@ -101,7 +128,8 @@ class Parser:
         elif self.checkToken(TokenType.GOTO):
             self.nextToken() # Consume GOTO
             self.labelsGotoed.add(self.curToken.text)
-            self.emitter.emitLine("jump " + ":" + self.curToken.text)
+            # self.emitter.emitLine("jump " + ":" + self.curToken.text)
+            self._print_info(f"Unconditional GOTO '{self.curToken.text}'. STERN-1: Emit 'jump :{self.curToken.text}'.")
             self.match(TokenType.IDENT)
             self.nl() 
 
@@ -113,11 +141,14 @@ class Parser:
             if int(var) < 16:
                 self.abort("User defined timers starts at number 16, not " + var)
             if self.checkToken(TokenType.SET):
-                self.emitter.emitLine("settimer " + var)
+                # self.emitter.emitLine("settimer " + var)
+                self._print_info(f"SET TIMER {var} (old arch). STERN-1: Map to kernel call or custom routine.")
             elif self.checkToken(TokenType.PRINT):
-                self.emitter.emitLine("prttimer " + var)
+                # self.emitter.emitLine("prttimer " + var)
+                self._print_info(f"PRINT TIMER {var} (old arch). STERN-1: Map to kernel call or custom routine.")
             elif self.checkToken(TokenType.GET):
-                self.emitter.emitLine("gettimer " + var)
+                # self.emitter.emitLine("gettimer " + var)
+                self._print_info(f"GET TIMER {var} (old arch). STERN-1: Map to kernel call or custom routine, result on stack.")
             self.nextToken()
             self.nl()
 
@@ -128,13 +159,15 @@ class Parser:
                 self.functions.add(self.curToken.text)
             if self.curToken.text in self.functions:
                 self.emitter.context = "functions"
-                self.emitter.emitLine("@~" + self.curToken.text)
+                # self.emitter.emitLine("@~" + self.curToken.text)
+                self._print_info(f"Defining function '{self.curToken.text}'. STERN-1: Emit '@~{self.curToken.text}'.")
                 self.match(TokenType.IDENT)
                 self.nl()
                 while not self.checkToken(TokenType.END):
                     self.statement()
                 self.match(TokenType.END)
-                self.emitter.emitLine("ret")
+                # self.emitter.emitLine("ret")
+                self._print_info(f"End of function '{self.curToken.text}'. STERN-1: Emit 'ret'.")
                 self.emitter.context = "program"
                 self.nl()
             else:
@@ -144,7 +177,8 @@ class Parser:
         # | "{" ({expression} | st) "}"   "REPEAT"   nl {statement} nl "END" nl	
         elif self.checkToken(TokenType.OPENC):
             num = self.LabelNum()
-            self.emitter.emitLine(":_" + num + "_condition_start")
+            # self.emitter.emitLine(":_" + num + "_condition_start")
+            self._print_info(f"REPEAT loop condition start (label :_{num}_condition_start).")
             self.nextToken()  # Consume OPENC {
             if self.checkToken(TokenType.DOT) or self.checkToken(TokenType.DDOT):
                 self.st()
@@ -153,17 +187,22 @@ class Parser:
             self.match(TokenType.CLOSEC)
 
             self.match(TokenType.REPEAT)
-            self.emitter.emitLine("loada")
-            self.emitter.emitLine("testz")
-            self.emitter.emitLine("clra")
-            self.emitter.emitLine("jumpf " + ":_" + num + "_repeat_end")
+            # self.emitter.emitLine("loada")
+            # self.emitter.emitLine("testz")
+            # self.emitter.emitLine("clra")
+            # self.emitter.emitLine("jumpf " + ":_" + num + "_repeat_end")
+            self._print_info(f"REPEAT loop check. STERN-1: Pop condition, test if zero, jump to :_{num}_repeat_end if false.")
+
             self.nl()
             while not self.checkToken(TokenType.END):
                 self.statement()
                 
-            self.emitter.emitLine("jump " + ":_" + num + "_condition_start")
-            self.emitter.emitLine(":_" + num + "_repeat_end")
+            # self.emitter.emitLine("jump " + ":_" + num + "_condition_start")
+            self._print_info(f"REPEAT loop jump back to condition (jump :_{num}_condition_start).")
+            # self.emitter.emitLine(":_" + num + "_repeat_end")
+            self._print_info(f"REPEAT loop end (label :_{num}_repeat_end).")
             #self.emitter.emitLine("clra")
+
             self.match(TokenType.END) # Consume END
             self.nl()
 
@@ -178,24 +217,29 @@ class Parser:
             
             # Check for optional action keywords after the expression or stack operation
             if self.checkToken(TokenType.PRINT):
-                self.emitter.emitLine("prt")
+                # self.emitter.emitLine("prt")
+                self._print_info("PRINT operation. STERN-1: Pop value from stack, call print routine.")
                 self.nextToken() # Consume PRINT
                 self.nl()
             elif self.checkToken(TokenType.PLOT):
-                self.emitter.emitLine("call @plot")
+                # self.emitter.emitLine("call @plot")
+                self._print_info("PLOT operation. STERN-1: Pop value, call plot routine (e.g. @plot_xy_pair or similar).")
                 self.nextToken() # Consume PLOT
                 self.nl()
             elif self.checkToken(TokenType.WAIT):
-                self.emitter.emitLine("call @sleep")
+                # self.emitter.emitLine("call @sleep")
+                self._print_info("WAIT operation. STERN-1: Pop value, call sleep/wait routine.")
                 self.nextToken() # Consume WAIT
                 self.nl()
             elif self.checkToken(TokenType.AS):
                 self.nextToken() # Consume AS
+                var_name = self.curToken.text
                 if self.curToken.text not in self.symbols and self.curToken.text not in self.functions:
                     self.symbols.add(self.curToken.text)
                 
                 if self.curToken.text in self.symbols:
-                    self.emitter.emitLine("storem " + "$" + self.curToken.text)
+                    # self.emitter.emitLine("storem " + "$" + self.curToken.text)
+                    self._print_info(f"AS (assign) to variable '{var_name}'. STERN-1: Pop value, store to ${var_name}.")
                     self.match(TokenType.IDENT)  
                     self.nl()
                 else:
@@ -204,52 +248,68 @@ class Parser:
             elif self.checkToken(TokenType.DO):
                 num = self.LabelNum()
                 self.nextToken() # Consume DO
-                self.emitter.emitLine("loada")
-                self.emitter.emitLine("testz")
-                self.emitter.emitLine("clra")
-                self.emitter.emitLine("jumpf " + ":_" + num + "_do_end")
+                # self.emitter.emitLine("loada")
+                # self.emitter.emitLine("testz")
+                # self.emitter.emitLine("clra")
+                # self.emitter.emitLine("jumpf " + ":_" + num + "_do_end")
+                self._print_info(f"DO block condition check. STERN-1: Pop condition, test if zero, jump to :_{num}_do_end if false.")
                 self.nl()
 
                 while not self.checkToken(TokenType.END):
                     self.statement()
 
                 self.match(TokenType.END) # Consume END
-                self.emitter.emitLine(":_" + num + "_do_end")
+                # self.emitter.emitLine(":_" + num + "_do_end")
+                self._print_info(f"DO block end (label :_{num}_do_end).")
                 self.nl()
 
             elif self.checkToken(TokenType.GOTO):
                 num = self.LabelNum()
+                goto_target_label = self.peekToken.text # Peek to get the IDENT text for the GOTO target
                 self.nextToken() # Consume GOTO
                 self.labelsGotoed.add(self.curToken.text) # Add to gotoed before emitting
-                self.emitter.emitLine("loada")
-                self.emitter.emitLine("testz")
-                self.emitter.emitLine("clra")
-                self.emitter.emitLine("jumpf " + ":_" + num + "_goto_end")
-                self.emitter.emitLine("jump " + ":" + self.curToken.text)
-                self.emitter.emitLine(":_" + num + "_goto_end")
+                # self.emitter.emitLine("loada")
+                # self.emitter.emitLine("testz")
+                # self.emitter.emitLine("clra")
+                # self.emitter.emitLine("jumpf " + ":_" + num + "_goto_end")
+                self._print_info(f"Conditional GOTO. STERN-1: Pop condition, test if zero, jump to :_{num}_goto_end if false.")
+
+                # self.emitter.emitLine("jump " + ":" + self.curToken.text)
+                self._print_info(f"Conditional GOTO actual jump to '{self.curToken.text}'. STERN-1: Emit 'jump :{self.curToken.text}'.")
+                # self.emitter.emitLine(":_" + num + "_goto_end")
+                self._print_info(f"Conditional GOTO skip label (label :_{num}_goto_end).")
+
                 self.match(TokenType.IDENT)  
                 self.nl()   
             else:
                 # If no action keyword, just expect a newline (or it's already consumed by expression/st if they ended with one)
                 self.nl()
+        self._dedent()
+        self._print_trace("Exiting statement()")
 
     # expression ::= INTEGER | STRING | "`" ident "`" | ident | word
     # An expression is a sequence of numbers, strings, identifiers (variable loads or function calls),
     # backticked assembly calls, or RPN operations/words.
     def expression(self):
+        self._print_trace("Entering expression()")
+        self._indent()
         # Loop to consume a sequence of items that can form an RPN expression.
         while True:
             if self.checkToken(TokenType.NUMBER):
-                self.emitter.emitLine("push " + self.curToken.text)
+                # self.emitter.emitLine("push " + self.curToken.text)
+                self._print_info(f"Pushing NUMBER '{self.curToken.text}'. STERN-1: ldi A, {self.curToken.text}; call @push_A.")
                 self.nextToken()
             elif self.checkToken(TokenType.STRING):
-                self.emitter.emitLine("push " + "'" + self.curToken.text + "'")
+                # self.emitter.emitLine("push " + "'" + self.curToken.text + "'")
+                self._print_info(f"Pushing STRING '\"{self.curToken.text}\"'. STERN-1: Define string, push its address or handle directly.")
                 self.nextToken()
             elif self.checkToken(TokenType.BT):
                 self.nextToken()
-                self.emitter.emitLine("call " + "@" + self.curToken.text) # Uses IDENT's text
+                # self.emitter.emitLine("call " + "@" + self.curToken.text) # Uses IDENT's text
+                self._print_info(f"Backtick call to '@{self.curToken.text}'. STERN-1: Emit 'call @{self.curToken.text}'.")
                 self.match(TokenType.IDENT)
             elif self.checkToken(TokenType.IDENT):
+                # ident() will print its own info
                 self.ident()
             # Check for specific operator tokens OR general RPN words (lexed as TokenType.WORD)
             elif self.checkToken(TokenType.PLUS) or \
@@ -263,52 +323,73 @@ class Parser:
                  self.checkToken(TokenType.GT) or \
                  self.checkToken(TokenType.BANG) or \
                  self.checkToken(TokenType.WORD): # Catches DUP, SWAP, GCD, INPUT, RAWIN (as op) etc.
+                # word() will print its own info
                 self.word()
             else:
                 # No more number, string, ident, bt, operator, or RPN word found. End of expression.
                 break 
-        
+        self._dedent()
+        self._print_trace("Exiting expression()")
 
     # word ::= (operator_token | rpn_command_word_token)
     # Handles tokens that represent operations in RPN.
     def word(self) -> None:
+        self._print_trace(f"Entering word() for token '{self.curToken.text}' ({self.curToken.kind.name})")
+        self._indent()
         # Handle specific operator tokens
         if self.checkToken(TokenType.PLUS):
-            self.emitter.emitLine("call @plus")
+            # self.emitter.emitLine("call @plus")
+            self._print_info("RPN PLUS. STERN-1: call @plus_op (pop 2, add, push 1).")
         elif self.checkToken(TokenType.MINUS):
-            self.emitter.emitLine("call @minus")
+            # self.emitter.emitLine("call @minus")
+            self._print_info("RPN MINUS. STERN-1: call @minus_op (pop 2, sub, push 1).")
         elif self.checkToken(TokenType.ASTERISK):
-            self.emitter.emitLine("call @mul")
+            # self.emitter.emitLine("call @mul")
+            self._print_info("RPN MULTIPLY. STERN-1: call @mul_op (pop 2, mul, push 1).")
         elif self.checkToken(TokenType.SLASH):
-            self.emitter.emitLine("call @div")
+            # self.emitter.emitLine("call @div")
+            self._print_info("RPN DIVIDE. STERN-1: call @div_op (pop 2, div, push 1).")
         elif self.checkToken(TokenType.PCT):
-            self.emitter.emitLine("call @mod")
+            # self.emitter.emitLine("call @mod")
+            self._print_info("RPN MODULO. STERN-1: call @mod_op (pop 2, mod, push 1).")
         elif self.checkToken(TokenType.BANG): # Factorial '!'
-            self.emitter.emitLine("call @factorial")
+            # self.emitter.emitLine("call @factorial")
+            self._print_info("RPN FACTORIAL. STERN-1: call @factorial_op (pop 1, fact, push 1).")
         elif self.checkToken(TokenType.EQEQ):
-            self.emitter.emitLine("call @eq")
+            # self.emitter.emitLine("call @eq")
+            self._print_info("RPN EQUALS (==). STERN-1: call @eq_op (pop 2, compare, push 1/0).")
         elif self.checkToken(TokenType.NOTEQ):
-            self.emitter.emitLine("call @neq")
+            # self.emitter.emitLine("call @neq")
+            self._print_info("RPN NOT EQUALS (!=). STERN-1: call @neq_op (pop 2, compare, push 1/0).")
         elif self.checkToken(TokenType.LT):
-            self.emitter.emitLine("call @lt")
+            # self.emitter.emitLine("call @lt")
+            self._print_info("RPN LESS THAN (<). STERN-1: call @lt_op (pop 2, compare, push 1/0).")
         elif self.checkToken(TokenType.GT):
-            self.emitter.emitLine("call @gt")
+            # self.emitter.emitLine("call @gt")
+            self._print_info("RPN GREATER THAN (>). STERN-1: call @gt_op (pop 2, compare, push 1/0).")
         # Handle named RPN words (which are lexed as TokenType.WORD)
         elif self.checkToken(TokenType.WORD):
             if self.curToken.text.upper() == 'GCD': # Using .upper() for robustness
-                self.emitter.emitLine("call @_gcd") # Using underscore to avoid conflict if GCD is a keyword elsewhere
+                # self.emitter.emitLine("call @_gcd")
+                self._print_info("RPN GCD. STERN-1: call @gcd_op (pop 2, gcd, push 1).")
             elif self.curToken.text.upper() == 'DUP':
-                self.emitter.emitLine("call @dup")
+                # self.emitter.emitLine("call @dup")
+                self._print_info("RPN DUP. STERN-1: call @dup_op (peek 1, push 1).")
             elif self.curToken.text.upper() == 'OVER':
-                self.emitter.emitLine("call @over")
+                # self.emitter.emitLine("call @over")
+                self._print_info("RPN OVER. STERN-1: call @over_op (pop 1, peek 1, push 2).")
             elif self.curToken.text.upper() == 'DROP':
-                self.emitter.emitLine("pull") # This is a direct stack operation, needs runtime support
+                # self.emitter.emitLine("pull") # This was 'pull' in old arch
+                self._print_info("RPN DROP. STERN-1: call @drop_op (pop 1).")
             elif self.curToken.text.upper() == 'SWAP':
-                self.emitter.emitLine("call @swap")
+                # self.emitter.emitLine("call @swap")
+                self._print_info("RPN SWAP. STERN-1: call @swap_op (pop 2, push 2 swapped).")
             elif self.curToken.text.upper() == 'INPUT':
-                self.emitter.emitLine("call @input")
+                # self.emitter.emitLine("call @input")
+                self._print_info("RPN INPUT. STERN-1: call @input_op (read num, push 1).")
             elif self.curToken.text.upper() == 'RAWIN': # This is RAWIN used as an RPN operation
-                self.emitter.emitLine("call @rawin_op") # Differentiate from structural RAWIN keyword if necessary
+                # self.emitter.emitLine("call @rawin_op")
+                self._print_info("RPN RAWIN. STERN-1: call @rawin_op (read char/string, push 1).")
             else:
                 self.abort("Unknown RPN word: " + self.curToken.text)
         else:
@@ -316,30 +397,45 @@ class Parser:
             self.abort("Expected an operator or RPN word, got: " + self.curToken.kind.name + " (" + self.curToken.text + ")")
         
         self.nextToken() # Consume the operator or RPN word token
+        self._dedent()
+        self._print_trace("Exiting word()")
 
     # ident ::=	STRING
     def ident(self) -> None:
+        self._print_trace(f"Entering ident() for token '{self.curToken.text}'")
+        self._indent()
+        ident_name = self.curToken.text
         if self.curToken.text in self.symbols:
-            self.emitter.emitLine("loadm " + "$" + self.curToken.text)
+            # self.emitter.emitLine("loadm " + "$" + self.curToken.text)
+            self._print_info(f"Loading variable '{ident_name}' to stack. STERN-1: ldm A, ${ident_name}; call @push_A.")
         elif self.curToken.text in self.functions:
-            self.emitter.emitLine("call " + "@~" + self.curToken.text)
+            # self.emitter.emitLine("call " + "@~" + self.curToken.text)
+            self._print_info(f"Calling function '{ident_name}'. STERN-1: call @~{ident_name}.")
         else:
             self.abort("Referencing variable before assignment: " + self.curToken.text)
 
         self.nextToken()
+        self._dedent()
+        self._print_trace("Exiting ident()")
 
     # st ::= ('.'|'..')
     def st(self) -> None:
+        self._print_trace(f"Entering st() for token '{self.curToken.text}'")
+        self._indent()
         if self.checkToken(TokenType.DDOT):
-            self.emitter.emitLine("call @dup") #duplicate Top Off Stack
+            # self.emitter.emitLine("call @dup") #duplicate Top Off Stack
+            self._print_info("Stack op '..' (DUP). STERN-1: call @dup_op.")
         else:
-            pass #use Top Off Stack
+            self._print_info("Stack op '.' (Use ToS). STERN-1: No explicit op, value is already on stack.")
 
         self.nextToken()
+        self._dedent()
+        self._print_trace("Exiting st()")
 
     
     # nl ::= '\n'+
     def nl(self) -> None:
+        # self._print_trace("Entering nl()") # This might be too verbose, uncomment if needed
         # Require at least one newline.
         self.match(TokenType.NEWLINE)
         # But we will allow extra newlines too, of course.
