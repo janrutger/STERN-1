@@ -10,7 +10,7 @@ def main():
     output_file_path = "/home/janrutger/git/STERN-1/STACKS/out.asm"      # Default output file (consistent with Emitter's original hardcoding)
 
     if len(sys.argv) != 2:
-        print(f"Info: No source file provided. Using default input '{source_file_path}' and output '{output_file_path}'.")
+        print(f"Info: No source file provided. \nUsing default input '{source_file_path}' \nand  default output '{output_file_path}'.")
     else:
         source_file_path = sys.argv[1]
         # Create output filename by changing extension of source to .asm

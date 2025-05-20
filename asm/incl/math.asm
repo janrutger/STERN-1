@@ -59,7 +59,7 @@ ret
     tste A B 
     jmpf :eq_false
         ldi A 0
-    jmp :gt_end
+    jmp :eq_end
     :eq_false
         ldi A 1
     :eq_end
