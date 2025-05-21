@@ -19,20 +19,60 @@
 
 
 #################################
-@stacks_runtim_init
+@stacks_runtime_init
     # when the lib must be initalized
 ret
 
 #################################
-@push
+@push_A
     inc I $datastack_index
     stx A $datastack_pntr
 ret
 
 
-@pop
+@pop_A
     dec I $datastack_index
     ldx A $datastack_pntr
 ret
 
+@pop_B
+    dec I $datastack_index
+    ldx B $datastack_pntr
+ret
+
+
+
 #################################
+@plus
+    call @pop_A
+    call @pop_B
+    add A B
+    call @push_A
+ret
+
+@minus
+    call @pop_A
+    call @pop_B
+    sub A B
+    call @push_A
+ret
+
+@multiply
+    call @pop_A
+    call @pop_B
+    mul A B
+    call @push_A
+ret
+
+@divide
+    call @pop_A
+    call @pop_B
+    div A B
+    call @push_A
+ret
+
+#################################
+
+
+
+

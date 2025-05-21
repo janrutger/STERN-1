@@ -7,7 +7,7 @@ def main():
     print("STACKS RPN Compiler") # General name, can be adapted for STERN-1 later
 
     source_file_path = "/home/janrutger/git/STERN-1/STACKS/program.stacks" # Default input file
-    output_file_path = "/home/janrutger/git/STERN-1/STACKS/out.asm"      # Default output file (consistent with Emitter's original hardcoding)
+    output_file_path = "/home/janrutger/git/STERN-1/asm/out.asm"           # Default output file (consistent with Emitter's original hardcoding)
 
     if len(sys.argv) != 2:
         print(f"Info: No source file provided. \nUsing default input '{source_file_path}' \nand  default output '{output_file_path}'.")

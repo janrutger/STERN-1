@@ -1,6 +1,2 @@
-10 12 + PRINT
+10 12 12 + - PRINT
 
-12 AS a
-10 AS b
-
-a b + PRINT

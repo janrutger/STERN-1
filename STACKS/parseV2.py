@@ -76,12 +76,9 @@ class Parser:
     def program(self):
         self._print_trace("Entering program()")
         self._indent()
-        # self.emitter.headerLine("@main")
-        self._print_info("Program start. STERN-1: Define entry point (e.g., @main).")
-        # self.emitter.headerLine("settimer 0")
-        self._print_info("Initializing timer 0 (old arch). STERN-1: Map to kernel call or remove.")
-        # self.emitter.headerLine("speed 0")
-        self._print_info("Setting speed 0 (old arch). STERN-1: No direct equivalent, remove or map to NOP/config.")
+        self.emitter.headerLine("@main")
+        self.emitter.headerLine("INCLUDE  stacks_runtime")
+        self.emitter.headerLine("call @stacks_runtime_init")
 
         # Since some newlines are required in our grammar, need to skip the excess.
         while self.checkToken(TokenType.NEWLINE):
@@ -92,10 +89,9 @@ class Parser:
             self.statement()
 
         # Wrap things up.
-        # self.emitter.emitLine("prttimer 0")
-        self._print_info("Printing timer 0 at program end (old arch). STERN-1: Map to kernel call or remove.")
-        # self.emitter.emitLine("ret")
-        self._print_info("Program end. STERN-1: Emit 'halt' or 'ret' from main.")
+        self.emitter.emitLine("ret")
+
+        # end of program
 
         # Check that each label referenced in a GOTO is declared.
         for label in self.labelsGotoed:
@@ -296,8 +292,9 @@ class Parser:
         # Loop to consume a sequence of items that can form an RPN expression.
         while True:
             if self.checkToken(TokenType.NUMBER):
-                # self.emitter.emitLine("push " + self.curToken.text)
-                self._print_info(f"Pushing NUMBER '{self.curToken.text}'. STERN-1: ldi A, {self.curToken.text}; call @push_A.")
+                self.emitter.emitLine("ldi A " + self.curToken.text)
+                self.emitter.emitLine("call @push_A") 
+                self._print_trace(f"Pushing NUMBER {self.curToken.text}")
                 self.nextToken()
             elif self.checkToken(TokenType.STRING):
                 # self.emitter.emitLine("push " + "'" + self.curToken.text + "'")
@@ -338,11 +335,10 @@ class Parser:
         self._indent()
         # Handle specific operator tokens
         if self.checkToken(TokenType.PLUS):
-            # self.emitter.emitLine("call @plus")
-            self._print_info("RPN PLUS. STERN-1: call @plus_op (pop 2, add, push 1).")
+            self.emitter.emitLine("call @plus") 
         elif self.checkToken(TokenType.MINUS):
-            # self.emitter.emitLine("call @minus")
-            self._print_info("RPN MINUS. STERN-1: call @minus_op (pop 2, sub, push 1).")
+            self.emitter.emitLine("call @minus")
+            #self._print_info("RPN MINUS. STERN-1: call @minus_op (pop 2, sub, push 1).")
         elif self.checkToken(TokenType.ASTERISK):
             # self.emitter.emitLine("call @mul")
             self._print_info("RPN MULTIPLY. STERN-1: call @mul_op (pop 2, mul, push 1).")
@@ -398,7 +394,7 @@ class Parser:
         
         self.nextToken() # Consume the operator or RPN word token
         self._dedent()
-        self._print_trace("Exiting word()")
+        # self._print_trace("Exiting word()")
 
     # ident ::=	STRING
     def ident(self) -> None:

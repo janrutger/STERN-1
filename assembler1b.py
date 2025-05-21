@@ -460,7 +460,7 @@ if __name__ == "__main__":
         kernel_start = 512
         assembler.assemble("kernel2.asm", kernel_start, "kernel.bin")
         program_start = 4096 + 512
-        assembler.assemble("service0Receive.asm", program_start, "program.bin")
+        assembler.assemble("out.asm", program_start, "program.bin")
         # assembler.assemble("spritewalker.asm", program_start, "program.bin")
 
         print("\nAssembly process completed.")
