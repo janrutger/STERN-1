@@ -1,7 +1,4 @@
-LABEL start
 
-30 12 +  AS test
-test PRINT
-
-GOTO start
-
+31  30 < DO
+    42 PRINT
+END

@@ -1,17 +1,16 @@
 @main
 call @stacks_runtime_init
-. $test 1
-:start
+ldi A 31
+call @push_A
 ldi A 30
 call @push_A
-ldi A 12
-call @push_A
-call @plus
+call @lt
 call @pop_A
-sto A $test
-ldm A $test
+tste A Z
+jmpf :_0_do_end
+ldi A 42
 call @push_A
 call @print
-jmp :start
+:_0_do_end
 ret
 INCLUDE  stacks_runtime

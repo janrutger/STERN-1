@@ -247,19 +247,18 @@ class Parser:
             elif self.checkToken(TokenType.DO):
                 num = self.LabelNum()
                 self.nextToken() # Consume DO
-                # self.emitter.emitLine("loada")
-                # self.emitter.emitLine("testz")
-                # self.emitter.emitLine("clra")
-                # self.emitter.emitLine("jumpf " + ":_" + num + "_do_end")
-                self._print_info(f"DO block condition check. STERN-1: Pop condition, test if zero, jump to :_{num}_do_end if false.")
+                self.emitter.emitLine("call @pop_A")
+                self.emitter.emitLine("tste A Z")
+                self.emitter.emitLine("jmpf " + ":_" + num + "_do_end")
+                self._print_trace(f"DO block condition check. Test if zero, jump to :_{num}_do_end if false.")
                 self.nl()
 
                 while not self.checkToken(TokenType.END):
                     self.statement()
 
                 self.match(TokenType.END) # Consume END
-                # self.emitter.emitLine(":_" + num + "_do_end")
-                self._print_info(f"DO block end (label :_{num}_do_end).")
+                self.emitter.emitLine(":_" + num + "_do_end")
+                self._print_trace(f"DO block end (label :_{num}_do_end).")
                 self.nl()
 
             elif self.checkToken(TokenType.GOTO):
@@ -341,13 +340,10 @@ class Parser:
             self.emitter.emitLine("call @plus") 
         elif self.checkToken(TokenType.MINUS):
             self.emitter.emitLine("call @minus")
-            #self._print_info("RPN MINUS. STERN-1: call @minus_op (pop 2, sub, push 1).")
         elif self.checkToken(TokenType.ASTERISK):
-            # self.emitter.emitLine("call @mul")
-            self._print_info("RPN MULTIPLY. STERN-1: call @mul_op (pop 2, mul, push 1).")
+            self.emitter.emitLine("call @multiply")
         elif self.checkToken(TokenType.SLASH):
-            # self.emitter.emitLine("call @div")
-            self._print_info("RPN DIVIDE. STERN-1: call @div_op (pop 2, div, push 1).")
+            self.emitter.emitLine("call @divide")
         elif self.checkToken(TokenType.PCT):
             # self.emitter.emitLine("call @mod")
             self._print_info("RPN MODULO. STERN-1: call @mod_op (pop 2, mod, push 1).")
@@ -355,17 +351,14 @@ class Parser:
             # self.emitter.emitLine("call @factorial")
             self._print_info("RPN FACTORIAL. STERN-1: call @factorial_op (pop 1, fact, push 1).")
         elif self.checkToken(TokenType.EQEQ):
-            # self.emitter.emitLine("call @eq")
-            self._print_info("RPN EQUALS (==). STERN-1: call @eq_op (pop 2, compare, push 1/0).")
+            self.emitter.emitLine("call @eq")
         elif self.checkToken(TokenType.NOTEQ):
-            # self.emitter.emitLine("call @neq")
-            self._print_info("RPN NOT EQUALS (!=). STERN-1: call @neq_op (pop 2, compare, push 1/0).")
+            self.emitter.emitLine("call @ne")
         elif self.checkToken(TokenType.LT):
-            # self.emitter.emitLine("call @lt")
-            self._print_info("RPN LESS THAN (<). STERN-1: call @lt_op (pop 2, compare, push 1/0).")
+            self.emitter.emitLine("call @lt")
         elif self.checkToken(TokenType.GT):
-            # self.emitter.emitLine("call @gt")
-            self._print_info("RPN GREATER THAN (>). STERN-1: call @gt_op (pop 2, compare, push 1/0).")
+            self.emitter.emitLine("call @gt")
+
         # Handle named RPN words (which are lexed as TokenType.WORD)
         elif self.checkToken(TokenType.WORD):
             if self.curToken.text.upper() == 'GCD': # Using .upper() for robustness

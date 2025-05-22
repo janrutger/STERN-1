@@ -83,14 +83,14 @@ ret
 @eq
     call @pop_B
     call @pop_A
-    eq A B
+    tste A B
     call @set_true_false
 ret
 
 @ne
     call @pop_B
     call @pop_A
-    eq A B
+    tste A B
     jmpf :ne_false
         ldi A 1
         call @push_A
@@ -105,18 +105,18 @@ ret
 @gt 
     call @pop_B
     call @pop_A
-    gt A B
+    tstg A B
     call @set_true_false
 ret
 
 @lt
     call @pop_A
     call @pop_B
-    gt A B
+    tstg A B
     call @set_true_false
 ret
 
-:set_true_false
+@set_true_false
     # Helper for comparison ops, assumes comparison instruction just ran.
     # Pushes 0 onto the stack if the preceding comparison was TRUE.
     # Pushes 1 (non-zero) onto the stack if the preceding comparison was FALSE.
