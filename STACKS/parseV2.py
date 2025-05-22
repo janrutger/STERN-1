@@ -77,7 +77,7 @@ class Parser:
         self._print_trace("Entering program()")
         self._indent()
         self.emitter.headerLine("@main")
-        self.emitter.headerLine("INCLUDE  stacks_runtime")
+        #self.emitter.headerLine("INCLUDE  stacks_runtime")
         self.emitter.headerLine("call @stacks_runtime_init")
 
         # Since some newlines are required in our grammar, need to skip the excess.
@@ -90,6 +90,7 @@ class Parser:
 
         # Wrap things up.
         self.emitter.emitLine("ret")
+        self.emitter.emitLine("INCLUDE  stacks_runtime")
 
         # end of program
 
@@ -115,8 +116,8 @@ class Parser:
             if self.curToken.text in self.labelsDeclared:
                 self.abort("Label already exists: " + self.curToken.text)
             self.labelsDeclared.add(self.curToken.text) # Still need to track declared labels
-            # self.emitter.emitLine(":" + self.curToken.text)
-            self._print_info(f"Declaring label '{self.curToken.text}'. STERN-1: Emit ':{self.curToken.text}'.")
+            self.emitter.emitLine(":" + self.curToken.text)
+            self._print_trace(f"Declaring label '{self.curToken.text}'.")
             self.match(TokenType.IDENT)
             self.nl() 
 
@@ -124,8 +125,8 @@ class Parser:
         elif self.checkToken(TokenType.GOTO):
             self.nextToken() # Consume GOTO
             self.labelsGotoed.add(self.curToken.text)
-            # self.emitter.emitLine("jump " + ":" + self.curToken.text)
-            self._print_info(f"Unconditional GOTO '{self.curToken.text}'. STERN-1: Emit 'jump :{self.curToken.text}'.")
+            self.emitter.emitLine("jmp " + ":" + self.curToken.text)
+            self._print_trace(f"Unconditional GOTO '{self.curToken.text}'.")
             self.match(TokenType.IDENT)
             self.nl() 
 
@@ -213,8 +214,8 @@ class Parser:
             
             # Check for optional action keywords after the expression or stack operation
             if self.checkToken(TokenType.PRINT):
-                # self.emitter.emitLine("prt")
-                self._print_info("PRINT operation. STERN-1: Pop value from stack, call print routine.")
+                self.emitter.emitLine("call @print")
+                self._print_trace("PRINT operation.")
                 self.nextToken() # Consume PRINT
                 self.nl()
             elif self.checkToken(TokenType.PLOT):
@@ -234,8 +235,10 @@ class Parser:
                     self.symbols.add(self.curToken.text)
                 
                 if self.curToken.text in self.symbols:
-                    # self.emitter.emitLine("storem " + "$" + self.curToken.text)
-                    self._print_info(f"AS (assign) to variable '{var_name}'. STERN-1: Pop value, store to ${var_name}.")
+                    self.emitter.headerLine(". $" + self.curToken.text + " 1")
+                    self.emitter.emitLine("call @pop_A")
+                    self.emitter.emitLine("sto A " + "$" + self.curToken.text)
+                    self._print_trace(f"AS (assign) to variable '{var_name}'.")
                     self.match(TokenType.IDENT)  
                     self.nl()
                 else:
@@ -402,8 +405,9 @@ class Parser:
         self._indent()
         ident_name = self.curToken.text
         if self.curToken.text in self.symbols:
-            # self.emitter.emitLine("loadm " + "$" + self.curToken.text)
-            self._print_info(f"Loading variable '{ident_name}' to stack. STERN-1: ldm A, ${ident_name}; call @push_A.")
+            self.emitter.emitLine("ldm A " + "$" + self.curToken.text)
+            self.emitter.emitLine("call @push_A")
+            self._print_trace(f"Loading variable '{ident_name}' to stack.")
         elif self.curToken.text in self.functions:
             # self.emitter.emitLine("call " + "@~" + self.curToken.text)
             self._print_info(f"Calling function '{ident_name}'. STERN-1: call @~{ident_name}.")

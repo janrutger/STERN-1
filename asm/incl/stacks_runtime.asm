@@ -44,35 +44,90 @@ ret
 
 #################################
 @plus
-    call @pop_A
     call @pop_B
+    call @pop_A
     add A B
     call @push_A
 ret
 
 @minus
-    call @pop_A
     call @pop_B
+    call @pop_A
     sub A B
     call @push_A
 ret
 
 @multiply
-    call @pop_A
     call @pop_B
+    call @pop_A
     mul A B
     call @push_A
 ret
 
 @divide
-    call @pop_A
     call @pop_B
+    call @pop_A
     div A B
     call @push_A
 ret
 
 #################################
+@print
+    call @pop_A
+    call @print_to_BCD
+ret
 
 
 
+#################################
+@eq
+    call @pop_B
+    call @pop_A
+    eq A B
+    call @set_true_false
+ret
 
+@ne
+    call @pop_B
+    call @pop_A
+    eq A B
+    jmpf :ne_false
+        ldi A 1
+        call @push_A
+    jmp :ne_end
+    :ne_false
+        ldi A 0
+        call @push_A
+:ne_end
+ret
+
+
+@gt 
+    call @pop_B
+    call @pop_A
+    gt A B
+    call @set_true_false
+ret
+
+@lt
+    call @pop_A
+    call @pop_B
+    gt A B
+    call @set_true_false
+ret
+
+:set_true_false
+    # Helper for comparison ops, assumes comparison instruction just ran.
+    # Pushes 0 onto the stack if the preceding comparison was TRUE.
+    # Pushes 1 (non-zero) onto the stack if the preceding comparison was FALSE.
+    jmpf :set_false
+        ldi A 0
+        call @push_A
+    jmp :set_end
+    :set_false
+        ldi A 1
+        call @push_A
+:set_end    
+ret
+
+#################################

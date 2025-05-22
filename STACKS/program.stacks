@@ -1,2 +1,7 @@
-10 12 12 + - PRINT
+LABEL start
+
+30 12 +  AS test
+test PRINT
+
+GOTO start
 
