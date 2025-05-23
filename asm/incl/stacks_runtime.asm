@@ -131,3 +131,109 @@ ret
 ret
 
 #################################
+
+
+
+
+#################################
+#################################
+. $stacks_buffer 16
+. $stacks_buffer_pntr 1
+. $stacks_buffer_indx 1
+% $stacks_buffer_pntr $stacks_buffer
+% $stacks_buffer_indx 0
+
+ 
+equ ~STACKS_BUFFER_MAX_DATA 15
+
+@stacks_read_input
+    :redo_at_fatal_processing
+    sto Z $stacks_buffer_indx
+    :read_input
+        call @KBD_READ
+        tst A \null
+        jmpt :read_input
+
+        tst A \Return
+        jmpt :end_input
+
+        tst A \BackSpace
+        jmpf :store_in_buffer
+            ldm X $cursor_x
+            tst X 0
+            jmpt :read_input
+
+            dec X $cursor_x
+            dec I $stacks_buffer_indx
+
+            ldi A \space              
+            call @print_char          
+            dec X $cursor_x 
+
+        jmp :read_input
+
+
+        :store_in_buffer
+        # Buffer overflow check:
+        # Check if buffer is full of data characters before adding a new one.
+            inc I $stacks_buffer_indx
+            tst I ~STACKS_BUFFER_MAX_DATA
+            jmpt :read_input
+
+            stx A $stacks_buffer_pntr
+            call @print_char
+
+            inc X $cursor_x
+        jmp :read_input
+
+
+    :end_input
+        # Terminate the input string in the buffer with \Return.
+        # $stacks_buffer_indx at this point holds the number of data characters.
+        # The \Return will be placed at offset $stacks_buffer_indx.
+        # After inc I, $stacks_buffer_indx will hold total_chars_including_terminator.
+        
+        ldi A \Return
+        inc I $stacks_buffer_indx
+        stx A $stacks_buffer_pntr
+
+
+
+    :proces_input    
+        sto Z $stacks_buffer_indx
+
+        inc I $stacks_buffer_index
+        ldx A $stacks_buffer_pntr
+
+        tst A \-
+        jmpt :its_a_number
+
+        tst A \+
+        jmpt :its_a_number
+
+        ldi M \z
+        tstg A M 
+        jmpt :do_controls
+
+        ldi M \9
+        tstg A M 
+        jmpt :do_chars
+
+        ldi M \:
+        tstg A M 
+        jmpt :do_number
+
+        ldi M \null
+        tstg A M 
+        jmpt :do_specials
+
+
+
+
+
+
+
+
+
+
+ret
