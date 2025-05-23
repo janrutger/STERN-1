@@ -150,7 +150,7 @@ class Parser:
             self.nl()
 
         # | "DEFINE" ident nl {statement} nl "END" nl
-        elif self.checkToken(TokenType.DEFINE):
+        elif self.checkToken(TokenType.FUNCTION):
             self.nextToken() # Consume DEFINE
             if self.curToken.text not in self.symbols and self.curToken.text not in self.functions:
                 self.functions.add(self.curToken.text)
@@ -171,11 +171,11 @@ class Parser:
                 self.abort("Already in use as a Variable " + self.curToken.text)
 
 
-        # | "{" ({expression} | st) "}"   "REPEAT"   nl {statement} nl "END" nl	
+        # | "{" ({expression} | st) "}"   "DO"   nl {statement} nl "END" nl	
         elif self.checkToken(TokenType.OPENC):
             num = self.LabelNum()
-            # self.emitter.emitLine(":_" + num + "_condition_start")
-            self._print_info(f"REPEAT loop condition start (label :_{num}_condition_start).")
+            self.emitter.emitLine(":_" + num + "_while_condition")
+            self._print_trace(f"WHILE loop condition start (label :_{num}_while_condition).")
             self.nextToken()  # Consume OPENC {
             if self.checkToken(TokenType.DOT) or self.checkToken(TokenType.DDOT):
                 self.st()
@@ -183,22 +183,20 @@ class Parser:
                 self.expression()
             self.match(TokenType.CLOSEC)
 
-            self.match(TokenType.REPEAT)
-            # self.emitter.emitLine("loada")
-            # self.emitter.emitLine("testz")
-            # self.emitter.emitLine("clra")
-            # self.emitter.emitLine("jumpf " + ":_" + num + "_repeat_end")
-            self._print_info(f"REPEAT loop check. STERN-1: Pop condition, test if zero, jump to :_{num}_repeat_end if false.")
+            self.match(TokenType.DO)
+            self.emitter.emitLine("call @pop_A")
+            self.emitter.emitLine("tste A Z")
+            self.emitter.emitLine("jmpf " + ":_" + num + "_while_end")
+            self._print_trace(f"WHILE loop check. STERN-1: Pop condition, test if zero, jump to :_{num}_while_end if false.")
 
             self.nl()
             while not self.checkToken(TokenType.END):
                 self.statement()
                 
-            # self.emitter.emitLine("jump " + ":_" + num + "_condition_start")
-            self._print_info(f"REPEAT loop jump back to condition (jump :_{num}_condition_start).")
-            # self.emitter.emitLine(":_" + num + "_repeat_end")
-            self._print_info(f"REPEAT loop end (label :_{num}_repeat_end).")
-            #self.emitter.emitLine("clra")
+            self.emitter.emitLine("jmp " + ":_" + num + "_while_condition")
+            self._print_trace(f"WHILE loop jump back to condition (jump :_{num}_while_condition).")
+            self.emitter.emitLine(":_" + num + "_while_end")
+            self._print_trace(f"WHILE loop end (label :_{num}_while_end).")
 
             self.match(TokenType.END) # Consume END
             self.nl()
@@ -233,9 +231,9 @@ class Parser:
                 var_name = self.curToken.text
                 if self.curToken.text not in self.symbols and self.curToken.text not in self.functions:
                     self.symbols.add(self.curToken.text)
+                    self.emitter.headerLine(". $" + self.curToken.text + " 1")
                 
                 if self.curToken.text in self.symbols:
-                    self.emitter.headerLine(". $" + self.curToken.text + " 1")
                     self.emitter.emitLine("call @pop_A")
                     self.emitter.emitLine("sto A " + "$" + self.curToken.text)
                     self._print_trace(f"AS (assign) to variable '{var_name}'.")

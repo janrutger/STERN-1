@@ -222,7 +222,7 @@ class TokenType(enum.Enum):
     GOTO = 102
     PRINT = 103
     INPUT = 104
-    DEFINE = 106
+    FUNCTION = 106
     AS = 107
     PLOT = 108
     WAIT = 109
