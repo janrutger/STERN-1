@@ -1,10 +1,4 @@
+INPUT AS a 
+INPUT AS b 
 
-5 AS count
-
-{count 0 >} DO
-    count PRINT
-    count 1 - AS count
-END
-
-
-PRINT
+a b + PRINT

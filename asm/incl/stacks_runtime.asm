@@ -91,11 +91,12 @@ ret
     call @pop_B
     call @pop_A
     tste A B
-    jmpf :ne_false
+    jmpf :ne_true
+        ; set FALSE
         ldi A 1
         call @push_A
     jmp :ne_end
-    :ne_false
+    :ne_true
         ldi A 0
         call @push_A
 :ne_end
@@ -136,7 +137,207 @@ ret
 
 
 #################################
+# Temporary variables for @input parsing
+. $_input_read_offset 1
+# This variable will hold the current offset for reading from $stacks_buffer.
+. $_parsed_number 1
+# This variable accumulates the integer value as it's parsed.
+. $_number_sign 1
+# This variable stores the sign of the number (1 for positive, -1 for negative).
+. $_digit_found_flag 1
+# This flag is set to 1 if at least one valid digit has been processed, 0 otherwise.
+
+@_is_digit_stacks_input
+# Helper routine to check if the character in register A is a digit ('0'-'9').
+# Assumes '0' is ASCII character code 20 and '9' is ASCII character code 29
+# for the STACKS input context.
+# Output: The CPU status flag is set if A is a digit, cleared otherwise.
+# Clobbers: M
+    ldi M \:
+    # ASCII \: (19) \0 (20) 
+    tstg A M
+    jmpf :_is_digit_stacks_input_false
+    ldi M \9
+    # ASCII '9'
+    tstg A M
+    # Is A > '9'?
+    jmpt :_is_digit_stacks_input_false
+    # If neither jump was taken, A is a digit between '0' and '9' inclusive.
+    # make sure to return the right status
+    tste A A
+    # Set the status flag to True, because A equals A
+ret
+:_is_digit_stacks_input_false
+    # Ensure the status flag is cleared if it's not a digit.
+    # This can be done by comparing two known unequal values.
+    tstg A A
+    # tstg A A clears status because A is not greater then A.
+ret
+
+
+
+@input
+call @prompt_stacks
+:_input_start_over
+# This label is a loop point to re-prompt the user if the input is completely invalid.
+    
+    call @cursor_on
+
+    # Get the user's input. This populates $stacks_buffer.
+    # After this call, M[$stacks_buffer_indx] holds the count of characters
+    # entered, including the terminating \Return character.
+    call @stacks_read_input
+    call @print_nl
+
+    # Initialize parsing variables for the new input line.
+    sto Z $_input_read_offset
+    # Set current read offset to 0 (assuming Z register holds 0).
+
+    sto Z $_parsed_number
+    # Reset accumulated number to 0.
+
+    ldi A 1
+    sto A $_number_sign
+    # Default sign is positive (1).
+
+    sto Z $_digit_found_flag
+    # Reset flag indicating no digits have been found yet.
+
+    # --- Initial check of the first character ---
+    ldm I $_input_read_offset
+    # Load I with the current read offset (which is 0 for the first character).
+    ldx A $stacks_buffer_pntr
+    # Load the first character from $stacks_buffer into A.
+    # A = M[M[$stacks_buffer_pntr] + I]
+
+    tst A \Return
+    jmpt :_input_start_over
+    # If the first character is \Return (empty input), re-prompt.
+
+    # Check for a leading negative sign.
+    ldi M \-
+    tste A M
+    jmpf :_input_check_plus_sign
+        # It's a negative sign.
+        ldi X -1
+        sto X $_number_sign
+        # Set sign to negative.
+
+        inc I $_input_read_offset
+        # Advance read offset past the '-'.
+
+        jmp :_input_parse_loop_entry
+        # Proceed to the main parsing loop.
+
+:_input_check_plus_sign
+    # Check for a leading positive sign.
+    ldi M \+
+    tste A M
+    jmpf :_input_parse_loop_entry
+    # Not a '-' or '+', so start parsing with the current character.
+
+        # It's a positive sign.
+        inc I $_input_read_offset
+        # Advance read offset past the '+'.
+        # The sign is already positive, and $_digit_found_flag is 0.
+
+        jmp :_input_parse_loop_entry
+        # Proceed to the main parsing loop.
+
+    # --- Main parsing loop to process digits ---
+:_input_parse_loop_entry
+    # Check if we've read all characters indicated by $stacks_buffer_indx.
+    ldm K $stacks_buffer_indx
+    # K = total characters in buffer (count from @stacks_read_input).
+
+    ldm I $_input_read_offset
+    # I = current read offset.
+
+    tste I K
+    # Have we read all characters (is offset equal to count)?
+    jmpt :_input_finalize
+    # Yes, all characters processed. Finalize the number.
+    # This also handles cases where input was only a sign.
+
+    # Load the current character based on $_input_read_offset.
+    # Register I already holds M[$_input_read_offset] from the previous ldm.
+    ldx A $stacks_buffer_pntr
+    # A = M[M[$stacks_buffer_pntr] + I]
+
+    tst A \Return
+    # If the current character is \Return, it's the end of the user's actual input.
+    jmpt :_input_finalize
+
+    call @_is_digit_stacks_input
+    # Check if the character in A is a digit '0'-'9'.
+    jmpf :_input_non_digit_char_found
+    # If not a digit, jump to handle it.
+
+    # The character in A is a digit.
+    ldi X 1
+    sto X $_digit_found_flag
+    # Mark that we have found and processed at least one valid digit.
+
+    subi A 20
+    # Convert ASCII digit to its numeric value (e.g., '0' (char 20) -> number 0).
+    # Adjust the value 20 if your system's ASCII '0' is different (e.g., 48 for standard ASCII).
+    ldm K $_parsed_number
+    # K = current accumulated number.
+    muli K 10
+    # K = K * 10 (shift existing number left by one decimal place).
+    add K A
+    # Add the numeric value of the new digit.
+    sto K $_parsed_number
+    # Store the updated accumulated number.
+
+    inc I $_input_read_offset
+    # Advance the read offset to prepare for the next character.
+    jmp :_input_parse_loop_entry
+    # Loop back to process the next character.
+
+:_input_non_digit_char_found
+    # This point is reached if a non-digit character (and not \Return) is encountered.
+    # If we have already found some digits (e.g., "123x"), then "123" is our number.
+    # If no digits were found yet (e.g., "-x", "+x", "abc"), it's an invalid input.
+    ldm K $_digit_found_flag
+    tst K 1
+    # Was the $_digit_found_flag set to 1 (meaning we processed valid digits)?
+    jmpt :_input_finalize
+    # Yes, a valid number part was found and ended by this non-digit. Finalize.
+    
+    call @prompt_stacks_err
+    jmp :_input_start_over
+    # No, the sequence is invalid (e.g., "-abc", "abc"). Restart the input process.
+
+:_input_finalize
+    # Before finalizing, ensure at least one digit was actually processed.
+    # This handles cases where the input was only a sign like "-" or "+"
+    # followed immediately by \Return or a non-digit.
+    ldm K $_digit_found_flag
+    tst K 1
+    # Was the $_digit_found_flag set to 1?
+    jmpt :_found_valid_digits
+    
+    # No valid digits were found. Restart the input process.
+    call @prompt_stacks_err
+    jmp :_input_start_over
+
+    :_found_valid_digits
+    # Apply the determined sign to the parsed number.
+    ldm A $_parsed_number
+    ldm K $_number_sign
+    mul A K
+    # A = parsed_number * sign.
+    call @push_A
+    # Push the final integer result onto the STACKS data stack.
+ret
+
+
 #################################
+# is used by INPUT and RAWIN for reading from KBD (buffer)
+# Stores keypresses in $stacks_bufer of 16 adresses
+# return status bit as TRUE
+
 . $stacks_buffer 16
 . $stacks_buffer_pntr 1
 . $stacks_buffer_indx 1
@@ -147,7 +348,6 @@ ret
 equ ~STACKS_BUFFER_MAX_DATA 15
 
 @stacks_read_input
-    :redo_at_fatal_processing
     sto Z $stacks_buffer_indx
     :read_input
         call @KBD_READ
@@ -168,7 +368,7 @@ equ ~STACKS_BUFFER_MAX_DATA 15
 
             ldi A \space              
             call @print_char          
-            dec X $cursor_x 
+            ;dec X $cursor_x 
 
         jmp :read_input
 
@@ -192,48 +392,13 @@ equ ~STACKS_BUFFER_MAX_DATA 15
         # $stacks_buffer_indx at this point holds the number of data characters.
         # The \Return will be placed at offset $stacks_buffer_indx.
         # After inc I, $stacks_buffer_indx will hold total_chars_including_terminator.
+        # return Status bit is TRUE
+    
         
         ldi A \Return
         inc I $stacks_buffer_indx
         stx A $stacks_buffer_pntr
-
-
-
-    :proces_input    
-        sto Z $stacks_buffer_indx
-
-        inc I $stacks_buffer_index
-        ldx A $stacks_buffer_pntr
-
-        tst A \-
-        jmpt :its_a_number
-
-        tst A \+
-        jmpt :its_a_number
-
-        ldi M \z
-        tstg A M 
-        jmpt :do_controls
-
-        ldi M \9
-        tstg A M 
-        jmpt :do_chars
-
-        ldi M \:
-        tstg A M 
-        jmpt :do_number
-
-        ldi M \null
-        tstg A M 
-        jmpt :do_specials
-
-
-
-
-
-
-
-
-
-
+        tste A A
 ret
+
+    
