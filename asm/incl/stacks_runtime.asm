@@ -17,10 +17,21 @@
 #   3. M[addr] = I (Decremented value from I is stored back to memory)
 
 
+# --- String Heap for RAWIN ---
+# Define the total size of the string heap (e.g., 256 bytes).
+# Reserve memory for the string heap.
+# Initialize the string heap pointer to the start of the string heap.
+equ ~STACKS_STRING_HEAP_SIZE 16
+. $_stacks_string_heap 16
+. $_stacks_string_heap_pntr 1
+% $_stacks_string_heap_pntr $_stacks_string_heap
 
 #################################
 @stacks_runtime_init
     # when the lib must be initalized
+    ldi M $_stacks_string_heap
+    sto M $_stacks_string_heap_pntr
+
 ret
 
 #################################
@@ -75,6 +86,8 @@ ret
 @print
     call @pop_A
     call @print_to_BCD
+    call @print_nl
+
 ret
 
 
@@ -332,6 +345,140 @@ call @prompt_stacks
     # Push the final integer result onto the STACKS data stack.
 ret
 
+
+#################################
+@stacks_raw_input_string
+# Implements the RAWIN functionality for STACKS.
+# 1. Prompts the user for input.
+# 2. Reads a line of raw characters using @stacks_read_input (into $stacks_buffer).
+# 3. Copies the string from $stacks_buffer to the string heap ($_stacks_string_heap).
+# 4. Null-terminates the string in the heap (with character code 0).
+# 5. Pushes a pointer (address) to this string in the heap onto the STACKS data stack.
+# 6. If the string heap is full (overflow), it pushes 0 (a null pointer) instead.
+
+    call @prompt_stacks
+:_rawin_start_over
+    # Loop point for re-prompting if input is empty.
+    call @cursor_on
+    # print \_ as cursor, will be overwritten by the value
+    call @stacks_read_input
+
+    # $stacks_buffer is now filled with user input.
+    # M[$stacks_buffer_indx] contains the length, including the trailing \Return.
+    
+    call @print_nl
+    # Print a newline after the user presses Enter.
+
+
+    # --- Calculate the length of the actual string content ---
+    # (excluding the \Return character from $stacks_buffer_indx count)
+    ldm K $stacks_buffer_indx
+    # K = total length of input including the trailing \Return.
+    # K must be at least 1 at this point because @stacks_read_input adds \Return.
+    subi K 1
+    # K now holds the length of the actual string content (0 if only \Return was entered).
+
+    # Check if the content length K is 0 (meaning only \Return was entered).
+    tst K 0
+    jmpf :_rawin_len_ok
+        # Content length is 0, input was empty. Re-prompt.
+        call @prompt_stacks_err 
+        jmp :_rawin_start_over
+    
+
+:_rawin_len_ok
+    # Label to acknowledge length calculation is done.
+
+    # --- Check for string heap overflow ---
+    # Required space = string length (K) + 1 (for the null terminator).
+    ldm A $_stacks_string_heap_pntr
+    # A = current heap pointer value (address of next free spot).
+    add A K
+    # A = address after string content would be copied.
+    addi A 1
+    # A = address after string content AND null terminator (new heap top).
+
+    ldi M $_stacks_string_heap
+    # M = base address of the string heap.
+    addi M ~STACKS_STRING_HEAP_SIZE
+    # M = end address of the string heap (exclusive, i.e., address of byte *after* the heap).
+
+    tstg A M
+    # Is (new heap top) > (heap end address)?
+    # If A is greater than M, it's an overflow. tstg sets status if A > M.
+    jmpt :_rawin_heap_overflow
+
+    # --- No overflow, proceed with copying the string to the heap ---
+    # Register B will store the starting address of the string in the heap.
+    # This address will be pushed onto the STACKS stack.
+    ldm B $_stacks_string_heap_pntr
+    # B = M[$_stacks_string_heap_pntr] (current heap pointer value, start of new string).
+
+    # Use $_input_read_offset as a temporary read offset for $stacks_buffer.
+    sto Z $_input_read_offset
+    # Initialize read offset for $stacks_buffer to 0 (assuming Z register holds 0).
+
+    # Loop K times to copy characters (K holds the string content length).
+:_rawin_copy_loop
+    tst K 0
+    jmpt :_rawin_copy_chars_done
+    # If K (length counter) is 0, all characters have been copied.
+
+    # Read character from $stacks_buffer
+    ldm I $_input_read_offset
+    # I = M[$_input_read_offset] (current read offset for $stacks_buffer).
+    ldx A $stacks_buffer_pntr
+    # A = M[M[$stacks_buffer_pntr] + I] (get char from $stacks_buffer).
+    inc I $_input_read_offset
+    # Advance M[$_input_read_offset] for the next read from $stacks_buffer.
+
+    # Write character A to the current heap location.
+    # M[$_stacks_string_heap_pntr] holds the absolute address to write to.
+    # For stx A $_stacks_string_heap_pntr, we need I=0 if stx adds I to M[ptr_var].
+    ldi I 0
+    stx A $_stacks_string_heap_pntr
+    # Writes character in A to M[ M[$_stacks_string_heap_pntr] + 0 ].
+
+    # Advance the address stored in $_stacks_string_heap_pntr to the next slot.
+    ldm X $_stacks_string_heap_pntr
+    # X = current heap address.
+    addi X 1
+    # X = next heap address.
+    sto X $_stacks_string_heap_pntr
+    # Update the heap pointer variable M[$_stacks_string_heap_pntr].
+
+    subi K 1
+    # Decrement string length counter (K was loaded with content length).
+    jmp :_rawin_copy_loop
+
+:_rawin_copy_chars_done
+    # Add the null terminator (character code 0) to the end of the string in the heap.
+    ldi A 0
+    # A = null character.
+    ldi I 0
+    # Ensure I=0 for stx.
+    stx A $_stacks_string_heap_pntr
+    # Write null terminator to M[ M[$_stacks_string_heap_pntr] + 0 ].
+
+    # Advance the heap pointer past the null terminator for the next string allocation.
+    ldm X $_stacks_string_heap_pntr
+    addi X 1
+    sto X $_stacks_string_heap_pntr
+
+    # String successfully copied and null-terminated.
+    # The starting address of this string in the heap is in register B.
+    ld A B
+    jmp :_rawin_push_and_exit
+
+:_rawin_heap_overflow
+    # String heap is full. Prepare to push 0 (null pointer).
+    ldi A 0
+
+:_rawin_push_and_exit
+    call @push_A
+    # Push either the string pointer (from B, loaded into A) or 0 (for overflow)
+    # onto the STACKS data stack.
+ret
 
 #################################
 # is used by INPUT and RAWIN for reading from KBD (buffer)

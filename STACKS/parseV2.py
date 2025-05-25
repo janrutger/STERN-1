@@ -377,8 +377,7 @@ class Parser:
             elif self.curToken.text.upper() == 'INPUT':
                 self.emitter.emitLine("call @input")
             elif self.curToken.text.upper() == 'RAWIN': # This is RAWIN used as an RPN operation
-                # self.emitter.emitLine("call @rawin_op")
-                self._print_info("RPN RAWIN. STERN-1: call @rawin_op (read char/string, push 1).")
+                self.emitter.emitLine("call @stacks_raw_input_string")
             else:
                 self.abort("Unknown RPN word: " + self.curToken.text)
         else:
