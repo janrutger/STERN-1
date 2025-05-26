@@ -375,9 +375,12 @@ class Parser:
                 # self.emitter.emitLine("call @swap")
                 self._print_info("RPN SWAP. STERN-1: call @swap_op (pop 2, push 2 swapped).")
             elif self.curToken.text.upper() == 'INPUT':
-                self.emitter.emitLine("call @input")
+                self.emitter.emitLine("call @stacks_input")
             elif self.curToken.text.upper() == 'RAWIN': # This is RAWIN used as an RPN operation
                 self.emitter.emitLine("call @stacks_raw_input_string")
+            elif self.curToken.text.upper() == 'SHOW':
+                self.emitter.emitLine("call @stacks_show_string") # Assumes string pointer is on stack
+                self._print_trace("SHOW operation (print string from pointer).")
             else:
                 self.abort("Unknown RPN word: " + self.curToken.text)
         else:

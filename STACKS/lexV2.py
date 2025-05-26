@@ -167,7 +167,7 @@ class Lexer:
             # RPN operation words. These should be tokenized as TokenType.WORD.
             # Their .text attribute will be used by the parser's word() method.
             # Using .upper() for matching these specific words makes them case-insensitive if desired.
-            rpn_operation_words = {'GCD', 'DUP', 'SWAP', 'OVER', 'DROP', 'INPUT', 'RAWIN'}
+            rpn_operation_words = {'GCD', 'DUP', 'SWAP', 'OVER', 'DROP', 'INPUT', 'RAWIN', 'SHOW'}
 
             if tokText.upper() in rpn_operation_words:
                 # If it's one of these RPN words, classify it as WORD.
@@ -244,6 +244,8 @@ class TokenType(enum.Enum):
     SET = 124
     GET = 125
     BT = 126
+    SHOW = 127
+
     PLUS = 201
     MINUS = 202
     ASTERISK = 203

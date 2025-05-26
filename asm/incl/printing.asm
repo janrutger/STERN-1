@@ -48,6 +48,7 @@ ret
 ret
 
 @prompt_stacks_err
+    dec Y $cursor_y
     ldi A \<
     call @print_char
     inc X $cursor_x

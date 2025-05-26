@@ -21,10 +21,18 @@
 # Define the total size of the string heap (e.g., 256 bytes).
 # Reserve memory for the string heap.
 # Initialize the string heap pointer to the start of the string heap.
-equ ~STACKS_STRING_HEAP_SIZE 16
-. $_stacks_string_heap 16
+equ ~STACKS_STRING_HEAP_SIZE 256
+. $_stacks_string_heap 256
 . $_stacks_string_heap_pntr 1
 % $_stacks_string_heap_pntr $_stacks_string_heap
+
+# --- Temporary variables for string operations ---
+# These are shared to save space, assuming SHOW and other string ops
+# are not called interleaved in a way that they would corrupt each other's state.
+. $_str_op_base_ptr 1
+# Used by SHOW (and potentially CHARAT, STRLEN) to hold string base address for ldx
+. $_str_op_offset 1
+# Used by SHOW as its iteration index (offset from base_ptr)
 
 #################################
 @stacks_runtime_init
@@ -189,7 +197,7 @@ ret
 
 
 
-@input
+@stacks_input
 call @prompt_stacks
 :_input_start_over
 # This label is a loop point to re-prompt the user if the input is completely invalid.
@@ -548,4 +556,55 @@ equ ~STACKS_BUFFER_MAX_DATA 15
         tste A A
 ret
 
+
+#################################
+# STACKS String Operations
+#################################
+
+@stacks_show_string
+# Pops a string pointer from the stack and prints the null-terminated string.
+# Expects @print_char to print the character in register A.
+# Expects @print_nl to print a newline.
+# Stack: ... ptr -> ... (stack is clean after SHOW)
+# Uses: $_str_op_base_ptr, $_str_op_offset
+    call @pop_A
+    # A = string pointer
+    tst A 0
+    # Is pointer null?
+    jmpt :_sshow_exit_nl
+    # If null, print a newline and exit (or just exit if preferred)
+
+    sto A $_str_op_base_ptr
+    # Store the string's base address: M[$_str_op_base_ptr] = string_start_address
+
+    # Initialize offset for iteration to 0.
+    sto Z $_str_op_offset
+    # M[$_str_op_offset] = 0 (Assumes Z register is 0. If not, ldi K 0; sto K $_str_op_offset)
+
+:_sshow_loop
+    ldm I $_str_op_offset
+    # Load current offset into I: I = M[$_str_op_offset]
+    ldx A $_str_op_base_ptr
+    # A = M[ M[$_str_op_base_ptr] + I ] = M[ string_start_address + current_offset ]
+
+    tst A 0
+    # Is character in A the null terminator (0)?
+    jmpt :_sshow_done
+    # Yes, end of string
+
+    call @print_char
+    inc X $cursor_x
+    # Print character in A
+
+    inc I $_str_op_offset
+    # Increment the offset stored in memory for the next character. M[$_str_op_offset]++
+    jmp :_sshow_loop
+
+:_sshow_done
+:_sshow_exit_nl          # Common exit point to print newline
+    # call @print_nl
+    # Print a newline after the string for better formatting
+    inc X $cursor_x
+    # print a blank
+ret
     
