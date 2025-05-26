@@ -117,23 +117,25 @@ class Lexer:
             else:
                 token = Token(self.curChar, TokenType.DOT)
 
-        elif self.curChar == '\"':
-            # Get characters between quotations.
+        elif self.curChar == "'": # Start of a string literal (single quotes)
             self.nextChar()
             startPos = self.curPos
-
-            while self.curChar != '\"':
-                # Don't allow special characters in the string. No escape characters, newlines, tabs, or %.
-                # We will be using C's printf on this string.
-                # if self.curChar == '\r' or self.curChar == '\n' or self.curChar == '\t' or self.curChar == '\\' or self.curChar == '%':
-                # JRK: I Allow % for modulo by JRK
-                if self.curChar == '\r' or self.curChar == '\n' or self.curChar == '\t' or self.curChar == '\\':
-                    self.abort("Illegal character in string.")
+            stringValue = ""
+            while self.curChar != "'":
+                if self.curChar == '\0': # Check for EOF
+                    self.abort(f"Unterminated string literal starting at position {startPos-1}.")
+                # Allow most characters, including spaces.
+                # You might want to disallow specific control characters like newlines if needed:
+                # if self.curChar == '\n' or self.curChar == '\r':
+                #     self.abort("Newline/Carriage return not allowed in string literal.")
+                stringValue += self.curChar
                 self.nextChar()
-
-            tokText = self.source[startPos : self.curPos] # Get the substring.
-            tokText = tokText.replace(' ', '\_')          #JRK replace spaces for   "\_"
-            token = Token(tokText, TokenType.STRING)
+            
+            self.nextChar() # Consume closing quote
+            token = Token(stringValue, TokenType.STRING) # TokenType.STRING is 3
+        # The old double-quote string logic is now replaced by the single-quote logic above.
+        # If you need to retain double-quoted strings with different behavior (e.g., space replacement),
+        # you would need a different TokenType or further logic adjustments.
 
         elif self.curChar.isdigit():
             # Leading character is a digit, so this must be a number.
@@ -244,7 +246,7 @@ class TokenType(enum.Enum):
     SET = 124
     GET = 125
     BT = 126
-    SHOW = 127
+    # SHOW = 127 # SHOW is now handled as TokenType.WORD via rpn_operation_words
 
     PLUS = 201
     MINUS = 202
