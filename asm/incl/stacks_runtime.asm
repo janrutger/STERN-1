@@ -17,28 +17,22 @@
 #   3. M[addr] = I (Decremented value from I is stored back to memory)
 
 
-# --- String Heap for RAWIN ---
-# Define the total size of the string heap (e.g., 256 bytes).
-# Reserve memory for the string heap.
-# Initialize the string heap pointer to the start of the string heap.
-equ ~STACKS_STRING_HEAP_SIZE 256
-. $_stacks_string_heap 256
-. $_stacks_string_heap_pntr 1
-% $_stacks_string_heap_pntr $_stacks_string_heap
+# --- Temporary variables for string operations (if any remain needed) ---
 
-# --- Temporary variables for string operations ---
-# These are shared to save space, assuming SHOW and other string ops
-# are not called interleaved in a way that they would corrupt each other's state.
-. $_str_op_base_ptr 1
-# Used by SHOW (and potentially CHARAT, STRLEN) to hold string base address for ldx
-. $_str_op_offset 1
-# Used by SHOW as its iteration index (offset from base_ptr)
+# Used by CHAR_AT to temporarily store the index value for loading into I
+# Used by STRLEN to store calculated length
+# These are kept for now, assuming CHARAT and STRLEN might be implemented later
+# based on stack strings or might be removed if not needed.
+. $_str_op_idx_val 1    
+. $_str_op_len_val 1    
+
+# --- Temporary variable for HASH ---
+. $_hash_accumulator 1
 
 #################################
 @stacks_runtime_init
     # when the lib must be initalized
-    ldi M $_stacks_string_heap
-    sto M $_stacks_string_heap_pntr
+    # No string heap initialization needed anymore.
 
 ret
 
@@ -88,6 +82,53 @@ ret
     call @pop_A
     div A B
     call @push_A
+ret
+
+@stacks_gcd
+    # Pops two numbers from the STACKS data stack,
+    # calculates their Greatest Common Divisor (GCD) using the Euclidean algorithm by subtraction,
+    # and pushes the result back onto the STACKS data stack.
+    # Assumes non-negative inputs for simplicity.
+    # GCD(x, 0) = |x|, GCD(0, y) = |y|, GCD(0,0) = 0 (conventionally).
+    call @pop_B
+    # B gets the second operand (num2)
+    call @pop_A
+    # A gets the first operand (num1)
+
+    # Handle cases where one or both operands are zero.
+    tst B 0
+    # Is B zero?
+    jmpt :_gcd_A_is_result
+    # If B is 0, GCD is A.
+    tst A 0
+    # Is A zero?
+    jmpt :_gcd_B_is_result
+    # If A is 0, GCD is B.
+
+:_gcd_loop
+    tste A B
+    # Is A equal to B?
+    jmpt :_gcd_A_is_result
+    # If A == B, then GCD is A (or B).
+
+    tstg A B
+    # Is A > B?
+    jmpt :_gcd_A_greater_B
+    # If A > B, jump to subtract B from A.
+    # Else (A < B, since A != B), so B = B - A.
+    sub B A
+    jmp :_gcd_loop
+:_gcd_A_greater_B
+    # A > B, so A = A - B.
+    sub A B
+    jmp :_gcd_loop
+
+:_gcd_B_is_result
+    ld A B
+    # Result was B, move to A for pushing.
+:_gcd_A_is_result
+    call @push_A
+    # Push the result (which is in A).
 ret
 
 #################################
@@ -356,13 +397,11 @@ ret
 
 #################################
 @stacks_raw_input_string
-# Implements the RAWIN functionality for STACKS.
+# Implements the RAWIN functionality for STACKS. (Modified for on-stack strings)
 # 1. Prompts the user for input.
 # 2. Reads a line of raw characters using @stacks_read_input (into $stacks_buffer).
-# 3. Copies the string from $stacks_buffer to the string heap ($_stacks_string_heap).
-# 4. Null-terminates the string in the heap (with character code 0).
-# 5. Pushes a pointer (address) to this string in the heap onto the STACKS data stack.
-# 6. If the string heap is full (overflow), it pushes 0 (a null pointer) instead.
+# 3. Pushes the characters from $stacks_buffer onto the data stack in correct order:
+#    char1, char2, ..., charN, null_terminator (0) (top to bottom on stack).
 
     call @prompt_stacks
 :_rawin_start_over
@@ -387,105 +426,52 @@ ret
     # K now holds the length of the actual string content (0 if only \Return was entered).
 
     # Check if the content length K is 0 (meaning only \Return was entered).
+    # If K is 0, status is set. jmpf (jump if false/clear) will not jump.
+    # If K is not 0, status is clear. jmpf will jump to _rawin_len_ok.
     tst K 0
     jmpf :_rawin_len_ok
         # Content length is 0, input was empty. Re-prompt.
         call @prompt_stacks_err 
         jmp :_rawin_start_over
-    
 
 :_rawin_len_ok
-    # Label to acknowledge length calculation is done.
+    # K holds the content length.
 
-    # --- Check for string heap overflow ---
-    # Required space = string length (K) + 1 (for the null terminator).
-    ldm A $_stacks_string_heap_pntr
-    # A = current heap pointer value (address of next free spot).
-    add A K
-    # A = address after string content would be copied.
-    addi A 1
-    # A = address after string content AND null terminator (new heap top).
+    # --- Push string onto data stack ---
+    # Push null terminator first (will be deepest element of string on stack)
+    ldi A 0
+    call @push_A
 
-    ldi M $_stacks_string_heap
-    # M = base address of the string heap.
-    addi M ~STACKS_STRING_HEAP_SIZE
-    # M = end address of the string heap (exclusive, i.e., address of byte *after* the heap).
+    # Loop K times to push characters from $stacks_buffer in reverse order.
+    # K currently holds the length. We need to access buffer indices from K-1 down to 0.
+    # Register K will be used as the loop counter and to derive the index.
 
-    tstg A M
-    # Is (new heap top) > (heap end address)?
-    # If A is greater than M, it's an overflow. tstg sets status if A > M.
-    jmpt :_rawin_heap_overflow
-
-    # --- No overflow, proceed with copying the string to the heap ---
-    # Register B will store the starting address of the string in the heap.
-    # This address will be pushed onto the STACKS stack.
-    ldm B $_stacks_string_heap_pntr
-    # B = M[$_stacks_string_heap_pntr] (current heap pointer value, start of new string).
-
-    # Use $_input_read_offset as a temporary read offset for $stacks_buffer.
-    sto Z $_input_read_offset
-    # Initialize read offset for $stacks_buffer to 0 (assuming Z register holds 0).
-
-    # Loop K times to copy characters (K holds the string content length).
-:_rawin_copy_loop
+:_rawin_push_char_loop
+    # If K is 0, all chars pushed.
     tst K 0
-    jmpt :_rawin_copy_chars_done
-    # If K (length counter) is 0, all characters have been copied.
+    jmpt :_rawin_push_done 
 
-    # Read character from $stacks_buffer
-    ldm I $_input_read_offset
-    # I = M[$_input_read_offset] (current read offset for $stacks_buffer).
+    subi K 1 
+        # K is now the 0-based index of the char to push
+        # (e.g., if length was 2, K becomes 1 for 'I', then 0 for 'H')
+
+    sto K $_input_read_offset 
+        # Store K into memory to safely load into I
+        # (assuming $_input_read_offset can be reused here)
+
+    ldm I $_input_read_offset 
+        # I = index of char to read from buffer
+
     ldx A $stacks_buffer_pntr
     # A = M[M[$stacks_buffer_pntr] + I] (get char from $stacks_buffer).
-    inc I $_input_read_offset
-    # Advance M[$_input_read_offset] for the next read from $stacks_buffer.
+    call @push_A 
+        # Push the character
 
-    # Write character A to the current heap location.
-    # M[$_stacks_string_heap_pntr] holds the absolute address to write to.
-    # For stx A $_stacks_string_heap_pntr, we need I=0 if stx adds I to M[ptr_var].
-    ldi I 0
-    stx A $_stacks_string_heap_pntr
-    # Writes character in A to M[ M[$_stacks_string_heap_pntr] + 0 ].
+    ldm K $_input_read_offset 
+        # K still holds current index, which is also remaining count before this iteration
+    jmp :_rawin_push_char_loop
 
-    # Advance the address stored in $_stacks_string_heap_pntr to the next slot.
-    ldm X $_stacks_string_heap_pntr
-    # X = current heap address.
-    addi X 1
-    # X = next heap address.
-    sto X $_stacks_string_heap_pntr
-    # Update the heap pointer variable M[$_stacks_string_heap_pntr].
-
-    subi K 1
-    # Decrement string length counter (K was loaded with content length).
-    jmp :_rawin_copy_loop
-
-:_rawin_copy_chars_done
-    # Add the null terminator (character code 0) to the end of the string in the heap.
-    ldi A 0
-    # A = null character.
-    ldi I 0
-    # Ensure I=0 for stx.
-    stx A $_stacks_string_heap_pntr
-    # Write null terminator to M[ M[$_stacks_string_heap_pntr] + 0 ].
-
-    # Advance the heap pointer past the null terminator for the next string allocation.
-    ldm X $_stacks_string_heap_pntr
-    addi X 1
-    sto X $_stacks_string_heap_pntr
-
-    # String successfully copied and null-terminated.
-    # The starting address of this string in the heap is in register B.
-    ld A B
-    jmp :_rawin_push_and_exit
-
-:_rawin_heap_overflow
-    # String heap is full. Prepare to push 0 (null pointer).
-    ldi A 0
-
-:_rawin_push_and_exit
-    call @push_A
-    # Push either the string pointer (from B, loaded into A) or 0 (for overflow)
-    # onto the STACKS data stack.
+:_rawin_push_done
 ret
 
 #################################
@@ -561,50 +547,66 @@ ret
 # STACKS String Operations
 #################################
 
-@stacks_show_string
-# Pops a string pointer from the stack and prints the null-terminated string.
+@stacks_show_from_stack
+# Pops a null-terminated string from the data stack and prints it.
+# String on stack (top to bottom): char1, char2, ..., charN, 0
+# Consumes the string from the stack.
 # Expects @print_char to print the character in register A.
 # Expects @print_nl to print a newline.
-# Stack: ... ptr -> ... (stack is clean after SHOW)
-# Uses: $_str_op_base_ptr, $_str_op_offset
-    call @pop_A
-    # A = string pointer
-    tst A 0
-    # Is pointer null?
-    jmpt :_sshow_exit_nl
-    # If null, print a newline and exit (or just exit if preferred)
-
-    sto A $_str_op_base_ptr
-    # Store the string's base address: M[$_str_op_base_ptr] = string_start_address
-
-    # Initialize offset for iteration to 0.
-    sto Z $_str_op_offset
-    # M[$_str_op_offset] = 0 (Assumes Z register is 0. If not, ldi K 0; sto K $_str_op_offset)
-
 :_sshow_loop
-    ldm I $_str_op_offset
-    # Load current offset into I: I = M[$_str_op_offset]
-    ldx A $_str_op_base_ptr
-    # A = M[ M[$_str_op_base_ptr] + I ] = M[ string_start_address + current_offset ]
+    # Get character from data stack (A = char)
+    call @pop_A             
 
     tst A 0
     # Is character in A the null terminator (0)?
     jmpt :_sshow_done
     # Yes, end of string
 
-    call @print_char
-    inc X $cursor_x
     # Print character in A
-
-    inc I $_str_op_offset
-    # Increment the offset stored in memory for the next character. M[$_str_op_offset]++
+    # Advance cursor (assuming @print_char doesn't)
+    call @print_char        
+    inc X $cursor_x         
     jmp :_sshow_loop
 
 :_sshow_done
-:_sshow_exit_nl          # Common exit point to print newline
+    # String fully printed. Optionally print a newline or space.
+    # For example, to print a newline:
     # call @print_nl
-    # Print a newline after the string for better formatting
-    inc X $cursor_x
-    # print a blank
+    # Or just ensure cursor is advanced if not done by print_char:
+    # inc X $cursor_x (already done in loop, maybe one final one if needed)
 ret
     
+@stacks_hash_from_stack
+# Pops a null-terminated string from the data stack.
+# Calculates a hash of the string.
+# Pushes the final hash value onto the data stack.
+# Consumes the string from the stack.
+# Uses: $_hash_accumulator
+    # Initialize hash accumulator (assuming Z is 0)
+    sto Z $_hash_accumulator  
+
+:_shfs_loop
+    # Get character (A = char)
+    # Null terminator? Yes, finalize hash
+    call @pop_A             
+    tst A 0                 
+    jmpt :_shfs_finalize    
+
+    # Simple hash: hash = (hash * 31) + char_code
+    # This is just an example; choose a suitable algorithm.
+    ldm K $_hash_accumulator
+    muli K 31               
+        # K = hash * 31
+    add K A                 
+        # K = (hash * 31) + char_code
+    sto K $_hash_accumulator  
+        # Store updated hash
+
+    jmp :_shfs_loop
+
+:_shfs_finalize
+    ldm A $_hash_accumulator 
+        # Load final hash into A
+    call @push_A             
+        # Push it onto the data stack
+ret

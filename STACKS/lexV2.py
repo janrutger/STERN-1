@@ -169,7 +169,7 @@ class Lexer:
             # RPN operation words. These should be tokenized as TokenType.WORD.
             # Their .text attribute will be used by the parser's word() method.
             # Using .upper() for matching these specific words makes them case-insensitive if desired.
-            rpn_operation_words = {'GCD', 'DUP', 'SWAP', 'OVER', 'DROP', 'INPUT', 'RAWIN', 'SHOW'}
+            rpn_operation_words = {'GCD', 'DUP', 'SWAP', 'OVER', 'DROP', 'INPUT', 'RAWIN', 'SHOW', 'HASH'}
 
             if tokText.upper() in rpn_operation_words:
                 # If it's one of these RPN words, classify it as WORD.

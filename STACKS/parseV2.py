@@ -237,6 +237,10 @@ class Parser:
                 if self.curToken.text in self.symbols:
                     self.emitter.emitLine("call @pop_A")
                     self.emitter.emitLine("sto A " + "$" + self.curToken.text)
+                    # TODO: If the value popped by @pop_A was from an on-stack string literal,
+                    # this 'sto A $var' will store a character, not a pointer.
+                    # This simplified string model (no @_stacks_create_string_literal)
+                    # means direct assignment of string literals to pointer variables needs rethinking.
                     self._print_trace(f"AS (assign) to variable '{var_name}'.")
                     self.match(TokenType.IDENT)  
                     self.nl()
@@ -300,76 +304,25 @@ class Parser:
             elif self.checkToken(TokenType.STRING):
                 self._print_trace(f"EXPRESSION: STRING literal '{self.curToken.text}'")
                 str_content = self.curToken.text
-                str_len = len(str_content)
                 
-                self.string_literal_counter += 1
-                unique_id = self.string_literal_counter
+                self.emitter.emitLine(f"; --- String Literal '{str_content}' pushed to stack ---")
                 
-                overflow_label = f"_string_literal_overflow_{unique_id}"
-                continue_label = f"_string_literal_continue_{unique_id}"
-
-                self.emitter.emitLine(f"; --- String Literal '{str_content}' (len: {str_len}) ---")
-                
-                # Check heap overflow: needs str_len + 1 (for null terminator)
-                self.emitter.emitLine("ldm K $_stacks_string_heap_pntr")
-                self.emitter.emitLine("; K = current heap pointer")
-                self.emitter.emitLine(f"addi K {str_len + 1}")
-                self.emitter.emitLine("; K = K + (len + 1) = potential new heap top")
-                self.emitter.emitLine("ldi M $_stacks_string_heap")
-                self.emitter.emitLine("addi M ~STACKS_STRING_HEAP_SIZE")
-                self.emitter.emitLine("; M = heap end address (exclusive)")
-                self.emitter.emitLine("tstg K M")
-                self.emitter.emitLine("; Is (potential new heap top K) > (heap end address M)?")
-                self.emitter.emitLine(f"jmpt :{overflow_label}")
-
-                # No overflow:
-                self.emitter.emitLine("ldm A $_stacks_string_heap_pntr")
-                self.emitter.emitLine("; A = pointer to start of this string in heap")
+                # 1. Push null terminator (0)
+                self.emitter.emitLine("ldi A 0")
                 self.emitter.emitLine("call @push_A")
-                self.emitter.emitLine("; Push this pointer onto STACKS data stack")
-
-                # Copy characters to heap
-                self.emitter.emitLine("; Copy characters to heap")
-                for char_val_str in str_content: # Iterate through characters of the string
-                    # self.emitter.emitLine(f"ldi K \\{char_val_str}") 
-                    # self.emitter.emitLine(f"; K = MYascci for '{char_val_str}' (via assembler \\{char_val_str})")
-                    
+                
+                # 2. Push characters of the string in reverse order of appearance
+                for char_val_str in reversed(str_content): # Iterate in reverse
                     assembly_char_representation = char_val_str
                     if char_val_str == ' ':
                         assembly_char_representation = "space" # Use "\space" for the assembler
-
-                    self.emitter.emitLine(f"ldi K \\{assembly_char_representation}") 
-                    self.emitter.emitLine(f"; K = MYascci for '{char_val_str}' (via assembler \\{assembly_char_representation})")
-
-                    self.emitter.emitLine("ldi I 0")
-                    self.emitter.emitLine("; Ensure I=0 for stx (M[M[ptr_var]+I])")
-                    self.emitter.emitLine("stx K $_stacks_string_heap_pntr")
-                    self.emitter.emitLine("; Store char K to M[M[$_stacks_string_heap_pntr]+I]")
-                    self.emitter.emitLine("ldm X $_stacks_string_heap_pntr") 
-                    self.emitter.emitLine("addi X 1")
-                    self.emitter.emitLine("sto X $_stacks_string_heap_pntr")
-                    self.emitter.emitLine("; Advance heap pointer M[$_stacks_string_heap_pntr]++")
-
-                # Add null terminator (0) to the heap
-                self.emitter.emitLine("; Add null terminator (0) to the heap")
-                self.emitter.emitLine(f"ldi K \\null") 
-                self.emitter.emitLine("; K = null terminator (via assembler \\null)")
-                self.emitter.emitLine("ldi I 0")
-                self.emitter.emitLine("stx K $_stacks_string_heap_pntr")
-                self.emitter.emitLine("ldm X $_stacks_string_heap_pntr") 
-                self.emitter.emitLine("addi X 1")
-                self.emitter.emitLine("sto X $_stacks_string_heap_pntr")
-                self.emitter.emitLine("; Advance heap pointer for null terminator")
-                self.emitter.emitLine(f"jmp :{continue_label}")
-
-                self.emitter.emitLine(f":{overflow_label}")
-                self.emitter.emitLine("; Heap overflow case")
-                self.emitter.emitLine("ldi A 0")
-                self.emitter.emitLine("; Load 0 (null pointer) into A")
-                self.emitter.emitLine("call @push_A")
-                self.emitter.emitLine("; Push null pointer onto STACKS data stack")
-                self.emitter.emitLine(f":{continue_label}")
-                self.emitter.emitLine(f"; --- End String Literal '{str_content}' ---")
+                    # Add other necessary character escapes if your assembler requires them
+                    # e.g., for '\\' itself, or for quotes if they were allowed inside strings.
+                    
+                    self.emitter.emitLine(f"ldi A \\{assembly_char_representation}")
+                    self.emitter.emitLine("call @push_A")
+                
+                self.emitter.emitLine(f"; --- End String Literal '{str_content}' on stack ---")
                 self.nextToken() # Consume STRING token
             elif self.checkToken(TokenType.BT):
                 self.nextToken()
@@ -450,8 +403,10 @@ class Parser:
             elif self.curToken.text.upper() == 'RAWIN': # This is RAWIN used as an RPN operation
                 self.emitter.emitLine("call @stacks_raw_input_string")
             elif self.curToken.text.upper() == 'SHOW':
-                self.emitter.emitLine("call @stacks_show_string") # Assumes string pointer is on stack
-                self._print_trace("SHOW operation (print string from pointer).")
+                # self.emitter.emitLine("call @stacks_show_string") # Old: Assumes string pointer is on stack
+                self.emitter.emitLine("call @stacks_show_from_stack") # New: Assumes string chars are on stack
+            elif self.curToken.text.upper() == 'HASH':
+                self.emitter.emitLine("call @stacks_hash_from_stack") 
             else:
                 self.abort("Unknown RPN word: " + self.curToken.text)
         else:
