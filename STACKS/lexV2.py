@@ -247,6 +247,9 @@ class TokenType(enum.Enum):
     GET = 125
     BT = 126
     # SHOW = 127 # SHOW is now handled as TokenType.WORD via rpn_operation_words
+    CHANNEL = 128
+    ON = 129
+    OFF = 130
 
     PLUS = 201
     MINUS = 202

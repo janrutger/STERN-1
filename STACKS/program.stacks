@@ -1,10 +1,6 @@
+0 CHANNEL ON 
 
-'a' HASH PRINT 
-'ab' HASH PRINT
-
-RAWIN HASH PRINT
-
-'xyz'
-
+12 PLOT
+24 PLOT 
 
 

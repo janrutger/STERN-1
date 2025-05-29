@@ -131,6 +131,28 @@ ret
     # Push the result (which is in A).
 ret
 
+# --- SIO Channel Control ---
+# These STACKS runtime routines will call the SIO handling routines
+# (e.g., @open_channel, @close_channel) which are provided by the
+# STERN-1 kernel (from serialIO.asm).
+
+@sio_channel_on
+    # Pops channel number from the STACKS stack.
+    # Calls @open_channel, which expects the channel number in register A.
+    call @pop_A
+    # A now holds the channel number.
+    call @open_channel
+ret
+
+@sio_channel_off
+    # Pops channel number from the STACKS stack.
+    # Calls @close_channel, which expects the channel number in register A.
+    call @pop_A
+    # A now holds the channel number.
+    call @close_channel
+ret
+
+
 #################################
 @print
     call @pop_A
@@ -139,6 +161,12 @@ ret
 
 ret
 
+equ ~plotter 0
+@plot
+    call @pop_B
+    ldi A ~plotter
+    call @write_channel
+ret
 
 
 #################################

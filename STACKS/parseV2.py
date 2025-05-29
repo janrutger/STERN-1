@@ -131,6 +131,34 @@ class Parser:
             self.match(TokenType.IDENT)
             self.nl() 
 
+        # | channel_number CHANNEL (ON | OFF) nl
+        elif self.checkToken(TokenType.NUMBER) and self.checkPeek(TokenType.CHANNEL):
+            self._print_trace("Parsing CHANNEL ON/OFF statement.")
+            self._indent()
+            channel_num_token = self.curToken
+            self.nextToken() # Consume NUMBER
+
+            # Emit code to push channel_num_token.text onto the STACKS stack
+            # The runtime routines @sio_channel_on/off will pop this.
+            self.emitter.emitLine(f"ldi A {channel_num_token.text}")
+            self.emitter.emitLine("call @push_A")
+            self._print_trace(f"  Pushed channel number {channel_num_token.text} to stack.")
+
+            self.match(TokenType.CHANNEL) # Consume CHANNEL
+
+            if self.checkToken(TokenType.ON):
+                self.nextToken() # Consume ON
+                self.emitter.emitLine("call @sio_channel_on") 
+                self._print_trace(f"  Emitted call @sio_channel_on for channel {channel_num_token.text}.")
+            elif self.checkToken(TokenType.OFF):
+                self.nextToken() # Consume OFF
+                self.emitter.emitLine("call @sio_channel_off") 
+                self._print_trace(f"  Emitted call @sio_channel_off for channel {channel_num_token.text}.")
+            else:
+                self.abort(f"Expected ON or OFF after CHANNEL, got {self.curToken.kind.name if self.curToken else 'None'}")
+            self.nl()
+            self._dedent()
+
         # | "TIMER" INTEGER("SET" | "PRINT" | "GET")
         elif self.checkToken(TokenType.TIMER):
             self.nextToken() # Consume TIMER
@@ -150,7 +178,7 @@ class Parser:
             self.nextToken()
             self.nl()
 
-        # | "DEFINE" ident nl {statement} nl "END" nl
+        # | "FUNCTION" ident nl {statement} nl "END" nl
         elif self.checkToken(TokenType.FUNCTION):
             self.nextToken() # Consume DEFINE
             if self.curToken.text not in self.symbols and self.curToken.text not in self.functions:
@@ -217,9 +245,9 @@ class Parser:
                 self._print_trace("PRINT operation.")
                 self.nextToken() # Consume PRINT
                 self.nl()
-            elif self.checkToken(TokenType.PLOT):
-                # self.emitter.emitLine("call @plot")
-                self._print_info("PLOT operation. STERN-1: Pop value, call plot routine (e.g. @plot_xy_pair or similar).")
+            elif self.checkToken(TokenType.PLOT): # PLOT is now active
+                self.emitter.emitLine("call @plot") # Call the runtime routine
+                self._print_trace("PLOT operation: Emitted call @plot.")
                 self.nextToken() # Consume PLOT
                 self.nl()
             elif self.checkToken(TokenType.WAIT):
@@ -384,8 +412,7 @@ class Parser:
         # Handle named RPN words (which are lexed as TokenType.WORD)
         elif self.checkToken(TokenType.WORD):
             if self.curToken.text.upper() == 'GCD': # Using .upper() for robustness
-                # self.emitter.emitLine("call @_gcd")
-                self._print_info("RPN GCD. STERN-1: call @gcd_op (pop 2, gcd, push 1).")
+                self.emitter.emitLine("call @stacks_gcd")
             elif self.curToken.text.upper() == 'DUP':
                 # self.emitter.emitLine("call @dup")
                 self._print_info("RPN DUP. STERN-1: call @dup_op (peek 1, push 1).")
