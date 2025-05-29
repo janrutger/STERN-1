@@ -1,34 +1,25 @@
-0 CHANNEL ON
 0 TIMER SET
+1 AS a 
 
-
-1 PLOT
-1 PLOT
-1 AS previous
-
-2 AS next
-
-{next 700 !=} DO
-      previous next GCD AS cfactor
-      1 cfactor == DO
-            previous next 1 + + AS r
-            GOTO nextnumber
-      END
-
-      previous cfactor / AS r
-
-      LABEL nextnumber
-      r PLOT
-      r AS previous 
-      next 1 + AS next
-
+FUNCTION test 
+      'test ' SHOW
+      a 1 + AS a 
+      0 TIMER GET
+      . PRINT
 END
-0 TIMER PRINT
 
 
-1 TIMER PRINT
+
+
+{100 a >} DO
+  test
+  a 95 > GOTO klaar
+END
+
+LABEL klaar
+'klaar ' SHOW
 0 TIMER PRINT
-9 TIMER PRINT
+
 
 
 

@@ -59,6 +59,11 @@ ret
     stx A $datastack_pntr
 ret
 
+@push_B
+    inc I $datastack_index
+    stx B $datastack_pntr
+ret
+
 
 @pop_A
     dec I $datastack_index
@@ -70,7 +75,33 @@ ret
     ldx B $datastack_pntr
 ret
 
+#################################
+@dup 
+    call @pop_A
+    call @push_A
+    call @push_A
+ret
 
+@swap
+    call @pop_A
+    call @pop_B
+    call @push_A
+    call @push_B
+ret
+
+@drop
+    call @pop_A
+ret
+
+@over
+    # ( x1 x2 -- x1 x2 x1 )
+    # Duplicates the second item on the stack to the top.
+    call @pop_A  
+    call @pop_B  
+    call @push_B 
+    call @push_A 
+    call @push_B 
+ret
 
 #################################
 @plus

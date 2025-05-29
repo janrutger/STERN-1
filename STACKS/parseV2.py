@@ -158,22 +158,56 @@ class Parser:
             self.nl()
             self._dedent()
 
+        # | number TIMER (SET | PRINT | GET) nl
+        elif self.checkToken(TokenType.NUMBER) and self.checkPeek(TokenType.TIMER):
+            self._print_trace("Parsing TIMER statement (NUMBER TIMER ...).")
+            self._indent()
+            timer_id_token = self.curToken
+            self.nextToken() # Consume NUMBER (timer_id)
+
+            # Emit code to push timer_id_token.text onto the STACKS stack
+            self.emitter.emitLine(f"ldi A {timer_id_token.text}")
+            self.emitter.emitLine("call @push_A")
+            self._print_info(f"Pushed timer ID {timer_id_token.text} to stack.")
+
+            self.match(TokenType.TIMER) # Consume TIMER
+
+            if self.checkToken(TokenType.SET):
+                self.nextToken() # Consume SET
+                self.emitter.emitLine("call @stacks_timer_set")
+                self._print_info(f"TIMER SET for ID {timer_id_token.text}. Emitted: call @stacks_timer_set.")
+            elif self.checkToken(TokenType.PRINT): # Uses general PRINT token (103)
+                self.nextToken() # Consume PRINT
+                self.emitter.emitLine("call @stacks_timer_print")
+                self._print_info(f"TIMER PRINT for ID {timer_id_token.text}. Emitted: call @stacks_timer_print.")
+            elif self.checkToken(TokenType.GET):
+                self.nextToken() # Consume GET
+                self.emitter.emitLine("call @stacks_timer_get")
+                self._print_info(f"TIMER GET for ID {timer_id_token.text}. Emitted: call @stacks_timer_get.")
+            else:
+                self.abort(f"Expected SET, PRINT, or GET after TIMER, got {self.curToken.kind.name if self.curToken else 'None'}")
+            
+            self.nl() # Expect a newline after the command
+            self._dedent()
+            self._print_trace("Exiting TIMER statement.")
+
+            
         # | "FUNCTION" ident nl {statement} nl "END" nl
         elif self.checkToken(TokenType.FUNCTION):
-            self.nextToken() # Consume DEFINE
+            self.nextToken() # Consume FUNCTION
             if self.curToken.text not in self.symbols and self.curToken.text not in self.functions:
                 self.functions.add(self.curToken.text)
             if self.curToken.text in self.functions:
                 self.emitter.context = "functions"
-                # self.emitter.emitLine("@~" + self.curToken.text)
-                self._print_info(f"Defining function '{self.curToken.text}'. STERN-1: Emit '@~{self.curToken.text}'.")
+                self.emitter.emitLine("@~" + self.curToken.text)
+                self._print_trace(f"Defining function '{self.curToken.text}'. STERN-1: Emit '@~{self.curToken.text}'.")
                 self.match(TokenType.IDENT)
                 self.nl()
                 while not self.checkToken(TokenType.END):
                     self.statement()
                 self.match(TokenType.END)
-                # self.emitter.emitLine("ret")
-                self._print_info(f"End of function '{self.curToken.text}'. STERN-1: Emit 'ret'.")
+                self.emitter.emitLine("ret")
+                self._print_trace(f"End of function '{self.curToken.text}'. STERN-1: Emit 'ret'.")
                 self.emitter.context = "program"
                 self.nl()
             else:
@@ -274,50 +308,21 @@ class Parser:
 
             elif self.checkToken(TokenType.GOTO):
                 num = self.LabelNum()
-                goto_target_label = self.peekToken.text # Peek to get the IDENT text for the GOTO target
+                # goto_target_label = self.peekToken.text # Peek to get the IDENT text for the GOTO target
                 self.nextToken() # Consume GOTO
                 self.labelsGotoed.add(self.curToken.text) # Add to gotoed before emitting
-                # self.emitter.emitLine("loada")
-                # self.emitter.emitLine("testz")
-                # self.emitter.emitLine("clra")
-                # self.emitter.emitLine("jumpf " + ":_" + num + "_goto_end")
+                self.emitter.emitLine("call @pop_A")
+                self.emitter.emitLine("tste A Z")
+                self.emitter.emitLine("jmpf " + ":_" + num + "_goto_end")
                 self._print_info(f"Conditional GOTO. STERN-1: Pop condition, test if zero, jump to :_{num}_goto_end if false.")
 
-                # self.emitter.emitLine("jump " + ":" + self.curToken.text)
+                self.emitter.emitLine("jmp " + ":" + self.curToken.text)
                 self._print_info(f"Conditional GOTO actual jump to '{self.curToken.text}'. STERN-1: Emit 'jump :{self.curToken.text}'.")
-                # self.emitter.emitLine(":_" + num + "_goto_end")
+                self.emitter.emitLine(":_" + num + "_goto_end")
                 self._print_info(f"Conditional GOTO skip label (label :_{num}_goto_end).")
 
                 self.match(TokenType.IDENT)  
                 self.nl()   
-            # | expression TIMER (SET | PRINT | GET) nl
-            #   The timer ID (and any other parameters for SET) are expected to be on the STACKS stack,
-            #   pushed by the preceding expression.
-            elif self.checkToken(TokenType.TIMER):
-                self._print_trace("Parsing TIMER statement after expression.")
-                self._indent()
-                self.nextToken() # Consume TIMER
-
-                if self.checkToken(TokenType.SET):
-                    self.nextToken() # Consume SET
-                    self.emitter.emitLine("call @stacks_timer_set")
-                    self._print_info(f"TIMER SET (TOS). Emitted: call @stacks_timer_set (expects timer_id on stack).")
-                elif self.checkToken(TokenType.PRINT): # Uses general PRINT token (103)
-                    self.nextToken() # Consume PRINT
-                    self.emitter.emitLine("call @stacks_timer_print")
-                    self._print_info(f"TIMER PRINT (TOS). Emitted: call @stacks_timer_print (expects timer_id on stack).")
-                elif self.checkToken(TokenType.GET):
-                    self.nextToken() # Consume GET
-                    self.emitter.emitLine("call @stacks_timer_get")
-                    self._print_info(f"TIMER GET (TOS). Emitted: call @stacks_timer_get (expects timer_id on stack, pushes result to stack).")
-                else:
-                    error_token_text = self.curToken.text if self.curToken else "None"
-                    error_token_kind = self.curToken.kind.name if self.curToken else "None"
-                    self.abort(f"Expected SET, PRINT, or GET after TIMER, got {error_token_kind} ('{error_token_text}')")
-
-                self.nl() # Expect a newline after the command
-                self._dedent()
-                self._print_trace("Exiting TIMER statement.")
 
             else:
                 # If no action keyword, just expect a newline (or it's already consumed by expression/st if they ended with one)
@@ -363,8 +368,8 @@ class Parser:
                 self.nextToken() # Consume STRING token
             elif self.checkToken(TokenType.BT):
                 self.nextToken()
-                # self.emitter.emitLine("call " + "@" + self.curToken.text) # Uses IDENT's text
-                self._print_info(f"Backtick call to '@{self.curToken.text}'. STERN-1: Emit 'call @{self.curToken.text}'.")
+                self.emitter.emitLine("call " + "@" + self.curToken.text) # Uses IDENT's text
+                self._print_trace(f"Backtick call to '@{self.curToken.text}'. STERN-1: Emit 'call @{self.curToken.text}'.")
                 self.match(TokenType.IDENT)
             elif self.checkToken(TokenType.IDENT):
                 # ident() will print its own info
@@ -423,23 +428,18 @@ class Parser:
             if self.curToken.text.upper() == 'GCD': # Using .upper() for robustness
                 self.emitter.emitLine("call @stacks_gcd")
             elif self.curToken.text.upper() == 'DUP':
-                # self.emitter.emitLine("call @dup")
-                self._print_info("RPN DUP. STERN-1: call @dup_op (peek 1, push 1).")
+                self.emitter.emitLine("call @dup")
             elif self.curToken.text.upper() == 'OVER':
-                # self.emitter.emitLine("call @over")
-                self._print_info("RPN OVER. STERN-1: call @over_op (pop 1, peek 1, push 2).")
+                self.emitter.emitLine("call @over")
             elif self.curToken.text.upper() == 'DROP':
-                # self.emitter.emitLine("pull") # This was 'pull' in old arch
-                self._print_info("RPN DROP. STERN-1: call @drop_op (pop 1).")
+                self.emitter.emitLine("call @drop") # This was 'pull' in old arch
             elif self.curToken.text.upper() == 'SWAP':
-                # self.emitter.emitLine("call @swap")
-                self._print_info("RPN SWAP. STERN-1: call @swap_op (pop 2, push 2 swapped).")
+                self.emitter.emitLine("call @swap")
             elif self.curToken.text.upper() == 'INPUT':
                 self.emitter.emitLine("call @stacks_input")
             elif self.curToken.text.upper() == 'RAWIN': # This is RAWIN used as an RPN operation
                 self.emitter.emitLine("call @stacks_raw_input_string")
             elif self.curToken.text.upper() == 'SHOW':
-                # self.emitter.emitLine("call @stacks_show_string") # Old: Assumes string pointer is on stack
                 self.emitter.emitLine("call @stacks_show_from_stack") # New: Assumes string chars are on stack
             elif self.curToken.text.upper() == 'HASH':
                 self.emitter.emitLine("call @stacks_hash_from_stack") 
@@ -463,8 +463,8 @@ class Parser:
             self.emitter.emitLine("call @push_A")
             self._print_trace(f"Loading variable '{ident_name}' to stack.")
         elif self.curToken.text in self.functions:
-            # self.emitter.emitLine("call " + "@~" + self.curToken.text)
-            self._print_info(f"Calling function '{ident_name}'. STERN-1: call @~{ident_name}.")
+            self.emitter.emitLine("call " + "@~" + self.curToken.text)
+            self._print_trace(f"Calling function '{ident_name}'. STERN-1: call @~{ident_name}.")
         else:
             self.abort("Referencing variable before assignment: " + self.curToken.text)
 
@@ -477,10 +477,10 @@ class Parser:
         self._print_trace(f"Entering st() for token '{self.curToken.text}'")
         self._indent()
         if self.checkToken(TokenType.DDOT):
-            # self.emitter.emitLine("call @dup") #duplicate Top Off Stack
-            self._print_info("Stack op '..' (DUP). STERN-1: call @dup_op.")
+            self.emitter.emitLine("call @dup") #duplicate Top Off Stack
         else:
-            self._print_info("Stack op '.' (Use ToS). STERN-1: No explicit op, value is already on stack.")
+            # do ntothing, juest use TOS
+            pass
 
         self.nextToken()
         self._dedent()
