@@ -29,11 +29,28 @@
 # --- Temporary variable for HASH ---
 . $_hash_accumulator 1
 
+# --- Timer Management ---
+. $TIMER_EPOCHS 8
+# Stores the epoch for up to 8 timers (index 0 to 7)
+equ ~MAX_TIMER_IDX 7
+# Max valid timer index
+
+. $_timer_instance_temp 1
+# Temporary storage for timer instance during print
+. $_timer_init_idx 1
+
+# Temp var for loop index
+
+
+
+
 #################################
 @stacks_runtime_init
     # when the lib must be initalized
-    # No string heap initialization needed anymore.
 
+    # Initialize timer epochs.
+    call @stacks_timer_init
+    
 ret
 
 #################################
@@ -152,6 +169,172 @@ ret
     call @close_channel
 ret
 
+# --- Timer Operations ---
+
+@stacks_timer_init
+    # Initialize all timer epochs to 0.
+    sto Z $_timer_init_idx
+    # M[$_timer_init_idx] = 0
+
+    ldi K 0
+    # K = value to store (0)
+
+:_timer_init_loop
+    inc I $_timer_init_idx
+    # I_reg = M[$_timer_init_idx] (value *before* increment).
+    # M[$_timer_init_idx] is then incremented.
+    # So, I_reg holds the correct index for the current iteration (0, 1, 2,...).
+    stx K $TIMER_EPOCHS
+    # M[$TIMER_EPOCHS + I_reg] = 0.
+
+    # Load the (already incremented by 'inc I') index for the loop test.
+    ldm L $_timer_init_idx
+    # L_reg = new value of M[$_timer_init_idx] (1, 2, 3,...).
+    tst L 8
+    # Compare L_reg (new index) with 8. Loop if L_reg < 8.
+    # If L_reg is 1..7, tst L 8 is false. jmpf.
+    # If L_reg is 8, tst L 8 is true. Loop terminates.
+    jmpf :_timer_init_loop
+ret
+
+@_validate_and_get_timer_address
+    # Pops timer instance from stack into A.
+    # Validates if 0 <= A <= ~MAX_TIMER_IDX.
+    # If valid, Register I is set to the timer instance value (for indexed access),
+    # and Register A contains the timer instance.
+    # If invalid, calls @fatal_error and does not return.
+    # Clobbers: K
+
+    call @pop_A
+    # A now has the timer instance.
+
+    # Check if A > ~MAX_TIMER_IDX
+    ldi K ~MAX_TIMER_IDX
+    tstg A K
+    # If A > K (e.g. A=8, K=7), status is TRUE (invalid)
+    jmpt :_timer_instance_invalid_path
+
+    # Valid path: A <= ~MAX_TIMER_IDX.
+    # Assuming A is non-negative as it's a timer index.
+    ld I A
+    # Set I_reg to the timer instance for indexed access to $TIMER_EPOCHS.
+    # A_reg still holds the instance.
+ret
+
+:_timer_instance_invalid_path
+    # Instance is invalid. A_reg holds the invalid instance.
+    call @fatal_error
+    # @fatal_error halts execution, so this routine will not return.
+ret
+
+@stacks_timer_set
+    # Expects: timer_instance on top of stack.
+    # Pops timer_instance.
+    # If valid (0-~MAX_TIMER_IDX), stores $CURRENT_TIME into $TIMER_EPOCHS[instance].
+    # If invalid, @fatal_error is called by @_validate_and_get_timer_address.
+    call @_validate_and_get_timer_address
+    # If @_validate_and_get_timer_address returns, the index is valid.
+    # No need to check status flag here.
+
+    # Instance is valid, I_reg is set to instance, A_reg holds instance.
+    ldm K $CURRENT_TIME
+    # K_reg = current time.
+    stx K $TIMER_EPOCHS
+    # M[$TIMER_EPOCHS + I_reg] = K_reg.
+:_timer_set_end
+    # This label is no longer strictly needed if there's only one path to ret,
+    # but kept for clarity or future conditional logic if any.
+ret
+
+@stacks_timer_get
+    # Expects: timer_instance on top of stack.
+    # Pops timer_instance.
+    # If valid, calculates elapsed time ($CURRENT_TIME - epoch) and pushes it.
+    # If invalid, calls @fatal_error.
+    # The @fatal_error call is now handled by @_validate_and_get_timer_address.
+    call @_validate_and_get_timer_address
+    # If @_validate_and_get_timer_address returns, the index is valid.
+
+    # Instance is valid, I_reg is set to instance, A_reg holds instance.
+    ldx K $TIMER_EPOCHS
+    # K_reg = stored epoch M[$TIMER_EPOCHS + I_reg].
+    ldm A $CURRENT_TIME
+    # A_reg = current time.
+    sub A K
+    # A_reg = current_time - epoch.
+    call @push_A
+ret
+
+@stacks_timer_print
+    # Expects: timer_instance on top of stack.
+    # Pops timer_instance.
+    # If valid, prints "Timer [N]: [elapsed_time]\n".
+    # Assumes @print_char does not advance cursor; @print_to_BCD does.
+    # If invalid, @fatal_error is called by @_validate_and_get_timer_address.
+    call @_validate_and_get_timer_address
+    # A_reg holds the timer instance if valid.
+    # If @_validate_and_get_timer_address returns, the index is valid.
+
+
+    # Instance is valid. I_reg is set to instance, A_reg holds instance.
+    # Save instance A_reg for printing later.
+    sto A $_timer_instance_temp
+
+    # Calculate elapsed time
+    ldx K $TIMER_EPOCHS
+    # K_reg = stored epoch M[$TIMER_EPOCHS + I_reg].
+    ldm B $CURRENT_TIME
+    # B_reg = current time.
+    sub B K
+    addi B 5
+    divi B 10 
+    # B_reg = current_time - epoch (elapsed time).
+
+    # Print "timer "
+    ldi A \t
+    call @print_char
+    inc X $cursor_x
+    ldi A \i
+    call @print_char
+    inc X $cursor_x
+    ldi A \m
+    call @print_char
+    inc X $cursor_x
+    ldi A \e
+    call @print_char
+    inc X $cursor_x
+    ldi A \r
+    call @print_char
+    inc X $cursor_x
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+
+    # Print timer instance number (from $_timer_instance_temp)
+    ldm A $_timer_instance_temp
+    call @print_to_BCD
+    # Assumes @print_to_BCD handles its own cursor advancement.
+
+    # Print ": "
+    ldi A \:
+    call @print_char
+    inc X $cursor_x
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+
+    # Print elapsed time (which is in B_reg)
+    ld A B
+    # Move elapsed time to A_reg for @print_to_BCD.
+    call @print_to_BCD
+
+    # Print newline
+    call @print_nl
+    jmp :_timer_print_end 
+    # Successfully printed, go to the end.
+
+:_timer_print_end
+ret
 
 #################################
 @print

@@ -142,41 +142,21 @@ class Parser:
             # The runtime routines @sio_channel_on/off will pop this.
             self.emitter.emitLine(f"ldi A {channel_num_token.text}")
             self.emitter.emitLine("call @push_A")
-            self._print_trace(f"  Pushed channel number {channel_num_token.text} to stack.")
 
             self.match(TokenType.CHANNEL) # Consume CHANNEL
 
             if self.checkToken(TokenType.ON):
                 self.nextToken() # Consume ON
                 self.emitter.emitLine("call @sio_channel_on") 
-                self._print_trace(f"  Emitted call @sio_channel_on for channel {channel_num_token.text}.")
+                self._print_trace(f"Called ON for channel {channel_num_token.text}.")
             elif self.checkToken(TokenType.OFF):
                 self.nextToken() # Consume OFF
                 self.emitter.emitLine("call @sio_channel_off") 
-                self._print_trace(f"  Emitted call @sio_channel_off for channel {channel_num_token.text}.")
+                self._print_trace(f"called OFF for channel {channel_num_token.text}.")
             else:
                 self.abort(f"Expected ON or OFF after CHANNEL, got {self.curToken.kind.name if self.curToken else 'None'}")
             self.nl()
             self._dedent()
-
-        # | "TIMER" INTEGER("SET" | "PRINT" | "GET")
-        elif self.checkToken(TokenType.TIMER):
-            self.nextToken() # Consume TIMER
-            var = self.curToken.text
-            self.match(TokenType.NUMBER)
-            if int(var) < 16:
-                self.abort("User defined timers starts at number 16, not " + var)
-            if self.checkToken(TokenType.SET):
-                # self.emitter.emitLine("settimer " + var)
-                self._print_info(f"SET TIMER {var} (old arch). STERN-1: Map to kernel call or custom routine.")
-            elif self.checkToken(TokenType.PRINT):
-                # self.emitter.emitLine("prttimer " + var)
-                self._print_info(f"PRINT TIMER {var} (old arch). STERN-1: Map to kernel call or custom routine.")
-            elif self.checkToken(TokenType.GET):
-                # self.emitter.emitLine("gettimer " + var)
-                self._print_info(f"GET TIMER {var} (old arch). STERN-1: Map to kernel call or custom routine, result on stack.")
-            self.nextToken()
-            self.nl()
 
         # | "FUNCTION" ident nl {statement} nl "END" nl
         elif self.checkToken(TokenType.FUNCTION):
@@ -310,6 +290,35 @@ class Parser:
 
                 self.match(TokenType.IDENT)  
                 self.nl()   
+            # | expression TIMER (SET | PRINT | GET) nl
+            #   The timer ID (and any other parameters for SET) are expected to be on the STACKS stack,
+            #   pushed by the preceding expression.
+            elif self.checkToken(TokenType.TIMER):
+                self._print_trace("Parsing TIMER statement after expression.")
+                self._indent()
+                self.nextToken() # Consume TIMER
+
+                if self.checkToken(TokenType.SET):
+                    self.nextToken() # Consume SET
+                    self.emitter.emitLine("call @stacks_timer_set")
+                    self._print_info(f"TIMER SET (TOS). Emitted: call @stacks_timer_set (expects timer_id on stack).")
+                elif self.checkToken(TokenType.PRINT): # Uses general PRINT token (103)
+                    self.nextToken() # Consume PRINT
+                    self.emitter.emitLine("call @stacks_timer_print")
+                    self._print_info(f"TIMER PRINT (TOS). Emitted: call @stacks_timer_print (expects timer_id on stack).")
+                elif self.checkToken(TokenType.GET):
+                    self.nextToken() # Consume GET
+                    self.emitter.emitLine("call @stacks_timer_get")
+                    self._print_info(f"TIMER GET (TOS). Emitted: call @stacks_timer_get (expects timer_id on stack, pushes result to stack).")
+                else:
+                    error_token_text = self.curToken.text if self.curToken else "None"
+                    error_token_kind = self.curToken.kind.name if self.curToken else "None"
+                    self.abort(f"Expected SET, PRINT, or GET after TIMER, got {error_token_kind} ('{error_token_text}')")
+
+                self.nl() # Expect a newline after the command
+                self._dedent()
+                self._print_trace("Exiting TIMER statement.")
+
             else:
                 # If no action keyword, just expect a newline (or it's already consumed by expression/st if they ended with one)
                 self.nl()
