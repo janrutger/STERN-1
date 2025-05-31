@@ -3,6 +3,10 @@
     call @init_stern 
     call @init_keywords 
 
+    # init Network Message Dispatcher
+    ldi M @network_message_dispatcher
+    sto M $scheduler_routine_ptr
+
 @kernel
     call @prompt_system
     call @get_input_line

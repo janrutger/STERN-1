@@ -21,17 +21,28 @@
 
 :receive_loop
     # Check if a message is available in the buffer
+
+    di
     call @read_nic_message
-    # @read_nic_message returns:
-    # Register A = received data (or \null if no message read)
-    tst A \null
+    ei
+
+    # After @read_nic_message:
+    #   A = Source Address (or \null if no message)
+    #   B = Data Value
+    #   C = Service ID
+    #   Status bit: CLEARED if message received, SET if buffer empty.
+
+    ;tst A \null
+    # Jump to :message_received if status bit is CLEARED (false), indicating a message was read.
     jmpf :message_received 
 
     # No message, loop back and check again
     jmp :receive_loop
 
 :message_received
-    # Register A contains data
+    # A message was received. Data Value is in B.
+    # Move the data from B to A, as @print_char expects the character in A.
+    ld A B
     # Print the received character
     call @print_char
 

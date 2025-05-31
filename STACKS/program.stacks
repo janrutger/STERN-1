@@ -1,0 +1,25 @@
+0 TIMER SET
+1 AS a 
+
+FUNCTION test 
+      'test ' SHOW
+      a 1 + AS a 
+      0 TIMER GET
+      . PRINT
+END
+
+
+
+
+{100 a >} DO
+  test
+  a 95 > GOTO klaar
+END
+
+LABEL klaar
+'klaar ' SHOW
+0 TIMER PRINT
+
+
+
+

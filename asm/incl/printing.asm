@@ -35,6 +35,30 @@ ret
     inc X $cursor_x
 ret
 
+@prompt_stacks
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+    ldi A \space
+    call @print_char
+    inc X $cursor_x
+    ldi A \>
+    call @print_char
+    inc X $cursor_x
+ret
+
+@prompt_stacks_err
+    dec Y $cursor_y
+    ldi A \<
+    call @print_char
+    inc X $cursor_x
+    ldi A \e
+    call @print_char
+    inc X $cursor_x
+    ldi A \>
+    call @print_char
+    inc X $cursor_x
+ret
 
 @cursor_on
     ldi A \_ 

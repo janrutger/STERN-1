@@ -1,0 +1,33 @@
+program    ::=	{statement}
+
+
+
+statement  ::=  "LABEL" label nl
+			|   "GOTO"  label nl
+			|   "TIMER" INTEGER ("SET" | "PRINT" | "GET") nl
+			|   "FUNCTION" function nl {statement} nl "END" nl
+			|   "ARRAY" array ['['(INTEGER)+']'] nl
+				"VALUE" variable [INTEGER] nl
+
+			|   "{" (expression) "}" "DO" nl {statement} nl "END" nl		
+
+			|   “WITH” array (“EACH” nl {statement} nl "END" | “COPY” array | "PLOT" ["NEW"]) nl
+			|   (expression | st) ( "PRINT" nl
+									| "PLOT"  nl
+									| ¨WAIT¨  nl
+									| "AS" (variable | '['array']') nl
+									| "DO" nl {statement} nl "END" nl
+									| "GOTO" label nl
+									|  nl )
+expression ::=	(INTEGER | STRING | function | "`"function | variable |'['array']'| word)+
+word       ::=	('+'|'-'|'*'|'/'|'%'|'=='|'!='|'>'|'<'|'GCD'|'!'|'DUP'|'SWAP'|'OVER'|'DROP'|'INPUT'|'RAWIN')
+     	             		  
+label      ::=  ident
+array	   ::=  ident
+function   ::=  ident
+variable   ::=  ident
+
+
+st         ::=	('.'|'..')
+nl         ::= '\n'+
+ident      ::= [a-zA-Z][a-zA-Z0-9]*

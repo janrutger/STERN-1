@@ -29,13 +29,17 @@ class Cpu:
         self.saved_state = {
             'registers': self.registers.copy(),
             'PC': self.PC,
-            'statusbit': self.statusbit}
+            'statusbit': self.statusbit,
+            'SP': self.SP
+        }
+            
         
     def restore_state(self):
         if self.saved_state:
             self.registers = self.saved_state['registers'].copy()
             self.PC = self.saved_state['PC']
             self.statusbit = self.saved_state['statusbit']
+            self.SP = self.saved_state['SP']
         else:
             print("No state state to restore.")
 
