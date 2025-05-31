@@ -1,25 +1,37 @@
-0 TIMER SET
-1 AS a 
+# this program is running on instance 1
+# end is using the echo service on instance 0
 
-FUNCTION test 
-      'test ' SHOW
-      a 1 + AS a 
-      0 TIMER GET
-      . PRINT
+
+# receive CONNECTION
+receive CONNECTION READ readService0
+
+# send CONNECTION
+echo CONNECTION WRITE 0 1
+
+
+FUNCTION sndString
+  {DUP 0 !=} DO
+    . AS echo
+  END
+  . AS echo
+END
+
+FUNCTION rcv
+  {receive 1 ==} DO
+    # wait for valid input
+
+  END
+  .. AS result
+  . PRINT
 END
 
 
 
 
-{100 a >} DO
-  test
-  a 95 > GOTO klaar
+'1234567890abcdef gh i j k l m n o p q r s t u v w x y z' sndString
+1 AS result
+{result 0 !=} DO
+  rcv 
 END
-
-LABEL klaar
-'klaar ' SHOW
-0 TIMER PRINT
-
-
 
 

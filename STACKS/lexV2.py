@@ -247,9 +247,14 @@ class TokenType(enum.Enum):
     GET = 125
     BT = 126
     # SHOW = 127 # SHOW is now handled as TokenType.WORD via rpn_operation_words
+    # Channels for serial
     CHANNEL = 128
     ON = 129
     OFF = 130
+    # Connection for Network
+    CONNECTION = 131
+    READ = 132
+    WRITE = 133
 
     PLUS = 201
     MINUS = 202

@@ -852,3 +852,71 @@ ret
     call @push_A             
         # Push it onto the data stack
 ret
+
+
+; ==============================================================================
+; Network Extension Runtime Helpers
+; ==============================================================================
+
+@stacks_network_write
+    ; Called by parser-generated stubs for STACKS 'CONNECTION WRITE'.
+    ; STACKS language construct: ident CONNECTION WRITE dst-addr serviceID
+    ; The calling stub (from parseV2.py) will have set up registers as follows:
+    ;   - Register A: dst-addr (destination NIC ID)
+    ;   - Register B: Value to send (popped from STACKS stack)
+    ;   - Loaded serviceID into Register C.
+    ; This routine then calls the low-level @send_data_packet_sub.
+
+    ; @send_data_packet_sub (from networkdispatcher.asm) expects:
+    ;   A: dst_addr
+    ;   B: data_to_send
+    ;   C: service_id_out
+    ;
+    ; Registers A, B, and C are already in the correct order as expected
+
+    ; from networkdispatcher.asm
+    call @send_data_packet_sub 
+ret
+
+# a simple name, for better use in the Stacks language
+@readService0
+    ; Helper routine for STACKS 'CONNECTION READ'.
+    ; STACKS language construct: ident CONNECTION READ @user_service_routine
+    ; This helper is intended to be called by the @user_service_routine.
+    ; It reads from the network service 0 buffer using @read_service0_data.
+    ; It then pushes two items onto the STACKS stack:
+    ;   1. The value read (or a dummy value like 0 if no data).
+    ;   2. A status code: 0 for success, 1 for failure (no data).
+
+    ; from networkdispatcher.asm
+    call @read_service0_data 
+    ; @read_service0_data returns:
+    ;   - In Register A: data byte if status bit is 1. (Content of A is undefined if status bit is 0)
+    ;   - CPU Status bit: 1 if data was read successfully.
+    ;                     0 if buffer was empty.
+
+    ; Jump if CPU status bit was 1 (data read)
+    jmpt :_srs0bps_data_read_success 
+
+    ; --- Failure Case (Buffer Empty) ---
+    ; CPU status bit was 0, indicating @read_service0_data found no data.
+    ; ldi A 0         ; Push 0 as a dummy value for the data part
+    ; call @push_A    ; Assumes @push_A is a STACKS runtime routine to push Reg A onto STACKS stack
+    ; No dummy value neeeded when no data availible, just return status
+    ; Push 1 as the status_code (failure/no data)
+    ldi A 1         
+    call @push_A
+    jmp :_srs0bps_done
+
+:_srs0bps_data_read_success
+    ; --- Success Case (Data Read) ---
+    ; CPU status bit was 1, data from @read_service0_data is in Register A.
+    ; Register A already contains the data byte.
+    ; Push the actual data byte onto STACKS stack
+    call @push_A   
+    ; Push 0 as the status_code (success) 
+    ldi A 0         
+    call @push_A
+
+:_srs0bps_done
+ret

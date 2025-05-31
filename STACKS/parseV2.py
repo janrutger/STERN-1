@@ -15,7 +15,9 @@ class Parser:
         self.emitter: Emitter = emitter
 
         self.symbols: Set[str] = set()    # All variables we have declared so far.
-        self.functions: Set[str] = set()  # All functions we have declared so far.
+        self.functions: Set[str] = set()  # All functions declared.
+        self.connections: Set[str] = set() # All network connections declared.
+        self.connection_details: dict = {} # Stores details for connections (type, routine/params).
         self.labelsDeclared: Set[str] = set() # Keep track of all labels declared
         self.labelsGotoed: Set[str] = set() # All labels goto'ed, so we know if they exist or not.
 
@@ -194,24 +196,35 @@ class Parser:
             
         # | "FUNCTION" ident nl {statement} nl "END" nl
         elif self.checkToken(TokenType.FUNCTION):
+            self._print_trace("Parsing FUNCTION definition statement.")
+            self._indent()
             self.nextToken() # Consume FUNCTION
-            if self.curToken.text not in self.symbols and self.curToken.text not in self.functions:
-                self.functions.add(self.curToken.text)
-            if self.curToken.text in self.functions:
+            func_name = self.curToken.text
+
+            # Check for name collisions
+            if func_name in self.symbols or \
+               func_name in self.functions or \
+               func_name in self.connections:
+                self.abort(f"Identifier '{func_name}' already declared as a variable, function, or connection.")
+            
+            self.functions.add(func_name) # Add to functions set
+            
+            # Proceed with function definition
+            # The check 'if func_name in self.functions:' is now guaranteed true
+            if func_name in self.functions: 
                 self.emitter.context = "functions"
-                self.emitter.emitLine("@~" + self.curToken.text)
-                self._print_trace(f"Defining function '{self.curToken.text}'. STERN-1: Emit '@~{self.curToken.text}'.")
+                self.emitter.emitLine("@~" + func_name)
+                self._print_info(f"Defining function '{func_name}'. STERN-1: Emit '@~{func_name}'.")
                 self.match(TokenType.IDENT)
                 self.nl()
                 while not self.checkToken(TokenType.END):
                     self.statement()
                 self.match(TokenType.END)
                 self.emitter.emitLine("ret")
-                self._print_trace(f"End of function '{self.curToken.text}'. STERN-1: Emit 'ret'.")
+                self._print_info(f"End of function '{func_name}'. STERN-1: Emit 'ret'.")
                 self.emitter.context = "program"
                 self.nl()
-            else:
-                self.abort("Already in use as a Variable " + self.curToken.text)
+            self._dedent()
 
 
         # | "{" ({expression} | st) "}"   "DO"   nl {statement} nl "END" nl	
@@ -244,6 +257,76 @@ class Parser:
             self.match(TokenType.END) # Consume END
             self.nl()
 
+        # | ident CONNECTION (READ ident_routine | WRITE num_dst num_service_id) nl
+        elif self.checkToken(TokenType.IDENT) and self.checkPeek(TokenType.CONNECTION):
+            self._print_trace("Parsing CONNECTION definition statement.")
+            self._indent()
+            conn_name_token = self.curToken
+            # conn_name = conn_name_token.text # Keep for clarity if needed later
+            self.nextToken() # Consume IDENT (conn_name)
+            
+            self.match(TokenType.CONNECTION) # Consume CONNECTION (checks and advances)
+
+            # Check for name collisions before adding to self.connections
+            if conn_name_token.text in self.symbols or \
+               conn_name_token.text in self.functions or \
+               conn_name_token.text in self.connections: # Check if already in connections too (defensive)
+                self.abort(f"Identifier '{conn_name_token.text}' already declared as a variable, function, or connection.")
+            
+            self.connections.add(conn_name_token.text)
+            self._print_info(f"Declaring connection: {conn_name_token.text}")
+
+            if self.checkToken(TokenType.READ):
+                self.nextToken() # Consume READ
+                if not self.checkToken(TokenType.IDENT):
+                    self.abort(f"Expected identifier for service routine after CONNECTION READ, got {self.curToken.kind.name if self.curToken else 'None'}")
+                
+                service_routine_token = self.curToken
+                self.connection_details[conn_name_token.text] = {
+                    'type': 'READ',
+                    'routine': "@" + service_routine_token.text # Prepend @ for STERN-1 call
+                }
+                self._print_info(f"  Type: READ, Calls: @{service_routine_token.text}")
+                self.match(TokenType.IDENT) # Consume service_routine_name (checks and advances)
+                self.nl()
+
+            elif self.checkToken(TokenType.WRITE):
+                self.nextToken() # Consume WRITE
+                
+                if not self.checkToken(TokenType.NUMBER):
+                    self.abort(f"Expected destination address (NUMBER) after CONNECTION WRITE, got {self.curToken.kind.name if self.curToken else 'None'}")
+                dst_addr_token = self.curToken
+                self.nextToken() # Consume dst_addr (NUMBER)
+
+                if not self.checkToken(TokenType.NUMBER):
+                    self.abort(f"Expected service ID (NUMBER) after destination address, got {self.curToken.kind.name if self.curToken else 'None'}")
+                service_id_token = self.curToken
+                self.nextToken() # Consume service_id (NUMBER)
+
+                # Generate a unique label for the assembly stub for this WRITE connection
+                stub_label = f"@~conn_{conn_name_token.text}_write_{self.LabelNum()}"
+                self.connection_details[conn_name_token.text] = {
+                    'type': 'WRITE',
+                    'dst': dst_addr_token.text,
+                    'service_id': service_id_token.text,
+                    'stub_label': stub_label # Store the label to call
+                }
+                self._print_info(f"  Type: WRITE, Dst: {dst_addr_token.text}, ServiceID: {service_id_token.text}, Stub: {stub_label}")
+
+                # Emit the assembly stub for this specific WRITE connection
+                original_context = self.emitter.context
+                self.emitter.context = "functions" # Place stub in functions section for organization
+                self.emitter.emitLine(f"{stub_label}")
+                self.emitter.emitLine(f"  call @pop_B")         # Value to send is popped from STACKS stack into B
+                self.emitter.emitLine(f"  ldi A {dst_addr_token.text}")  # Dst NIC ID into A
+                self.emitter.emitLine(f"  ldi C {service_id_token.text}") # Service ID into C
+                self.emitter.emitLine(f"  call @stacks_network_write") # Call generic runtime helper
+                self.emitter.emitLine(f"  ret")
+                self.emitter.context = original_context
+                self.nl()
+            else:
+                self.abort(f"Expected READ or WRITE after CONNECTION, got {self.curToken.kind.name if self.curToken else 'None'}")
+            self._dedent()
         
         
         # | ({expression} | st) ( "PRINT" nl | "PLOT" nl | "AS" ident nl | "DO"   nl {statement} nl "END" nl | "GOTO" ident) nl | nl )
@@ -269,25 +352,52 @@ class Parser:
                 self._print_info("WAIT operation. STERN-1: Pop value, call sleep/wait routine.")
                 self.nextToken() # Consume WAIT
                 self.nl()
+
             elif self.checkToken(TokenType.AS):
                 self.nextToken() # Consume AS
-                var_name = self.curToken.text
-                if self.curToken.text not in self.symbols and self.curToken.text not in self.functions:
-                    self.symbols.add(self.curToken.text)
-                    self.emitter.headerLine(". $" + self.curToken.text + " 1")
+                target_name = self.curToken.text
+
+                is_write_connection_target = False
+                connection_stub_label = None
+
+                # First, check if it's a function (cannot AS to a function)
+                if target_name in self.functions:
+                    self.abort(f"Cannot use AS with '{target_name}'. It is declared as a function.")
+
+                # Next, check if it's a connection
+                if target_name in self.connections:
+                    connection_info = self.connection_details[target_name]
+                    if connection_info['type'] == 'READ':
+                        self.abort(f"Cannot use AS with '{target_name}'. It is a READ connection. AS is for assignment/sending.")
+                    elif connection_info['type'] == 'WRITE':
+                        is_write_connection_target = True
+                        connection_stub_label = connection_info['stub_label']
+                        self._print_info(f"AS: Target '{target_name}' is a WRITE connection. Value will be stored in ${target_name} AND sent via connection.")
                 
-                if self.curToken.text in self.symbols:
-                    self.emitter.emitLine("call @pop_A")
-                    self.emitter.emitLine("sto A " + "$" + self.curToken.text)
-                    # TODO: If the value popped by @pop_A was from an on-stack string literal,
-                    # this 'sto A $var' will store a character, not a pointer.
-                    # This simplified string model (no @_stacks_create_string_literal)
-                    # means direct assignment of string literals to pointer variables needs rethinking.
-                    self._print_trace(f"AS (assign) to variable '{var_name}'.")
-                    self.match(TokenType.IDENT)  
-                    self.nl()
-                else:
-                    self.abort("Already in use as a Function " + self.curToken.text)
+                # Part 1: Variable assignment (always happens for AS)
+                # If the target_name is not yet a declared variable symbol, declare it.
+                if target_name not in self.symbols:
+                    self.symbols.add(target_name)
+                    self.emitter.headerLine(". $" + target_name + " 1") # STERN-1 variable declaration
+                    self._print_info(f"AS: Declaring new variable storage '${target_name}'.")
+
+                # These lines should be outside the 'if not in self.symbols' block,
+                # as assignment happens whether the variable is new or existing.
+                if target_name in self.symbols:
+                    self.emitter.emitLine("call @pop_A") # Pop value from STACKS stack into CPU register A
+                    self.emitter.emitLine("sto A $" + target_name) # Store value from A into variable $target_name
+                    self._print_info(f"AS: Assigned stack top to variable '${target_name}'.")
+
+                # Part 2: If it was a WRITE connection, also send the value
+                if is_write_connection_target and connection_stub_label:
+                    # The value is currently in register A (and also stored in $target_name).
+                    # The connection stub expects the value on the STACKS stack.
+                    self.emitter.emitLine("call @push_A") # Push value from register A back to STACKS stack
+                    self.emitter.emitLine(f"call {connection_stub_label}") # Call the connection's write stub
+                    self._print_info(f"AS: Emitted call to {connection_stub_label} to send value from '${target_name}'.")
+
+                self.match(TokenType.IDENT) # Consume the target_name token
+                self.nl()
 
             elif self.checkToken(TokenType.DO):
                 num = self.LabelNum()
@@ -459,14 +569,26 @@ class Parser:
         self._indent()
         ident_name = self.curToken.text
         if self.curToken.text in self.symbols:
-            self.emitter.emitLine("ldm A " + "$" + self.curToken.text)
+            self.emitter.emitLine("ldm A $" + self.curToken.text) # Use '$' for STERN-1 var access
             self.emitter.emitLine("call @push_A")
-            self._print_trace(f"Loading variable '{ident_name}' to stack.")
+            self._print_info(f"Loading variable '{ident_name}' to stack.")
         elif self.curToken.text in self.functions:
-            self.emitter.emitLine("call " + "@~" + self.curToken.text)
-            self._print_trace(f"Calling function '{ident_name}'. STERN-1: call @~{ident_name}.")
+            self.emitter.emitLine("call @~" + self.curToken.text) # Use '@~' for STACKS function call
+            self._print_info(f"Calling function '{ident_name}'. STERN-1: call @~{ident_name}.")
+        elif ident_name in self.connections:
+            details = self.connection_details[ident_name]
+            if details['type'] == 'READ':
+                # The user-defined service routine (e.g., @myServiceRoutine) is called.
+                # It's expected to push value and status onto STACKS stack.
+                self.emitter.emitLine(f"call {details['routine']}")
+                self._print_info(f"Executing READ connection '{ident_name}' by calling {details['routine']}.")
+            elif details['type'] == 'WRITE':
+                # The generated stub (e.g., @~conn_myNetWrite_write_X) is called.
+                # It expects the value to write to be on TOS. It pops it, sets up params, and calls runtime.
+                self.emitter.emitLine(f"call {details['stub_label']}")
+                self._print_info(f"Executing WRITE connection '{ident_name}' by calling {details['stub_label']}.")
         else:
-            self.abort("Referencing variable before assignment: " + self.curToken.text)
+            self.abort(f"Referencing undeclared identifier (variable, function, or connection): '{ident_name}'")
 
         self.nextToken()
         self._dedent()
