@@ -50,7 +50,7 @@ def assembly_code():
         # Assemble the *same* program for both instances? Or different ones?
         # Assemble ROMs specified in configs
         #assembler.assemble("ChaosGame3.asm", boot["start_prog"], instance2_config["start_rom"])
-        #assembler.assemble("ChaosGame4.asm", boot["start_prog"], instance1_config["start_rom"])
+        assembler.assemble("ChaosGame4.asm", boot["start_prog"], instance1_config["start_rom"])
         #assembler.assemble("networkEcho.asm", boot["start_prog"], instance1_config["start_rom"])
         #assembler.assemble("service0Receive.asm", boot["start_prog"], instance2_config["start_rom"])
         assembler.assemble("out.asm", boot["start_prog"], "program.bin") # Example if needed
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0",
         "window_title": "STERN-1 (Instance 1)",
         "kernel_start_adres": 512,
-        "start_rom": "program.bin",
+        "start_rom": "ChaosGame4.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[0],
         # Add other specific settings if needed
