@@ -96,7 +96,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0",
         "window_title": "STERN-1 (Instance 1)",
         "kernel_start_adres": 512,
-        "start_rom": "ChaosGame3.bin",
+        "start_rom": "program0.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[0],
         # Add other specific settings if needed
@@ -108,7 +108,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0", # Use a separate disk dir for instance 2
         "window_title": "STERN-1 (Instance 2)",
         "kernel_start_adres": 512,
-        "start_rom": "ChaosGame4.bin",
+        "start_rom": "program1.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[1],
         # Add other specific settings if needed
