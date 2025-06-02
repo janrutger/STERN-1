@@ -266,6 +266,7 @@ ret
     ld A Y 
     ; Destination for NORESEND is the original sender
     ldi B ~noresend 
+    #ldi B ~nack ; Sending a ~nack is creating and ACK-traffic storm
     call @write_ack_message
     jmp :read_nic_isr_end
 
@@ -350,10 +351,10 @@ ret
 #       - SET (true) if the buffer was empty (A will be \null).
 #       - CLEARED (false) if a message was successfully read (A, B, C contain the message parts).
 # Modifies: A, B, C, I, L, M. Updates $NET_RCV_READ_PNTR.
+#
+# is called by the networkdispatcher and is is running as Interrupt
 
 
-    # It as subroutine, but interrupts are diabled
-    # di 
     # Load read and write pointers to check if the buffer is empty
     ldm M $NET_RCV_READ_PNTR  
     ldm L $NET_RCV_WRITE_PNTR 
@@ -401,6 +402,4 @@ ret
     # B and C are undefined in this case.
 
 :read_nic_msg_end
-    # Enable interrupts
-    # ei
 ret
