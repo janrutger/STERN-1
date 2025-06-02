@@ -78,7 +78,16 @@ ret
     # expects data to send in B 
     # expects service_id in C
 
+    # Wait for NIC to be idle BEFORE attempting to send
+:wait_for_nic_idle_data_send
+    ldi I ~send_status
+    ldx M $NIC_baseadres
+    ; Check if NIC is idle (send_status == 0)
+    ; Loop if not idle
+    tst M ~idle 
+    jmpf :wait_for_nic_idle_data_send 
 
+    # NIC is idle, now load data and command send
     ldi I ~dst_adres
     stx A $NIC_baseadres
 
@@ -94,17 +103,18 @@ ret
     ldi I ~data_out
     stx B $NIC_baseadres
 
-    # set send status to 1
+    # set send status to 1 (command NIC to send)
     ldi M 1
     ldi I ~send_status
     stx M $NIC_baseadres
-    # wait for ACK
-    :wait_for_nic_sending_ack
+
+    # wait for NIC to process this command (send_status will go back to 0)
+:wait_for_nic_send_complete_data
         ldi I ~send_status
         ldx M $NIC_baseadres
-        # check for ACK
-        tst M 0
-    jmpf :wait_for_nic_sending_ack
+        tst M ~idle 
+        ; Check for send_status == 0
+    jmpf :wait_for_nic_send_complete_data
 rti
 
 
@@ -113,6 +123,16 @@ rti
     # expects dest-adres in A 
     # expects ack/nack to send in B 
 
+    # Wait for NIC to be idle BEFORE attempting to send
+:wait_for_nic_idle_ack_send
+    ldi I ~send_status
+    ldx M $NIC_baseadres
+    ; Check if NIC is idle (send_status == 0)
+    ; Loop if not idle
+    tst M ~idle 
+    jmpf :wait_for_nic_idle_ack_send 
+
+    # NIC is idle, now load data and command send
     ldi I ~dst_adres
     stx A $NIC_baseadres
 
@@ -123,18 +143,17 @@ rti
     ldi I ~ack_status
     stx B $NIC_baseadres
 
-    # set send status to 1
+    # set send status to 1 (command NIC to send)
     ldi M 1
     ldi I ~send_status
     stx M $NIC_baseadres
 
     # wait for ACK
-    :wait_for_nic_sending_ack1
+:wait_for_nic_send_complete_ack
         ldi I ~send_status
         ldx M $NIC_baseadres
-        # check for ACK
         tst M ~idle
-    jmpf :wait_for_nic_sending_ack1
+    jmpf :wait_for_nic_send_complete_ack
 ret
 
 
