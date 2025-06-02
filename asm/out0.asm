@@ -2,86 +2,51 @@
 call @stacks_runtime_init
 . $echo 1
 . $result 1
-; --- String Literal '1234567890abcdef gh i j k l m n o p q r s t u v w x y z' pushed to stack ---
+ldi A 0
+call @push_A
+call @stacks_timer_set
+; --- String Literal '1234567890 abcdefghijklmnopqrstuvwxyz' pushed to stack ---
 ldi A 0
 call @push_A
 ldi A \z
 call @push_A
-ldi A \space
-call @push_A
 ldi A \y
-call @push_A
-ldi A \space
 call @push_A
 ldi A \x
 call @push_A
-ldi A \space
-call @push_A
 ldi A \w
-call @push_A
-ldi A \space
 call @push_A
 ldi A \v
 call @push_A
-ldi A \space
-call @push_A
 ldi A \u
-call @push_A
-ldi A \space
 call @push_A
 ldi A \t
 call @push_A
-ldi A \space
-call @push_A
 ldi A \s
-call @push_A
-ldi A \space
 call @push_A
 ldi A \r
 call @push_A
-ldi A \space
-call @push_A
 ldi A \q
-call @push_A
-ldi A \space
 call @push_A
 ldi A \p
 call @push_A
-ldi A \space
-call @push_A
 ldi A \o
-call @push_A
-ldi A \space
 call @push_A
 ldi A \n
 call @push_A
-ldi A \space
-call @push_A
 ldi A \m
-call @push_A
-ldi A \space
 call @push_A
 ldi A \l
 call @push_A
-ldi A \space
-call @push_A
 ldi A \k
-call @push_A
-ldi A \space
 call @push_A
 ldi A \j
 call @push_A
-ldi A \space
-call @push_A
 ldi A \i
-call @push_A
-ldi A \space
 call @push_A
 ldi A \h
 call @push_A
 ldi A \g
-call @push_A
-ldi A \space
 call @push_A
 ldi A \f
 call @push_A
@@ -94,6 +59,8 @@ call @push_A
 ldi A \b
 call @push_A
 ldi A \a
+call @push_A
+ldi A \space
 call @push_A
 ldi A \0
 call @push_A
@@ -115,8 +82,40 @@ ldi A \2
 call @push_A
 ldi A \1
 call @push_A
-; --- End String Literal '1234567890abcdef gh i j k l m n o p q r s t u v w x y z' on stack ---
+; --- End String Literal '1234567890 abcdefghijklmnopqrstuvwxyz' on stack ---
 call @~sndString
+; --- String Literal 'send is done' pushed to stack ---
+ldi A 0
+call @push_A
+ldi A \e
+call @push_A
+ldi A \n
+call @push_A
+ldi A \o
+call @push_A
+ldi A \d
+call @push_A
+ldi A \space
+call @push_A
+ldi A \s
+call @push_A
+ldi A \i
+call @push_A
+ldi A \space
+call @push_A
+ldi A \d
+call @push_A
+ldi A \n
+call @push_A
+ldi A \e
+call @push_A
+ldi A \s
+call @push_A
+; --- End String Literal 'send is done' on stack ---
+call @stacks_show_from_stack
+ldi A 0
+call @push_A
+call @stacks_timer_print
 ldi A 1
 call @push_A
 call @pop_A
@@ -133,6 +132,9 @@ jmpf :_3_while_end
 call @~rcv
 jmp :_3_while_condition
 :_3_while_end
+ldi A 0
+call @push_A
+call @stacks_timer_print
 ret
 INCLUDE  stacks_runtime
 @~conn_echo_write_0

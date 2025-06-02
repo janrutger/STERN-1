@@ -46,7 +46,7 @@
 
 #INCLUDE printing
 INCLUDE serialIO
-include networkR2
+include networkR3
 INCLUDE random
 INCLUDE errors
 

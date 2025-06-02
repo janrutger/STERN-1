@@ -17,9 +17,10 @@ FUNCTION sndString
 END
 
 FUNCTION rcv
+  '.' SHOW
   {receive 1 ==} DO
     # wait for valid input
-
+  
   END
   .. AS result
   . PRINT
@@ -27,11 +28,14 @@ END
 
 
 
-
-'1234567890abcdef gh i j k l m n o p q r s t u v w x y z' sndString
+0 TIMER SET
+'1234567890 abcdefghijklmnopqrstuvwxyz' sndString
+'send is done' SHOW
+0 TIMER PRINT
 1 AS result
 {result 0 !=} DO
   rcv 
 END
+0 TIMER PRINT
 
 
