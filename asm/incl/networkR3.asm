@@ -72,8 +72,7 @@ ret
 
 # write data to nic, ~send_status=1
 # wait for ACK ~send_status=0
-@write_data_message_isr
-@write_nic_isr
+@send_data_packet_sub
     # expects dest-adres in A 
     # expects data to send in B 
     # expects service_id in C
@@ -109,13 +108,13 @@ ret
     stx M $NIC_baseadres
 
     # wait for NIC to process this command (send_status will go back to 0)
-:wait_for_nic_send_complete_data
+:wait_for_nic_send_complete_sub
         ldi I ~send_status
         ldx M $NIC_baseadres
         tst M ~idle 
         ; Check for send_status == 0
-    jmpf :wait_for_nic_send_complete_data
-rti
+    jmpf :wait_for_nic_send_complete_sub
+ret
 
 
 # write ACK-type helper

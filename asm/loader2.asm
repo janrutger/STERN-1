@@ -111,10 +111,10 @@ INCLUDE errors
     stx M $INT_VECTORS 
 
     # NIC send Interrupt
-    equ ~networkSend 10
-    ldi I ~networkSend
-    ldi M @write_nic_isr
-    stx M $INT_VECTORS
+    ; equ ~networkSend 10
+    ; ldi I ~networkSend
+    ; ldi M @write_nic_isr
+    ; stx M $INT_VECTORS
 
 
 
