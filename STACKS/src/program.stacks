@@ -17,13 +17,13 @@ FUNCTION sndString
 END
 
 FUNCTION rcv
-  '.' SHOW
   {receive 1 ==} DO
     # wait for valid input
   
   END
   .. AS result
-  . PRINT
+  #. PRINT
+  0 SWAP SHOW
 END
 
 

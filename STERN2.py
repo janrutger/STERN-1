@@ -54,7 +54,8 @@ def assembly_code():
         #assembler.assemble("networkEcho.asm", boot["start_prog"], instance1_config["start_rom"])
         #assembler.assemble("service0Receive.asm", boot["start_prog"], instance2_config["start_rom"])
         assembler.assemble("out1.asm", boot["start_prog"], "program1.bin", True) # Example if needed
-        assembler.assemble("out0.asm", boot["start_prog"], "program0.bin", True)
+        #assembler.assemble("out0.asm", boot["start_prog"], "program0.bin", True)
+        assembler.assemble("spritewalker.asm", boot["start_prog"], "program0.bin", True)
         print("Assembly complete.")
     except Exception as e:
         print(f"Assembly failed: {e}")

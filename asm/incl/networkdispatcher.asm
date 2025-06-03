@@ -135,6 +135,16 @@ ret
     # expects dest-adres in A 
     # expects data to send in B 
     # expects service_id in C (for outgoing packet)
+    # Wait for NIC to be idle BEFORE attempting to send
+:wait_for_nic_idle_data_send
+    ldi I ~send_status
+    ldx M $NIC_baseadres
+    ; Check if NIC is idle (send_status == 0)
+    ; Loop if not idle
+    tst M ~idle 
+    jmpf :wait_for_nic_idle_data_send 
+
+    # NIC is idle, now load data
 
     ldi I ~dst_adres
     stx A $NIC_baseadres
