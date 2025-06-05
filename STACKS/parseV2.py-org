@@ -18,8 +18,6 @@ class Parser:
         self.functions: Set[str] = set()  # All functions declared.
         self.connections: Set[str] = set() # All network connections declared.
         self.connection_details: dict = {} # Stores details for connections (type, routine/params).
-        self.arrays: Set[str] = set()     # All arrays declared.
-        self.array_details: dict = {}     # Stores details for arrays (label, max_size).
         self.labelsDeclared: Set[str] = set() # Keep track of all labels declared
         self.labelsGotoed: Set[str] = set() # All labels goto'ed, so we know if they exist or not.
 
@@ -195,43 +193,6 @@ class Parser:
             self._dedent()
             self._print_trace("Exiting TIMER statement.")
 
-        # | "ARRAY" ident number nl
-        elif self.checkToken(TokenType.ARRAY):
-            self._print_trace("Parsing ARRAY definition statement.")
-            self._indent()
-            self.nextToken() # Consume ARRAY
-
-            if not self.checkToken(TokenType.IDENT):
-                self.abort(f"Expected identifier for array name after ARRAY, got {self.curToken.kind.name if self.curToken else 'None'}")
-            array_name_token = self.curToken
-            array_name = array_name_token.text
-            self.nextToken() # Consume IDENT (array_name)
-
-            if not self.checkToken(TokenType.NUMBER):
-                self.abort(f"Expected number for array size after array name '{array_name}', got {self.curToken.kind.name if self.curToken else 'None'}")
-            array_size_token = self.curToken
-            array_size_val = int(array_size_token.text)
-            self.nextToken() # Consume NUMBER (array_size)
-
-            if array_size_val <= 0:
-                self.abort(f"Array size for '{array_name}' must be positive, got {array_size_val}.")
-
-            # Check for name collisions
-            if array_name in self.symbols or \
-               array_name in self.functions or \
-               array_name in self.connections or \
-               array_name in self.arrays:
-                self.abort(f"Identifier '{array_name}' already declared as a variable, function, connection, or array.")
-            
-            self.arrays.add(array_name)
-            self.array_details[array_name] = {'label': f"${array_name}", 'max_size': array_size_val}
-            
-            self.emitter.headerLine(f". ${array_name} {array_size_val + 2}") # +2 for length and max_size
-            self.emitter.headerLine(f"% ${array_name} 0 {array_size_val + 2}") # {length=0, total_allocated_size=user_size+2}
-            self._print_info(f"Declared ARRAY '{array_name}' with user size {array_size_val} (total allocated: {array_size_val + 2}). STERN-1: . ${array_name} {array_size_val + 2}, % ${array_name} 0 {array_size_val + 2}")
-            self.nl()
-            self._dedent()
-
             
         # | "FUNCTION" ident nl {statement} nl "END" nl
         elif self.checkToken(TokenType.FUNCTION):
@@ -243,8 +204,7 @@ class Parser:
             # Check for name collisions
             if func_name in self.symbols or \
                func_name in self.functions or \
-               func_name in self.connections or \
-               func_name in self.arrays:
+               func_name in self.connections:
                 self.abort(f"Identifier '{func_name}' already declared as a variable, function, or connection.")
             
             self.functions.add(func_name) # Add to functions set
@@ -310,8 +270,7 @@ class Parser:
             # Check for name collisions before adding to self.connections
             if conn_name_token.text in self.symbols or \
                conn_name_token.text in self.functions or \
-               conn_name_token.text in self.connections or \
-               conn_name_token.text in self.arrays:
+               conn_name_token.text in self.connections: # Check if already in connections too (defensive)
                 self.abort(f"Identifier '{conn_name_token.text}' already declared as a variable, function, or connection.")
             
             self.connections.add(conn_name_token.text)
@@ -395,72 +354,53 @@ class Parser:
                 self.nl()
 
             elif self.checkToken(TokenType.AS):
-                self._print_trace("Parsing AS statement.")
-                self._indent()
                 self.nextToken() # Consume AS
+                target_name = self.curToken.text
 
-                # Case 1: value index AS [array_name]
-                if self.checkToken(TokenType.OPENBL):
-                    self.nextToken() # Consume [
-                    if not self.checkToken(TokenType.IDENT):
-                        self.abort("Expected array name after '[' in AS [array_name] statement.")
-                    array_name = self.curToken.text
-                    if array_name not in self.arrays:
-                        self.abort(f"Undeclared array '{array_name}' in AS [array_name] statement.")
-                    
-                    self._print_info(f"AS: Target '{array_name}' is an ARRAY (indexed write).")
-                    self.emitter.emitLine(f"ldi A ${array_name}") # Load array base address
-                    self.emitter.emitLine("call @push_A")         # Push array base address
-                    self.emitter.emitLine("call @stacks_array_write") # Pops value, index, base
-                    
-                    self.match(TokenType.IDENT)   # Consume array_name
-                    self.match(TokenType.CLOSEBL) # Consume ]
-                    self.nl()
+                is_write_connection_target = False
+                connection_stub_label = None
+
+                # First, check if it's a function (cannot AS to a function)
+                if target_name in self.functions:
+                    self.abort(f"Cannot use AS with '{target_name}'. It is declared as a function.")
+
+                # Next, check if it's a connection
+                if target_name in self.connections:
+                    connection_info = self.connection_details[target_name]
+                    if connection_info['type'] == 'READ':
+                        self.abort(f"Cannot use AS with '{target_name}'. It is a READ connection. AS is for assignment/sending.")
+                    elif connection_info['type'] == 'WRITE':
+                        is_write_connection_target = True
+                        connection_stub_label = connection_info['stub_label']
+                        self._print_info(f"AS: Target '{target_name}' is a WRITE connection. Value will be stored in ${target_name} AND sent via connection.")
                 
-                # Case 2: value AS target_name (where target_name can be array, connection, or variable)
-                elif self.checkToken(TokenType.IDENT):
-                    target_name = self.curToken.text
+                # Part 1: Variable assignment (always happens for AS)
+                # If the target_name is not yet a declared variable symbol, declare it.
+                if target_name not in self.symbols:
+                    self.symbols.add(target_name)
+                    self.emitter.headerLine(". $" + target_name + " 1") # STERN-1 variable declaration
+                    self._print_info(f"AS: Declaring new variable storage '${target_name}'.")
 
-                    if target_name in self.functions:
-                        self.abort(f"Cannot use AS with '{target_name}'. It is declared as a function.")
+                # These lines should be outside the 'if not in self.symbols' block,
+                # as assignment happens whether the variable is new or existing.
+                if target_name in self.symbols:
+                    self.emitter.emitLine("call @pop_A") # Pop value from STACKS stack into CPU register A
+                    self.emitter.emitLine("sto A $" + target_name) # Store value from A into variable $target_name
+                    self._print_info(f"AS: Assigned stack top to variable '${target_name}'.")
 
-                    # Is it an array append: value AS array_name?
-                    if target_name in self.arrays:
-                        self._print_info(f"AS: Target '{target_name}' is an ARRAY (append).")
-                        self.emitter.emitLine(f"ldi A ${target_name}") # Load array base address
-                        self.emitter.emitLine("call @push_A")         # Push array base address
-                        self.emitter.emitLine("call @stacks_array_append") # Pops value, base
-                        self.match(TokenType.IDENT) # Consume array_name
-                        self.nl()
-                    # Is it a WRITE connection: value AS connection_name?
-                    elif target_name in self.connections:
-                        connection_info = self.connection_details[target_name]
-                        if connection_info['type'] == 'READ':
-                            self.abort(f"Cannot use AS with '{target_name}'. It is a READ connection. AS is for assignment/sending.")
-                        # Value is on stack. Connection stub expects it there.
-                        self.emitter.emitLine(f"call {connection_info['stub_label']}")
-                        self._print_info(f"AS: Emitted call to {connection_info['stub_label']} to send value via WRITE connection '{target_name}'.")
-                        self.match(TokenType.IDENT) # Consume connection_name
-                        self.nl()
-                    # Is it a variable (existing or new): value AS variable_name?
-                    else: # Must be a variable
-                        if target_name not in self.symbols: # If new, declare it
-                            self.symbols.add(target_name)
-                            self.emitter.headerLine(f". ${target_name} 1")
-                            self._print_info(f"AS: Declaring new variable storage '${target_name}'.")
-                        
-                        self.emitter.emitLine("call @pop_A")
-                        self.emitter.emitLine(f"sto A ${target_name}")
-                        self._print_info(f"AS: Assigned stack top to variable '${target_name}'.")
-                        self.match(TokenType.IDENT) # Consume variable_name
-                        self.nl()
-                else:
-                    self.abort(f"Expected '[' or IDENT after AS, got {self.curToken.kind.name if self.curToken else 'None'}")
-                self._dedent()
+                # Part 2: If it was a WRITE connection, also send the value
+                if is_write_connection_target and connection_stub_label:
+                    # The value is currently in register A (and also stored in $target_name).
+                    # The connection stub expects the value on the STACKS stack.
+                    self.emitter.emitLine("call @push_A") # Push value from register A back to STACKS stack
+                    self.emitter.emitLine(f"call {connection_stub_label}") # Call the connection's write stub
+                    self._print_info(f"AS: Emitted call to {connection_stub_label} to send value from '${target_name}'.")
+
+                self.match(TokenType.IDENT) # Consume the target_name token
+                self.nl()
 
             elif self.checkToken(TokenType.DO):
                 num = self.LabelNum()
-                self.nl()
                 self.nextToken() # Consume DO
                 self.emitter.emitLine("call @pop_A")
                 self.emitter.emitLine("tste A Z")
@@ -537,30 +477,13 @@ class Parser:
                 self.emitter.emitLine(f"; --- End String Literal '{str_content}' on stack ---")
                 self.nextToken() # Consume STRING token
             elif self.checkToken(TokenType.BT):
-                self.nextToken() # Consume BT (`)
+                self.nextToken()
                 self.emitter.emitLine("call " + "@" + self.curToken.text) # Uses IDENT's text
                 self._print_trace(f"Backtick call to '@{self.curToken.text}'. STERN-1: Emit 'call @{self.curToken.text}'.")
                 self.match(TokenType.IDENT)
             elif self.checkToken(TokenType.IDENT):
-                # ident() handles variables, functions, connections, and array length reads
+                # ident() will print its own info
                 self.ident()
-            elif self.checkToken(TokenType.OPENBL): # Handle [array_name] for indexed read
-                # This is for the syntax: index [array_name]
-                # The 'index' part should have already been pushed onto the stack by a preceding expression item.
-                self.nextToken() # Consume [
-                if not self.checkToken(TokenType.IDENT):
-                    self.abort("Expected array name after '[' in expression for indexed read.")
-                array_name = self.curToken.text
-                if array_name not in self.arrays:
-                    self.abort(f"Undeclared array '{array_name}' in indexed read expression '[{array_name}]'.")
-                
-                self._print_trace(f"EXPRESSION: Indexed read from ARRAY '{array_name}'.")
-                self.emitter.emitLine(f"ldi A ${array_name}") # Load array base address
-                self.emitter.emitLine("call @push_A")         # Push array base address
-                self.emitter.emitLine("call @stacks_array_read") # Pops index, base; pushes value
-                
-                self.match(TokenType.IDENT)   # Consume array_name
-                self.match(TokenType.CLOSEBL) # Consume ]
             # Check for specific operator tokens OR general RPN words (lexed as TokenType.WORD)
             elif self.checkToken(TokenType.PLUS) or \
                  self.checkToken(TokenType.MINUS) or \
@@ -645,34 +568,14 @@ class Parser:
         self._print_trace(f"Entering ident() for token '{self.curToken.text}'")
         self._indent()
         ident_name = self.curToken.text
-
-        # Check if the identifier is an Array (this is for reading array length: `array_name`)
-        # Indexed array read `[array_name]` is now handled directly in the `expression()` method.
-        if ident_name in self.arrays:
-            self._print_trace(f"IDENT: '{ident_name}' is an ARRAY (read length).")
-            self.emitter.emitLine(f"ldi A ${ident_name}") # Load array base address
-            self.emitter.emitLine("call @push_A")         # Push array base address
-            self.emitter.emitLine("call @stacks_array_length") # Pops base, pushes length
-            self.match(TokenType.IDENT) # Consume array name
-
-        # Check if the identifier is a Variable
-        elif ident_name in self.symbols:
-            self._print_trace(f"IDENT: '{ident_name}' is a VARIABLE.")
+        if self.curToken.text in self.symbols:
             self.emitter.emitLine("ldm A $" + self.curToken.text) # Use '$' for STERN-1 var access
             self.emitter.emitLine("call @push_A")
             self._print_info(f"Loading variable '{ident_name}' to stack.")
-            self.match(TokenType.IDENT) # Consume variable name
-
-        # Check if the identifier is a Function
-        elif ident_name in self.functions:
-            self._print_trace(f"IDENT: '{ident_name}' is a FUNCTION.")
+        elif self.curToken.text in self.functions:
             self.emitter.emitLine("call @~" + self.curToken.text) # Use '@~' for STACKS function call
             self._print_info(f"Calling function '{ident_name}'. STERN-1: call @~{ident_name}.")
-            self.match(TokenType.IDENT) # Consume function name
-
-        # Check if the identifier is a Connection
         elif ident_name in self.connections:
-            self._print_trace(f"IDENT: '{ident_name}' is a CONNECTION.")
             details = self.connection_details[ident_name]
             if details['type'] == 'READ':
                 # The user-defined service routine (e.g., @myServiceRoutine) is called.
@@ -684,12 +587,12 @@ class Parser:
                 # It expects the value to write to be on TOS. It pops it, sets up params, and calls runtime.
                 self.emitter.emitLine(f"call {details['stub_label']}")
                 self._print_info(f"Executing WRITE connection '{ident_name}' by calling {details['stub_label']}.")
-            self.match(TokenType.IDENT) # Consume connection name
         else:
-            self.abort(f"Referencing undeclared identifier (variable, function, connection, or array): '{ident_name}'")
+            self.abort(f"Referencing undeclared identifier (variable, function, or connection): '{ident_name}'")
 
+        self.nextToken()
         self._dedent()
-        # self._print_trace("Exiting ident()") # match() will be the last call, advancing token
+        self._print_trace("Exiting ident()")
 
     # st ::= ('.'|'..')
     def st(self) -> None:

@@ -221,7 +221,6 @@ class TokenType(enum.Enum):
     STRING = 3
 # Keywords.
     LABEL = 101
-    ARRAY = 100 # Added ARRAY keyword
     GOTO = 102
     PRINT = 103
     INPUT = 104
@@ -269,3 +268,4 @@ class TokenType(enum.Enum):
     LT = 212
     GT = 213
     PCT = 214
+    
