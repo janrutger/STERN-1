@@ -1,6 +1,38 @@
-have a look to the Stern-1 project and the stacks-langauage (/lexV2.py, /parseV2.py and asm/incl/stacks_runtime.asm) as runtime library. look in STACKS/src directory for examples in the Stacks language
+have a look and review  the Stern-1 project and the stacks-langauage (/lexV2.py, /parseV2.py and asm/incl/stacks_runtime.asm) as runtime library. look in STACKS/src directory for examples in the Stacks language
 
-I like to extend the Stack-language with a ARRAY datatype
+I like to extend the Stack-language with a sort of struct-datatype.
+
+To define
+STRUCT My_struct
+    VAR Y
+    VAR X
+    ARRAY list 10
+END
+
+USE My_struct AS p1
+USE My_struct AS p2
+
+To read
+p1.Y PRINT          ; Prints the value of Y in p1
+3 [p1.list] PRINT   ; Prints index 3 from the list in p1
+
+To write
+42 AS p2.X          ; Stores value 42 in p2.X
+42 5 AS [p2.list]   ; Stores value 42 at index 5 of p2.list
+or
+42 AS p2.list       ; appends 42 to p2.list
+
+Please give information how to start
+
+
+
+
+
+
+
+
+
+
 
 About the lentgh and size question, i like declare an size (max index) and keep track of the length. The length can be stored at index 0 (quick acces) and the maxsize must be protected and can be stored at index 1.
 
@@ -37,10 +69,15 @@ step 2: parser must handle ARRAY definition ARRAY name size, done
 step 3: write to/append to a array using the AS statement, done
 step 4: read from index /read lentgh of a ARRAY, done
 step 5: identify (all) the runtime routines: @stacks_array_write, @stacks_array_append, @stacks_array_read, @stacks_array_length. done
+step 6: implementing @stacks_array_length, done
+step 7: implementing @stacks_array_write
+step 8: implementing @stacks_array_append
+step 9: implementing @stacks_array_read
 
-step 6: implementing @stacks_array_length
+We wrote the ARRAY support in 9 steps, please verify and write an test program in the Stacks-language
 
 * All diffs must be from the current baseline
+* place/start all comments (;,#) at an newline
 
 
 This is not correct, the first token can be ident_name or a '['

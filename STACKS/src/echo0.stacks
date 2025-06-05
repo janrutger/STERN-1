@@ -1,0 +1,39 @@
+# this program is running on instance 0
+# end is using the echo service on instance 1
+
+
+# receive CONNECTION
+receive CONNECTION READ readService0
+
+# send CONNECTION
+echo CONNECTION WRITE 1 1
+
+
+FUNCTION sndString
+  {DUP 0 !=} DO
+    . AS echo
+  END
+  . AS echo
+END
+
+FUNCTION rcv
+  {receive 1 ==} DO
+    # wait for valid input
+  
+  END
+  .. AS result
+  #. PRINT
+  0 SWAP SHOW
+END
+
+
+
+0 TIMER SET
+'1234567890 abcdefghijklmnopqrstuvwxyz' sndString
+'send is done' SHOW
+0 TIMER PRINT
+1 AS result
+{result 0 !=} DO
+  rcv 
+END
+0 TIMER PRINT

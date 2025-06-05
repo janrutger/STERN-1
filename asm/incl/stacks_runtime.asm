@@ -136,6 +136,13 @@ ret
     call @push_A
 ret
 
+@mod
+    call @pop_B
+    call @pop_A
+    dmod A B
+    call @push_B
+ret
+
 @stacks_gcd
     # Pops two numbers from the STACKS data stack,
     # calculates their Greatest Common Divisor (GCD) using the Euclidean algorithm by subtraction,
@@ -205,6 +212,16 @@ ret
 ret
 
 # --- Timer Operations ---
+
+@stacks_sleep
+    call @pop_B
+    ldm A $CURRENT_TIME
+    add B A
+    :sleep_loop
+        ldm A $CURRENT_TIME
+        tstg A B
+        jmpf :sleep_loop
+ret
 
 @stacks_timer_init
     # Initialize all timer epochs to 0.

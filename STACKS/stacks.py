@@ -1,6 +1,7 @@
 from lexV2 import Lexer, LexerError
 from emitV2 import Emitter
 from parseV2 import Parser, ParserError
+import os # Import os module for path manipulation
 import sys
 
 def main():
@@ -8,16 +9,22 @@ def main():
 
     source_file_path = "/home/janrutger/git/STERN-1/STACKS/src/program.stacks" # Default input file
     output_file_path = "/home/janrutger/git/STERN-1/asm/out.asm"               # Default output file (consistent with Emitter's original hardcoding)
+    output_directory = "/home/janrutger/git/STERN-1/asm" # Target directory for output
 
     if len(sys.argv) != 2:
+        # Use default input, construct default output filename
+        base_name = os.path.basename(source_file_path)
+        name_without_ext, _ = os.path.splitext(base_name)
+        output_filename = name_without_ext + ".asm"
+        output_file_path = os.path.join(output_directory, output_filename)
         print(f"Info: No source file provided. \nUsing default input '{source_file_path}' \nand  default output '{output_file_path}'.")
     else:
         source_file_path = sys.argv[1]
-        # Create output filename by changing extension of source to .asm
-        if '.' in source_file_path:
-            output_file_path = source_file_path.rsplit('.', 1)[0] + ".asm"
-        else:
-            output_file_path = source_file_path + ".asm"
+        # Use provided input, construct output filename based on input filename
+        base_name = os.path.basename(source_file_path)
+        name_without_ext, _ = os.path.splitext(base_name)
+        output_filename = name_without_ext + ".asm"
+        output_file_path = os.path.join(output_directory, output_filename) # Construct the full path
         print(f"Info: Compiling source file '{source_file_path}' to '{output_file_path}'.")
 
     try:

@@ -1,0 +1,34 @@
+#0 CHANNEL ON
+0 TIMER SET
+
+plotter CONNECTION WRITE 1 0
+
+
+1 plotter
+1 plotter
+1 AS previous
+
+2 AS next
+
+FUNCTION pauze
+      next 10 % 0 == DO
+            50 WAIT
+      END
+END
+
+{next 700 !=} DO
+      previous next GCD AS cfactor
+      1 cfactor == DO
+            previous next 1 + + AS r
+            GOTO nextnumber
+      END
+
+      previous cfactor / AS r
+
+      LABEL nextnumber
+      r plotter
+      r AS previous 
+      next 1 + AS next
+      pauze
+END
+0 TIMER PRINT

@@ -51,11 +51,10 @@ def assembly_code():
         # Assemble ROMs specified in configs
         assembler.assemble("ChaosGame3.asm", boot["start_prog"], "ChaosGame3.bin", True)
         assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
-        #assembler.assemble("networkEcho.asm", boot["start_prog"], instance1_config["start_rom"])
-        #assembler.assemble("service0Receive.asm", boot["start_prog"], instance2_config["start_rom"])
-        assembler.assemble("out.asm", boot["start_prog"], "program1.bin", True) # Example if needed
-        assembler.assemble("out.asm", boot["start_prog"], "program0.bin", True)
-        #assembler.assemble("spritewalker.asm", boot["start_prog"], "program0.bin", True)
+        assembler.assemble("program0.asm", boot["start_prog"], "program0.bin", True) # Example if needed
+        assembler.assemble("program1.asm", boot["start_prog"], "program1.bin", True)
+        assembler.assemble("test.asm", boot["start_prog"], "test.bin", True)
+        assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
         print("Assembly complete.")
     except Exception as e:
         print(f"Assembly failed: {e}")

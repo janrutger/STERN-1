@@ -23,7 +23,7 @@ class Parser:
         self.labelsDeclared: Set[str] = set() # Keep track of all labels declared
         self.labelsGotoed: Set[str] = set() # All labels goto'ed, so we know if they exist or not.
 
-        self.string_literal_counter: int = 0 # For generating unique labels for string literals
+        #self.string_literal_counter: int = 0 # For generating unique labels for string literals
         self.curToken: Optional[Token] = None
         self.peekToken: Optional[Token] = None
         self.labelnumber: int = -1
@@ -389,8 +389,8 @@ class Parser:
                 self.nextToken() # Consume PLOT
                 self.nl()
             elif self.checkToken(TokenType.WAIT):
-                # self.emitter.emitLine("call @sleep")
-                self._print_info("WAIT operation. STERN-1: Pop value, call sleep/wait routine.")
+                self.emitter.emitLine("call @stacks_sleep")
+                self._print_trace("WAIT operation. STERN-1: Pop value, call sleep/wait routine.")
                 self.nextToken() # Consume WAIT
                 self.nl()
 
@@ -460,7 +460,7 @@ class Parser:
 
             elif self.checkToken(TokenType.DO):
                 num = self.LabelNum()
-                self.nl()
+                #self.nl()
                 self.nextToken() # Consume DO
                 self.emitter.emitLine("call @pop_A")
                 self.emitter.emitLine("tste A Z")
@@ -596,8 +596,8 @@ class Parser:
         elif self.checkToken(TokenType.SLASH):
             self.emitter.emitLine("call @divide")
         elif self.checkToken(TokenType.PCT):
-            # self.emitter.emitLine("call @mod")
-            self._print_info("RPN MODULO. STERN-1: call @mod_op (pop 2, mod, push 1).")
+            self.emitter.emitLine("call @mod")
+            self._print_trace("RPN MODULO. STERN-1: call @mod_op (pop 2, mod, push 1).")
         elif self.checkToken(TokenType.BANG): # Factorial '!'
             # self.emitter.emitLine("call @factorial")
             self._print_info("RPN FACTORIAL. STERN-1: call @factorial_op (pop 1, fact, push 1).")
