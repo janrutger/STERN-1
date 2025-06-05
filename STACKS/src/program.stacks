@@ -1,41 +1,53 @@
-# this program is running on instance 1
-# end is using the echo service on instance 0
+# Test program for the new ARRAY datatype
+
+'--- array test suite start ---' SHOW
+0 PRINT
+
+# --- Test Case 1: Declaration, Append, Read length, Read Elements ---
+
+ARRAY arr1 10  # max_size = 5. Data indices 0, 1, 2, 3, 4. Allocates 5+2=7 words.
+
+'initial length of arr1 (expected: 0): ' SHOW
+arr1 PRINT  # Should push length (0)
 
 
-# receive CONNECTION
-receive CONNECTION READ readService0
+'write 3 values to array' SHOW
+1 PRINT
 
-# send CONNECTION
-echo CONNECTION WRITE 0 1
+1 AS arr1
+2 AS arr1
+3 AS arr1
+'length of arr1 (expected: 3): ' SHOW
+arr1 PRINT  # Should push length (3)
 
-
-FUNCTION sndString
-  {DUP 0 !=} DO
-    . AS echo
-  END
-  . AS echo
-END
-
-FUNCTION rcv
-  {receive 1 ==} DO
-    # wait for valid input
-  
-  END
-  .. AS result
-  #. PRINT
-  0 SWAP SHOW
-END
+'read index 2 ' SHOW
+11 PRINT
+'value of index 2 (expected: 3): ' SHOW
+2 [arr1] PRINT
 
 
+'write index 1 and readback '  SHOW
+12 PRINT
+99 1 AS [arr1]
+'value of index 1 (expected: 99): ' SHOW
+1 [arr1] PRINT
 
-0 TIMER SET
-'1234567890 abcdefghijklmnopqrstuvwxyz' sndString
-'send is done' SHOW
-0 TIMER PRINT
-1 AS result
-{result 0 !=} DO
-  rcv 
-END
-0 TIMER PRINT
+42 7 AS [arr1]
+'value of index 5 (expected: 42): ' SHOW
+7 [arr1] PRINT
+'length of array  (expected: 8): ' SHOW
+arr1 PRINT
+
+
+
+
+# --- Test Case 2: Out out of bound
+# 10 [arr1]
+42 12 AS [arr1]
+
+
+'--- array test suite end ---' SHOW
+0 PRINT
+
 
 
