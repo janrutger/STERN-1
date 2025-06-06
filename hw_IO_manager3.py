@@ -65,32 +65,44 @@ class DeviceIO():
 
     def my_tasks(self):
         """Periodically update screen, disk, plotters, and SIO.""" 
-        if not self._running:
+        if not self._running: # Check at the very beginning
             return
 
         try:
             # Update other components
             self.update_disk()
-            self.update_videoMemory()
+            self.update_videoMemory() # This can set self._running = False
+            if not self._running: return # Check after videoMemory update, as it can stop _running
+
             self.update_sio()
             self.update_nic() # <-- Call NIC update method
             self.update_plotter() # <-- Call plotter update method
             self.update_xy_plotter() # <-- Call XY plotter update method
             
-
-            # Schedule next call
-            self.display.after(20, self.my_tasks) # Keep interval consistent
-
-        except Exception as e:
-            if isinstance(e, TclError) and "invalid command name" in str(e):
-                 print("Tkinter TclError likely due to window closing. Stopping updates.")
-                 self._running = False
+        except TclError as e: # Catch TclErrors specifically
+            # Check for common TclErrors that indicate the window is being/has been destroyed
+            if "invalid command name" in str(e).lower() or \
+               "application has been destroyed" in str(e).lower() or \
+               "bad window path name" in str(e).lower():
+                print(f"Tkinter TclError (likely window closing or already closed) in my_tasks: {e}. Stopping updates.")
+                self._running = False
             else:
-                 print(f"Error in update loop: {e}")
-                 # Decide if you want to stop on other errors
-                 # self._running = False
-            if not self._running:
-                return
+                print(f"Unhandled TclError in my_tasks: {e}. Stopping updates.")
+                # import traceback # Optional: for more detailed debugging
+                # traceback.print_exc()
+                self._running = False # Stop on other TclErrors too, as the UI state is likely compromised
+        except Exception as e:
+            print(f"Unexpected error in my_tasks update loop: {e}. Stopping updates.")
+            # import traceback # Optional: for more detailed debugging
+            # traceback.print_exc()
+            self._running = False # Stop on any other critical error
+        finally:
+            if self._running: # Only reschedule if we are still supposed to be running
+                try:
+                    self.display.after(20, self.my_tasks)
+                except TclError: # Catch TclError if display is destroyed right before .after()
+                    print("TclError during display.after in my_tasks (display likely destroyed).")
+                    self._running = False
 
     def update_videoMemory(self):
         if not self.memory: return

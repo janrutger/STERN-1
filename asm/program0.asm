@@ -96,7 +96,7 @@ INCLUDE  stacks_runtime
 @~pauze
 ldm A $next
 call @push_A
-ldi A 10
+ldi A 75
 call @push_A
 call @mod
 ldi A 0
@@ -105,7 +105,7 @@ call @eq
 call @pop_A
 tste A Z
 jmpf :_1_do_end
-ldi A 50
+ldi A 360
 call @push_A
 call @stacks_sleep
 :_1_do_end

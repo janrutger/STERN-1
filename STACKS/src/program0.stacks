@@ -11,8 +11,8 @@ plotter CONNECTION WRITE 1 0
 2 AS next
 
 FUNCTION pauze
-      next 10 % 0 == DO
-            50 WAIT
+      next 75 % 0 == DO
+            360 WAIT
       END
 END
 

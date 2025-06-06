@@ -67,6 +67,9 @@ call @eq
 call @pop_A
 tste A Z
 jmpf :_0_while_end
+ldi A 10
+call @push_A
+call @stacks_sleep
 jmp :_0_while_condition
 :_0_while_end
 call @dup

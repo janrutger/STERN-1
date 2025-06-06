@@ -1,4 +1,36 @@
-have a look and review  the Stern-1 project and the stacks-langauage (/lexV2.py, /parseV2.py and asm/incl/stacks_runtime.asm) as runtime library. look in STACKS/src directory for examples in the Stacks language
+have a look to the Stern-1 project, especially the loader file (loader2.py), for hardware communication and interrupts. the kernel file (kernel2.py) with serves a commandline, the datastack and printing routines. and asm/incl/stacks_runtime.asm with holds the runtime routines for running an STACKS-compiled program
+
+report on this
+
+
+
+
+
+
+have a look to the Stern-1 project and the stacks-langauage (/lexV2.py, /parseV2.py and asm/incl/stacks_runtime.asm) as runtime library. look in STACKS/src directory for examples in the Stacks language
+
+i get the following error when compiling this STACKS line
+
+1 cfactor == DO
+
+Output error:
+
+TRACE: Entering statement()
+      TRACE: Entering expression()
+        TRACE: Pushing NUMBER 1
+        TRACE: Entering ident() for token 'cfactor'
+          TRACE: IDENT: 'cfactor' is a VARIABLE.
+          INFO: Loading variable 'cfactor' to stack.
+        TRACE: Entering word() for token '==' (EQEQ)
+      TRACE: Exiting expression()
+Compilation Error: Expected NEWLINE, got DO
+
+
+Check stern2.py and hw_io_manager.py
+for some reason, one of the two Tkinter windows is dying in siliance after a while. What can be the reason. a leak of updates? time in the mainloop?
+
+
+
 
 I like to extend the Stack-language with a sort of struct-datatype.
 
@@ -23,6 +55,8 @@ or
 42 AS p2.list       ; appends 42 to p2.list
 
 Please give information how to start
+
+STEP 1
 
 
 
