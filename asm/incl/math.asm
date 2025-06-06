@@ -1,4 +1,4 @@
-. $datastack 16
+. $datastack 64
 . $datastack_pntr 1
 . $datastack_index 1
 % $datastack_pntr $datastack

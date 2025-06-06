@@ -36,6 +36,11 @@ class Assembler:
         self._current_filename = "" # Store filename for error messages
         self._line_map = {} # Map assembly index to (orig_line, orig_file)
 
+        # --- State for saving/restoring ---
+        self._saved_symbols = None
+        self._saved_constants = None
+        self._saved_next_var_pointer = None
+
     # --- Helper to format and raise/exit with error ---
     def _error(self, line_num, line_content, message):
         # Ensure line_num is displayed correctly, even if 0
@@ -411,33 +416,63 @@ class Assembler:
              raise AssemblyError(f"Failed to write binary output to '{output_file}': {e}")
 
 
-    # --- assemble method remains the same ---
-    def assemble(self, filename, prog_start, output="out.bin"):
-        # print(f"\n--- Assembling {filename} ---")
-        self._current_filename = filename # Store for error messages
-        self.labels = {} # Clear labels for this pass
-        # self.constants is NOT cleared - constants are global
+    def save_state(self):
+        """Saves the current state of global symbols, constants, and the variable pointer."""
+        self._saved_symbols = self.symbols.copy()
+        self._saved_constants = self.constants.copy()
+        self._saved_next_var_pointer = self.NextVarPointer
+        # print(f"DEBUG ASSEMBLER: State saved. Symbols: {len(self._saved_symbols)}, Constants: {len(self._saved_constants)}, NextVarPointer: {self._saved_next_var_pointer}", file=sys.stderr)
 
+    def restore_state(self):
+        """Restores the global symbols, constants, and variable pointer to the last saved state."""
+        if self._saved_symbols is not None and \
+           self._saved_constants is not None and \
+           self._saved_next_var_pointer is not None:
+            self.symbols = self._saved_symbols.copy()
+            self.constants = self._saved_constants.copy()
+            self.NextVarPointer = self._saved_next_var_pointer
+            print(f"DEBUG ASSEMBLER: State restored. Symbols: {len(self.symbols)}, Constants: {len(self.constants)}, NextVarPointer: {self.NextVarPointer}", file=sys.stderr)
+        else:
+            # This case should ideally not be hit if save_state() is always called first in assemble()
+            print("WARNING: Assembler restore_state() called but no state was saved. Current state remains unchanged.", file=sys.stderr)
+
+
+    def assemble(self, filename, prog_start, output="out.bin", restore=False):
+        # print(f"\n--- Assembling {filename} ---")
+        
         try:
+            # Save state at the beginning of every assembly attempt.
+            # This state will be restored if restore=True.
+            self.save_state()
+
+            self._current_filename = filename # Store for error messages
+            self.labels = {} # Clear labels for this specific assembly pass
+            # self.constants are handled by save_state/restore_state
+
             self.read_source(filename)
             self.parse_source() # Parses includes, builds self.assembly and self._line_map
             self.parse_symbols(prog_start) # Parses symbols, labels, AND constants
             self.generate_binary(prog_start, output)
             print(f"--- Successfully assembled {filename} -> {output} ---")
 
-        except FileNotFoundError:
+        except FileNotFoundError as e:
              print(f"ERROR: Assembly source file not found: {filename}", file=sys.stderr)
-             sys.exit(1)
+             raise # Re-raise for the caller to handle exit
         except AssemblyError as e:
              print(str(e), file=sys.stderr)
              print(f"--- Assembly failed for {filename} ---")
-             sys.exit(1)
+             raise # Re-raise for the caller to handle exit
         except Exception as e:
              print(f"FATAL ERROR during assembly of {filename}: {e}", file=sys.stderr)
              # import traceback
              # traceback.print_exc()
              print(f"--- Assembly failed for {filename} ---")
-             sys.exit(1)
+             # Wrap unexpected errors in AssemblyError or re-raise a more specific one
+             raise AssemblyError(f"Unexpected FATAL ERROR during assembly of {filename}: {e}") from e
+        finally:
+            if restore:
+                # print(f"DEBUG ASSEMBLER: Restoring state after assembling {filename}", file=sys.stderr)
+                self.restore_state()
 
 
 # --- Example Usage (Illustrative) ---
@@ -456,12 +491,23 @@ if __name__ == "__main__":
         # INCLUDE constants
 
         loader_start = 0
-        assembler.assemble("loader2.asm", loader_start, "loader.bin")
+        # Assemble loader, changes persist (restore=False by default)
+        assembler.assemble("loader2.asm", loader_start, "loader.bin") 
         kernel_start = 512
-        assembler.assemble("kernel2.asm", kernel_start, "kernel.bin")
+        # Assemble kernel, changes persist
+        assembler.assemble("kernel2.asm", kernel_start, "kernel.bin") 
+        
         program_start = 4096 + 512
-        assembler.assemble("out.asm", program_start, "program.bin")
-        # assembler.assemble("spritewalker.asm", program_start, "program.bin")
+
+        # Example: Assemble a test program, but restore state afterwards
+        # print("\nAssembling a temporary program with state restoration...")
+        # assembler.assemble("ChaosGame4.asm", program_start, "temp_chaos.bin", restore=True)
+        # print(f"State after assembling temp_chaos.bin (and restoring): NextVarPointer = {assembler.NextVarPointer}")
+        # Symbols/constants from ChaosGame4.asm should not be present in the main assembler state now.
+
+        # Assemble main program, using restore=True so its symbols/constants don't affect subsequent hypothetical assemblies.
+        print("\nAssembling main program (out.asm)...")
+        assembler.assemble("out.asm", program_start, "program.bin", True) 
 
         print("\nAssembly process completed.")
         print("Final Symbols Table:")
@@ -472,8 +518,10 @@ if __name__ == "__main__":
             print(f"  {name}: {value}")
         print(f"Next Available Variable Address: {assembler.NextVarPointer}")
 
-    except SystemExit:
-        print("\nAssembly process halted due to errors.")
+    except (AssemblyError, FileNotFoundError):
+        # Specific errors from assembler are already printed.
+        print("\nAssembly process halted due to errors (caught in main).")
+        sys.exit(1) # Ensure exit on assembly failure
     except Exception as e:
         print(f"\nAn unexpected error occurred during the assembly process: {e}")
-
+        sys.exit(1) # Ensure exit on other unexpected failures

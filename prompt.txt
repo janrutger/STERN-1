@@ -1,0 +1,125 @@
+have a look to the Stern-1 project, especially the loader file (loader2.py), for hardware communication and interrupts. the kernel file (kernel2.py) with serves a commandline, the datastack and printing routines. and asm/incl/stacks_runtime.asm with holds the runtime routines for running an STACKS-compiled program
+
+report on this
+
+
+
+
+
+
+have a look to the Stern-1 project and the stacks-langauage (/lexV2.py, /parseV2.py and asm/incl/stacks_runtime.asm) as runtime library. look in STACKS/src directory for examples in the Stacks language
+
+i get the following error when compiling this STACKS line
+
+1 cfactor == DO
+
+Output error:
+
+TRACE: Entering statement()
+      TRACE: Entering expression()
+        TRACE: Pushing NUMBER 1
+        TRACE: Entering ident() for token 'cfactor'
+          TRACE: IDENT: 'cfactor' is a VARIABLE.
+          INFO: Loading variable 'cfactor' to stack.
+        TRACE: Entering word() for token '==' (EQEQ)
+      TRACE: Exiting expression()
+Compilation Error: Expected NEWLINE, got DO
+
+
+Check stern2.py and hw_io_manager.py
+for some reason, one of the two Tkinter windows is dying in siliance after a while. What can be the reason. a leak of updates? time in the mainloop?
+
+
+
+
+I like to extend the Stack-language with a sort of struct-datatype.
+
+To define
+STRUCT My_struct
+    VAR Y
+    VAR X
+    ARRAY list 10
+END
+
+USE My_struct AS p1
+USE My_struct AS p2
+
+To read
+p1.Y PRINT          ; Prints the value of Y in p1
+3 [p1.list] PRINT   ; Prints index 3 from the list in p1
+
+To write
+42 AS p2.X          ; Stores value 42 in p2.X
+42 5 AS [p2.list]   ; Stores value 42 at index 5 of p2.list
+or
+42 AS p2.list       ; appends 42 to p2.list
+
+Please give information how to start
+
+STEP 1
+
+
+
+
+
+
+
+
+
+
+
+About the lentgh and size question, i like declare an size (max index) and keep track of the length. The length can be stored at index 0 (quick acces) and the maxsize must be protected and can be stored at index 1.
+
+STEP 1> Prepare lexer
+
+STEP 2> To declare an Array: 
+Syntax: ARRAY <name_of_array> size      
+eg ARRAY my_array 10, will create an array of memory size size+2
+
+
+
+STEP 3> to writing:
+Syntax: value index AS [name_of_array]. 
+will write the value at index of the array
+
+or
+Syntax: value AS name_of_array
+will append the value to the array
+
+the compilers (/parseV3.py) is aware of the typing of the AS construction, value AS var, and VALUE as connection are valid types (vars and connections) the array-type must fit in this schema. it does or it write a var, or a connection, or a ARRAY from now on
+
+STEP 4> to read: 
+For a value read from the array to TOS, the index is on TOS. 
+Syntax: 3 [name_of_array]  
+eg will read the thirt value of the array from memory and place it on TAS
+
+For reading the lenght, (just) name_of_array will put the lenght on TOS 
+Syntax: name_of_array
+
+step-by-step
+
+Step 1: lexV2.py, done
+step 2: parser must handle ARRAY definition ARRAY name size, done
+step 3: write to/append to a array using the AS statement, done
+step 4: read from index /read lentgh of a ARRAY, done
+step 5: identify (all) the runtime routines: @stacks_array_write, @stacks_array_append, @stacks_array_read, @stacks_array_length. done
+step 6: implementing @stacks_array_length, done
+step 7: implementing @stacks_array_write
+step 8: implementing @stacks_array_append
+step 9: implementing @stacks_array_read
+
+We wrote the ARRAY support in 9 steps, please verify and write an test program in the Stacks-language
+
+* All diffs must be from the current baseline
+* place/start all comments (;,#) at an newline
+
+
+This is not correct, the first token can be ident_name or a '['
+
+if ident_name in self.arrays:
+            # Peek at the *next* token to distinguish read length vs indexed read
+            if self.checkPeek(TokenType.OPENBL):
+                # Syntax: index [array_name] (Read at index)
+                # The index is already on the stack (pushed by the preceding expression)
+
+

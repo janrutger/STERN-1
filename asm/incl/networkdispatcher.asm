@@ -126,42 +126,6 @@ ret
 
 
 
-## helpers
-
-
-# Subroutine to send a data packet
-# Similar to @write_data_message_isr but ends with 'ret'
-@send_data_packet_sub
-    # expects dest-adres in A 
-    # expects data to send in B 
-    # expects service_id in C (for outgoing packet)
-
-    ldi I ~dst_adres
-    stx A $NIC_baseadres
-
-    ldi M ~data_type
-    ldi I ~message_type
-    stx M $NIC_baseadres
-
-    ldi I ~service_id_out  
-    stx C $NIC_baseadres
-
-    ldi I ~data_out
-    stx B $NIC_baseadres
-
-    # set send status to 1
-    ldi M 1
-    ldi I ~send_status
-    stx M $NIC_baseadres
-    # wait for NIC to acknowledge it has taken the data
-    :wait_for_nic_sending_ack_sub
-        ldi I ~send_status
-        ldx M $NIC_baseadres
-        # check for ACK (status becomes 0)
-        tst M 0
-    jmpf :wait_for_nic_sending_ack_sub
-ret
-
 
 @read_service0_data
     ; Reads a byte from the SERVICE0_DATA_BUFFER.

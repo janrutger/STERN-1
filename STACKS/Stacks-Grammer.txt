@@ -12,7 +12,10 @@ statement  ::=  "LABEL" label nl
 			|   "{" (expression) "}" "DO" nl {statement} nl "END" nl		
 
 			|   “WITH” array (“EACH” nl {statement} nl "END" | “COPY” array | "PLOT" ["NEW"]) nl
-			|   (expression | st) ( "PRINT" nl
+			|   (expression | st) ( "P
+			
+			
+			PRINT" nl
 									| "PLOT"  nl
 									| ¨WAIT¨  nl
 									| "AS" (variable | '['array']') nl

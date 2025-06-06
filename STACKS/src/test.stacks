@@ -1,0 +1,10 @@
+'printen en slapen' SHOW
+5 WAIT
+'printen..' SHOW
+
+
+0 PRINT
+
+10 42 % PRINT ; 10
+
+42 10 % PRINT ; 2

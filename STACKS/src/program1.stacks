@@ -1,0 +1,26 @@
+# receive CONNECTION
+receive CONNECTION READ readService0
+
+
+
+FUNCTION rcv
+  {receive 1 ==} DO
+    # wait for valid input
+    10 WAIT
+  END
+  .. AS result
+  . PLOT
+  #0 SWAP SHOW
+END
+
+
+
+0 TIMER SET
+'starts waiting' SHOW
+
+1 AS result
+
+{result 0 !=} DO
+  rcv
+END
+0 TIMER PRINT

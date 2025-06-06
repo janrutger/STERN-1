@@ -29,6 +29,10 @@
 # --- Temporary variable for HASH ---
 . $_hash_accumulator 1
 
+# --- Temporary variable for ARRAY operations ---
+. $_array_base_pntr_temp 1
+# Used to hold the base address of an array for indexed access by array routines
+
 # --- Timer Management ---
 . $TIMER_EPOCHS 8
 # Stores the epoch for up to 8 timers (index 0 to 7)
@@ -132,6 +136,13 @@ ret
     call @push_A
 ret
 
+@mod
+    call @pop_B
+    call @pop_A
+    dmod A B
+    call @push_B
+ret
+
 @stacks_gcd
     # Pops two numbers from the STACKS data stack,
     # calculates their Greatest Common Divisor (GCD) using the Euclidean algorithm by subtraction,
@@ -201,6 +212,16 @@ ret
 ret
 
 # --- Timer Operations ---
+
+@stacks_sleep
+    call @pop_B
+    ldm A $CURRENT_TIME
+    add B A
+    :sleep_loop
+        ldm A $CURRENT_TIME
+        tstg A B
+        jmpf :sleep_loop
+ret
 
 @stacks_timer_init
     # Initialize all timer epochs to 0.
@@ -851,4 +872,340 @@ ret
         # Load final hash into A
     call @push_A             
         # Push it onto the data stack
+ret
+
+# --- STACKS Array Operations ---
+
+@stacks_array_length
+    # Expects: base address of the array on top of the STACKS data stack.
+    #          The parser is responsible for pushing the direct address of the
+    #          array variable (e.g., 'my_array') onto the stack.
+    # Action:
+    #   1. Pops the array base address.
+    #   2. Reads the length of the array (assumed to be stored at offset 0
+    #      from the array's base address).
+    #   3. Pushes this length value back onto the STACKS data stack.
+    #
+    # Array Memory Structure (assumed):
+    #   array_base_address + 0: current length of the array
+    #   array_base_address + 1: total allocated words for array structure
+    #                           (element_capacity + 2)
+    #   array_base_address + 2 onwards: array data elements
+    #
+    # Registers Used: A, B, I
+    # Temporary Vars Used: $_array_base_pntr_temp
+
+    call @pop_A                     
+    # A gets array_base_address from stack
+    sto A $_array_base_pntr_temp    
+    # M[$_array_base_pntr_temp] = array_base_address
+    ldi I 0                         
+    # I = 0 (offset for length field)
+    ldx B $_array_base_pntr_temp    
+    # B = M[M[$_array_base_pntr_temp] + I] => B = M[array_base_address + 0] = length
+    call @push_B                     
+    # Push the length onto the STACKS data stack
+ret
+
+@stacks_array_write
+    # Expects on STACKS data stack (top to bottom):
+    #   array_base_address
+    #   index
+    #   value
+    # Action:
+    #   1. Pops array_base_address, index, and value.
+    #   2. Calculates element capacity: M[array_base_address + 1] - 2.
+    #      (Assumes parser stores total allocated words at M[array_base_address + 1]).
+    #   3. Checks if index is within bounds [0, element_capacity-1].
+    #      If out of bounds, calls @fatal_error.
+    #   4. Writes value to M[array_base_address + 2 + index].
+    #   5. Updates current_length at M[array_base_address + 0] if (index + 1) > current_length.
+    #
+    # Array Memory Structure (assumed by this routine, based on current parser):
+    #   array_base_address + 0: current length of the array
+    #   array_base_address + 1: total allocated words for array structure (capacity_for_elements + 2)
+    #   array_base_address + 2 onwards: array data elements
+    #
+    # Registers Used: A (value), B (index), C (array_base_address, then new_potential_length),
+    #                 K (capacity, then current_length), I (offset for ldx/stx)
+    # Temporary Vars Used: $_array_base_pntr_temp
+
+    ;call @pop_C                     
+        ; C gets array_base_address from stack
+    call @pop_A
+    ld C A
+    call @pop_B                     
+        ; B gets index from stack
+    call @pop_A                    
+        ; A gets value from stack
+
+    sto C $_array_base_pntr_temp    
+        ; M[$_array_base_pntr_temp] = array_base_address (from C)
+
+    ; --- Bounds Check ---
+    ; K will hold element_capacity. B holds index.
+    ; Valid indices are 0 to element_capacity-1.
+    ; Error if index (B) >= element_capacity (K).
+    ldi I 1                         
+        ; I = 1 (offset for total_allocated_words field)
+    ldx K $_array_base_pntr_temp    
+        ; K = M[M[$_array_base_pntr_temp] + 1] => K = total_allocated_words
+    subi K 2                        
+        ; K = total_allocated_words - 2 = element_capacity
+        ; K now holds element_capacity.
+    
+    ; Check if index (B) is less than element_capacity (K).
+    ; If B < K (i.e., K > B), then index is valid.
+    tstg K B                        
+    ; Set status if K > B (element_capacity > index)
+    jmpt :_array_write_index_valid  
+    ; If status is true (K > B), index is valid. Jump to write.
+    ; Else (K <= B, i.e., index >= element_capacity), then it's an error. Fall through.
+:_array_write_index_out_of_bounds
+    call @fatal_error             
+    ; Index out of bounds. @fatal_error halts execution.
+
+:_array_write_index_valid
+    ; --- Write Value to Array ---
+    ; Target address: M[array_base_address + 2 + index]
+    ; M[$_array_base_pntr_temp] holds array_base_address.
+    ; B holds index. A holds value.
+    ldi I 2                         
+    ; I = 2 (base offset for data elements)
+    add I B                         
+    ; I = 2 + index (B)
+    stx A $_array_base_pntr_temp    
+    ; M[M[$_array_base_pntr_temp] + I] = value (A)
+
+    ; --- Update Length ---
+    ; current_length is at M[array_base_address + 0]
+    ; new_potential_length = index + 1
+    ; if new_potential_length > current_length, update current_length.
+    ldi I 0                         
+    ; I = 0 (offset for length field)
+    ldx K $_array_base_pntr_temp    
+    ; K = M[M[$_array_base_pntr_temp] + 0] => K = current_length
+    ld C B                          
+    ; C = index (B)
+    addi C 1                        
+    ; C = index + 1 (this is the new potential length)
+    tstg C K                        
+    ; Set status if C > K (new_potential_length > current_length)
+    jmpf :_array_write_length_no_update 
+    ; If C is not > K, no length update needed.
+    stx C $_array_base_pntr_temp    
+    ; Store new length (C) into M[array_base_address + 0] (I is still 0)
+:_array_write_length_no_update
+ret
+
+@stacks_array_append
+    # Expects on STACKS data stack (top to bottom):
+    #   array_base_address
+    #   value
+    # Action:
+    #   1. Pops array_base_address and value.
+    #   2. Reads current_length from M[array_base_address + 0].
+    #   3. Calculates element_capacity: M[array_base_address + 1] - 2.
+    #   4. Checks if current_length < element_capacity.
+    #      If not (array is full), calls @fatal_error.
+    #   5. Writes value to M[array_base_address + 2 + current_length].
+    #   6. Increments and stores the new current_length at M[array_base_address + 0].
+    #
+    # Array Memory Structure (assumed):
+    #   array_base_address + 0: current length of the array
+    #   array_base_address + 1: total allocated words for array structure (capacity_for_elements + 2)
+    #   array_base_address + 2 onwards: array data elements
+    #
+    # Registers Used: A (value), C (array_base_address),
+    #                 K (current_length, then new_length), L (element_capacity),
+    #                 I (offset for ldx/stx)
+    # Temporary Vars Used: $_array_base_pntr_temp
+
+    ;call @pop_C
+    call @pop_A
+    ld C A
+    # C gets array_base_address from stack
+    call @pop_A
+    # A gets value from stack
+
+    sto C $_array_base_pntr_temp
+    # M[$_array_base_pntr_temp] = array_base_address (from C)
+
+    # --- Read current_length (K) and calculate element_capacity (L) ---
+    ldi I 0
+    # I = 0 (offset for current_length field)
+    ldx K $_array_base_pntr_temp
+    # K = M[M[$_array_base_pntr_temp] + 0] => K = current_length
+
+    ldi I 1
+    # I = 1 (offset for total_allocated_words field)
+    ldx L $_array_base_pntr_temp
+    # L = M[M[$_array_base_pntr_temp] + 1] => L = total_allocated_words
+    subi L 2
+    # L = total_allocated_words - 2 = element_capacity
+
+    # --- Bounds Check: Is current_length (K) < element_capacity (L)? ---
+    # If K < L (i.e., L > K), there is space.
+    tstg L K
+    # Set status if L > K (element_capacity > current_length)
+    jmpt :_array_append_has_space
+    # If status is true (L > K), there's space. Jump to append.
+    # Else (L <= K, i.e., current_length >= element_capacity), array is full. Fall through.
+:_array_append_full
+    call @fatal_error
+    # Array full. @fatal_error halts execution.
+
+:_array_append_has_space
+    # --- Write Value to Array ---
+    # Target address: M[array_base_address + 2 + current_length]
+    # K holds current_length. A holds value.
+    ldi I 2
+    # I = 2 (base offset for data elements)
+    add I K
+    # I = 2 + current_length (K)
+    stx A $_array_base_pntr_temp
+    # M[M[$_array_base_pntr_temp] + I] = value (A)
+
+    # --- Update Length ---
+    # Increment current_length (K) and store it back.
+    addi K 1
+    # K = new_length (current_length + 1)
+    ldi I 0
+    # I = 0 (offset for length field)
+    stx K $_array_base_pntr_temp
+    # Store new_length (K) into M[array_base_address + 0]
+ret
+
+@stacks_array_read
+    # Expects on STACKS data stack (top to bottom):
+    #   array_base_address
+    #   index
+    # Action:
+    #   1. Pops array_base_address and index.
+    #   2. Calculates element_capacity: M[array_base_address + 1] - 2.
+    #   3. Checks if index is within bounds [0, element_capacity-1].
+    #      If out of bounds, calls @fatal_error.
+    #   4. Reads value from M[array_base_address + 2 + index].
+    #   5. Pushes the read value onto the STACKS data stack.
+    #
+    # Array Memory Structure (assumed):
+    #   array_base_address + 0: current length of the array
+    #   array_base_address + 1: total allocated words for array structure (capacity_for_elements + 2)
+    #   array_base_address + 2 onwards: array data elements
+    #
+    # Registers Used: A (index), B (value_read), C (array_base_address),
+    #                 K (element_capacity), I (offset for ldx/stx)
+    # Temporary Vars Used: $_array_base_pntr_temp
+
+    ;call @pop_C
+    call @pop_A
+    ld C A
+    # C gets array_base_address from stack
+    call @pop_A
+    # A gets index from stack
+
+    sto C $_array_base_pntr_temp
+    # M[$_array_base_pntr_temp] = array_base_address (from C)
+
+    # --- Bounds Check ---
+    # K will hold element_capacity. A holds index.
+    # Valid indices are 0 to element_capacity-1.
+    # Error if index (A) >= element_capacity (K).
+    ldi I 1
+    # I = 1 (offset for total_allocated_words field)
+    ldx K $_array_base_pntr_temp
+    # K = M[M[$_array_base_pntr_temp] + 1] => K = total_allocated_words
+    subi K 2
+    # K = total_allocated_words - 2 = element_capacity
+
+    tstg K A
+    # Set status if K > A (element_capacity > index). This means index is < capacity.
+    jmpt :_array_read_index_valid
+    # If status is true (K > A), index is valid. Jump to read.
+    # Else (K <= A, i.e., index >= element_capacity), it's an error. Fall through.
+:_array_read_index_out_of_bounds
+    call @fatal_error
+    # Index out of bounds. @fatal_error halts execution.
+
+:_array_read_index_valid
+    # --- Read Value from Array ---
+    # Target address: M[array_base_address + 2 + index]
+    # M[$_array_base_pntr_temp] holds array_base_address.
+    # A holds index. B will hold the value.
+    ldi I 2
+    # I = 2 (base offset for data elements)
+    add I A
+    # I = 2 + index (A)
+    ldx B $_array_base_pntr_temp
+    # B = M[M[$_array_base_pntr_temp] + I] (value_read)
+
+    call @push_B
+    # Push the read value (B) onto the STACKS data stack
+ret
+
+; ==============================================================================
+; Network Extension Runtime Helpers
+; ==============================================================================
+
+@stacks_network_write
+    ; Called by parser-generated stubs for STACKS 'CONNECTION WRITE'.
+    ; STACKS language construct: ident CONNECTION WRITE dst-addr serviceID
+    ; The calling stub (from parseV2.py) will have set up registers as follows:
+    ;   - Register A: dst-addr (destination NIC ID)
+    ;   - Register B: Value to send (popped from STACKS stack)
+    ;   - Loaded serviceID into Register C.
+    ; This routine then calls the low-level @send_data_packet_sub.
+
+    ; @send_data_packet_sub (from networkdispatcher.asm) expects:
+    ;   A: dst_addr
+    ;   B: data_to_send
+    ;   C: service_id_out
+    ;
+    ; Registers A, B, and C are already in the correct order as expected
+
+    ; from networkdispatcher.asm
+    call @send_data_packet_sub 
+ret
+
+# a simple name, for better use in the Stacks language
+@readService0
+    ; Helper routine for STACKS 'CONNECTION READ'.
+    ; STACKS language construct: ident CONNECTION READ @user_service_routine
+    ; This helper is intended to be called by the @user_service_routine.
+    ; It reads from the network service 0 buffer using @read_service0_data.
+    ; It then pushes two items onto the STACKS stack:
+    ;   1. The value read (or a dummy value like 0 if no data).
+    ;   2. A status code: 0 for success, 1 for failure (no data).
+
+    ; from networkdispatcher.asm
+    call @read_service0_data 
+    ; @read_service0_data returns:
+    ;   - In Register A: data byte if status bit is 1. (Content of A is undefined if status bit is 0)
+    ;   - CPU Status bit: 1 if data was read successfully.
+    ;                     0 if buffer was empty.
+
+    ; Jump if CPU status bit was 1 (data read)
+    jmpt :_srs0bps_data_read_success 
+
+    ; --- Failure Case (Buffer Empty) ---
+    ; CPU status bit was 0, indicating @read_service0_data found no data.
+    ; ldi A 0         ; Push 0 as a dummy value for the data part
+    ; call @push_A    ; Assumes @push_A is a STACKS runtime routine to push Reg A onto STACKS stack
+    ; No dummy value neeeded when no data availible, just return status
+    ; Push 1 as the status_code (failure/no data)
+    ldi A 1         
+    call @push_A
+    jmp :_srs0bps_done
+
+:_srs0bps_data_read_success
+    ; --- Success Case (Data Read) ---
+    ; CPU status bit was 1, data from @read_service0_data is in Register A.
+    ; Register A already contains the data byte.
+    ; Push the actual data byte onto STACKS stack
+    call @push_A   
+    ; Push 0 as the status_code (success) 
+    ldi A 0         
+    call @push_A
+
+:_srs0bps_done
 ret
