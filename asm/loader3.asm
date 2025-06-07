@@ -1,6 +1,4 @@
 
-. $FONTS 1
-% $FONTS 2024
 
 . $VIDEO_MEM 1
 % $VIDEO_MEM 14336
@@ -10,14 +8,14 @@
 % $VIDEO_SIZE 2047
 
 . $INT_VECTORS 1
-% $INT_VECTORS 4096
+% $INT_VECTORS 3072
 
 . $mem_start 1
 % $mem_start 0
 
 # Prog_start adres = 4608
 . $prog_start 1
-% $prog_start 4608
+% $prog_start 4096
 
 . $random_seed 1
 % $random_seed 12345 
@@ -228,16 +226,13 @@ rti
     # Reg Y = Y-pos on screen
     # Reg C =  char to draw
 
-    # calc the pointer to the font
-    # a char = 20 pixels
-    muli C 20
-    ldm M $FONTS
-    add C M
-
-    ldi A 4
-    ldi B 5
-
-    call @draw_sprite_function
+    # TODO: This ISR is currently non-functional as $FONTS is no longer pre-loaded.
+    # The system needs a new mechanism for character rendering.
+    # For now, this ISR does nothing to prevent errors.
+    # Example:
+    # ldi A \E  ; Load 'E' for Error
+    # call @PRINT_CHAR_SERIAL ; (if such a routine exists for debugging)
+    # or simply return:
 rti
 
 

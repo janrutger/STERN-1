@@ -24,7 +24,7 @@ Vh = 32
 Vw = 64
 VideoSize = Vw * Vh
 BASE_MEM_SIZE = 1024 * 16
-DEFAULT_FONT_FILE = "standard.font"
+# DEFAULT_FONT_FILE = "standard.font"
 DEFAULT_LOADER_FILE = "loader.bin"
 DEFAULT_KERNEL_FILE = "kernel.bin"
 
@@ -53,10 +53,10 @@ class SternComputer:
         IOmem_sio = start_var - 16 # Base address for SIO (+8)
         IOmem_nic = start_var - 28 # Base address for NIC (+12)
 
-        self.start_font = 2024 # TODO: Make configurable?
-        self.intVectors = 4096 # TODO: Make configurable?
-        self.kernel_start_address = self.config.get("kernel_start_adres", 512)
-        self.rom_file = self.config.get("start_rom", "program.bin")
+        # self.start_font = 2024 # TODO: Make configurable?
+        self.intVectors           = self.config.get("intVectors", 3072) # New Interrupt Vector Table start address
+        self.kernel_start_address = self.config.get("kernel_start_adres", 1024) # New Kernel start address
+        self.rom_file             = self.config.get("start_rom", "program.bin")
 
         # --- Ensure Directories Exist ---
         disk_path = os.path.join(self.base_dir, self.config["disk_dir"])
@@ -89,22 +89,22 @@ class SternComputer:
             # window_title=self.config.get("window_title", f"STERN-{self.instance_id}")
         )
 
-        self._load_font()
+        # self._load_font()
 
-    def _load_font(self):
-        """Loads the font file into memory."""
-        font_filename = self.config.get("font_file", DEFAULT_FONT_FILE)
-        try:
-            # readFile looks in ./bin/ by default for type 2
-            font_data = readFile(font_filename, 2)
-            address = self.start_font
-            for value in font_data:
-                self.MainMem.write(address, value)
-                address += 1
-        except FileNotFoundError:
-             print(f"[Instance {self.instance_id}] Error: Font file '{font_filename}' not found in {self.bin_dir}")
-        except Exception as e:
-            print(f"[Instance {self.instance_id}] Error loading font '{font_filename}': {e}")
+    # def _load_font(self):
+    #     """Loads the font file into memory."""
+    #     font_filename = self.config.get("font_file", DEFAULT_FONT_FILE)
+    #     try:
+    #         # readFile looks in ./bin/ by default for type 2
+    #         font_data = readFile(font_filename, 2)
+    #         address = self.start_font
+    #         for value in font_data:
+    #             self.MainMem.write(address, value)
+    #             address += 1
+    #     except FileNotFoundError:
+    #          print(f"[Instance {self.instance_id}] Error: Font file '{font_filename}' not found in {self.bin_dir}")
+    #     except Exception as e:
+    #         print(f"[Instance {self.instance_id}] Error loading font '{font_filename}': {e}")
 
     def load_binaries(self):
         """Loads the standard loader, kernel, and the instance-specific ROM."""
