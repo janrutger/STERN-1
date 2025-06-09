@@ -45,16 +45,16 @@ def assembly_code():
         #assembler = Assembler(1024 * 12) # Use appropriate start_var pointer (consistent with instance layout)
         assembler = Assembler(assembler_var_pointer)
         assembler.assemble("loader3.asm", boot["start_loader"], "loader.bin")
-        assembler.assemble("kernel2.asm", boot["start_kernel"], "kernel.bin")
+        assembler.assemble("kernel3.asm", boot["start_kernel"], "kernel.bin")
 
         # Assemble the *same* program for both instances? Or different ones?
         # Assemble ROMs specified in configs
-        assembler.assemble("ChaosGame3.asm", boot["start_prog"], "ChaosGame3.bin", True)
-        assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
-        assembler.assemble("program0.asm", boot["start_prog"], "program0.bin", True) # Example if needed
-        assembler.assemble("program1.asm", boot["start_prog"], "program1.bin", True)
-        assembler.assemble("test.asm", boot["start_prog"], "test.bin", True)
-        assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
+        # assembler.assemble("ChaosGame3.asm", boot["start_prog"], "ChaosGame3.bin", True)
+        # assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
+        # assembler.assemble("program0.asm", boot["start_prog"], "program0.bin", True) # Example if needed
+        # assembler.assemble("program1.asm", boot["start_prog"], "program1.bin", True)
+        # assembler.assemble("test.asm", boot["start_prog"], "test.bin", True)
+        # assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
         print("Assembly complete.")
     except Exception as e:
         print(f"Assembly failed: {e}")
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0",
         "window_title": "STERN-1 (Instance 1)",
         "kernel_start_adres": boot["start_kernel"], # Use boot config for kernel start
-        "start_rom": "ChaosGame3.bin",
+        "start_rom": "ChaosGame4.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[0],
         # Add other specific settings if needed
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0", # Use a separate disk dir for instance 2
         "window_title": "STERN-1 (Instance 2)",
         "kernel_start_adres": boot["start_kernel"], # Use boot config for kernel start
-        "start_rom": "ChaosGame3.bin",
+        "start_rom": "ChaosGame4.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[1],
         # Add other specific settings if needed

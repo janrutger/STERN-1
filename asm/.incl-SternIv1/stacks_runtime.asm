@@ -72,7 +72,7 @@ ret
 
 #################################
 @push_A
-    inc I $sr_stack_idx     
+    inc I $sr_stack_idx   
     ; I_reg = M[$sr_stack_idx], then M[$sr_stack_idx]++
     stx A $sr_stack_ptr     
     ; M[M[$sr_stack_ptr] + I_reg] = A_reg

@@ -42,7 +42,7 @@
 . $NIC_baseadres 1
 % $NIC_baseadres 12283
 
-#INCLUDE printing
+INCLUDE printing
 INCLUDE serialIO
 include networkR3
 INCLUDE random

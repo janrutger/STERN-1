@@ -14,7 +14,7 @@ class Assembler:
         self.NextVarPointer = var_pointer
         self.instructions = {
             "nop": '10', "halt": '11', "ret": '12', "ei": '13', "di": '14', "rti": '15',
-            "jmpf": '20', "jmpt": '21', "jmp": '22', "jmpx": '23', "call": '24', "callx": '25', "int": '26',
+            "jmpf": '20', "jmpt": '21', "jmp": '22', "jmpx": '23', "call": '24', "callx": '25', "int": '26', "ctxsw": '27',
             "ld": '30', "ldi": '31', "ldm": '32', "ldx": '33',
             "sto": '40', "stx": '41',
             "add": '50', "addi": '51', "sub": '52', "subi": '53', "subr": '54',
@@ -385,7 +385,7 @@ class Assembler:
                     address = self.get_adres(addr_str, current_line_num_for_error, current_line_content_for_error)
                     newLine = (current_pc, self.instructions[op] + address)
 
-                elif op in ['int']:
+                elif op in ['int', 'ctxsw']: # Added 'ctxsw'
                     expected_args = 2
                     if num_args != expected_args: raise IndexError(f"needs one integer value argument")
                     val_str = instruction[1]
@@ -492,7 +492,7 @@ if __name__ == "__main__":
 
         loader_start = 0
         # Assemble loader, changes persist (restore=False by default)
-        assembler.assemble("loader2.asm", loader_start, "loader.bin") 
+        assembler.assemble("loader3.asm", loader_start, "loader.bin") 
         kernel_start = 512
         # Assemble kernel, changes persist
         assembler.assemble("kernel2.asm", kernel_start, "kernel.bin") 
@@ -507,7 +507,7 @@ if __name__ == "__main__":
 
         # Assemble main program, using restore=True so its symbols/constants don't affect subsequent hypothetical assemblies.
         print("\nAssembling main program (out.asm)...")
-        assembler.assemble("out.asm", program_start, "program.bin", True) 
+        assembler.assemble("ChaosGame4.asm", program_start, "program.bin", True) 
 
         print("\nAssembly process completed.")
         print("Final Symbols Table:")

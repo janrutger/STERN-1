@@ -1,26 +1,37 @@
-now i freezed the current state of the Stern-I project as TAG STERN-Iv1, i wanne build the next generation with proces management support.
+Please look to /assembler1b.py and /cpu1.py, after the freeze the first generation of the Stern-I project as TAG STERN-Iv1, i wanne build the next generation with proces management support.
 
-first i did to free-up memory space by disgarding the fonts and i change stern_computer.py for it. 
+Herefor i did an CPU upgrade to the current cpu1.py, this new CPU supports the context switch instruction (cxtsw) i need for proces management.
+
+now i need to work on the softwarestack, asm/loader3.asm with contains lowlevel (interrupt) routines to communicatie with hardware.
+and the asm/kernelv2.asm where the current file reflexs the firt verdion on Stern-1.
+
+for now i leave the loaderV3.asm as is and i focus on the kernel.
+
+please check and give an status report
 
 
-now i need to change STERN2.py and stern_computer.py, to ajust an new memory map in the lower region
+in this step, make the CPU context aware. 
 
-4096 - Device IO region (this is where the processes lives)
-3072 - 4096 Interrupt vectors (and others)
-1024 - 3072 kernel space
-0000 - 1024 loader space (now 512)
+the idea is an new CPU instruction to 'return from interrupt and switch" "rts <adres>. since an context switch is (mostly) interrupt driven, the return part of the instuction will restore the state before the interrupt, the switch part will save the current context and load the new context to run. the ("pcb") information is stored in a 'cache' on the CPU
 
-for development reasons the STERN2.py should be start just on instance, configurable, so later a can start 2 istances when needed
+by default the CPU starts running the kernel and can run 4 user processes. The kernel proces is dispatching the processes based on a service interrupt called by the RTC. since the cxt-switch happens in interrupt mode, a previous interrupt will finish first, before the switch is executed
 
-the new loader file is called loaderV3.py, and is adaptioned to the new situation
+each proces takes 1024 adresses. and the proces-blocks starts from start_prog (programmemory) if that context is new it saves the general registers =0 , and for PC = program start + (context number * 1024), and for SP =  (program start + (context number * 1024)) + 1024
 
-all first steps are done
-in the second step, make the CPU context aware. 
-A new instruction (eg ctxswith) saves the current context (Registers, program counter, stack pointer and the statusbit). and loads the new context. 
 
-by default the CPU start running in context 0
-when ctxswitch is called, all information is save by context number
-and load the information from the next context, if
-that context is new it saves the general registers, and for PC = program start + (context number * 1024), and for SP =  (program start + (context number * 1024)) + 1024
+please report on my ideas on this concept
 
-please check my idea on the second step
+Let change the assembler
+
+A new instruction (eg ctxswith <pointer_next_ctx>) saves the current context (Registers, program counter, stack pointer and the statusbit). and loads the new context. the information is stored in a 'cache' on the CPU
+
+the CPU needs a extra register to hold the base adres, in this case the proces memory starts at programmemory (start_prog). to calculate each proces startadres. each proces takes 1024 adresses.
+
+by default the CPU start running in kernel-mode and can run 4 processes in user-mode. The kernel proces is dispatching the processes based on a service interrupt called by the RTC 
+
+when ctxswitch cpu instruction is called, all information is save by context number and load the information from the next context, 
+if that context is new it saves the general registers =0 , and for PC = program start + (context number * 1024), and for SP =  (program start + (context number * 1024)) + 1024
+
+since the cxt-switch happens in interrupt mode, a previous interrupt will finish first, before the switch is executed
+
+please check my ideas on this concept
