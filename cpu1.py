@@ -43,6 +43,7 @@ class Cpu:
         self.saved_state = {
             'registers': self.registers.copy(),
             'PC': self.PC,
+            'SP': self.SP,
             'statusbit': self.statusbit}
 
     def restore_state(self):
@@ -50,6 +51,7 @@ class Cpu:
             # print(f"DEBUG CPU: Restoring state: PC={self.saved_state['PC']}, SP was {self.SP}, Status={self.saved_state['statusbit']}")
             self.registers = self.saved_state['registers'].copy()
             self.PC = self.saved_state['PC']
+            self.SP = self.saved_state['SP']
             self.statusbit = self.saved_state['statusbit']
             # SP is not part of self.saved_state for INT/RTI, it's preserved or managed by stack ops.
             # For context switching, SP is part of the PCB.
@@ -187,7 +189,8 @@ class Cpu:
                     self._save_current_process_context()
 
                     # 3. Load the context of the new process (op1)
-                    self._load_process_context(op1) # op1 is next_context_id
+                    next_pid = self.memory.read(op1) # content of op1 is next_context_id
+                    self._load_process_context(next_pid) 
 
                     self.interruptEnable = True # Re-enable interrupts
                 case 30:    # LD r1 r2
@@ -257,12 +260,6 @@ class Cpu:
                     print("CPU: Invalid instruction", inst, op1, op2)
                     exit("Invalid instruction")
 
-
-            # --- REMOVE SIO Call Block ---
-            # self.monitor.start_sio_call()
-            # self.sio.IO()
-            # self.monitor.end_sio_call()
-            # --- End SIO Removal ---
 
 
             #check for interrupts
