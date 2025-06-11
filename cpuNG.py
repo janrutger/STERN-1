@@ -189,8 +189,13 @@ class Cpu:
                     self._save_current_process_context()
 
                     # 3. Load the context of the new process (op1)
-                    next_pid = self.memory.read(op1) # content of op1 is next_context_id
-                    self._load_process_context(next_pid) 
+                    next_pid_str = self.memory.read(op1) # content of op1 (address) is the next_context_id
+                    try:
+                        next_pid = int(next_pid_str)
+                        self._load_process_context(next_pid)
+                    except ValueError:
+                        print(f"CPU Error: Invalid non-integer context ID '{next_pid_str}' read from memory for ctxsw.")
+                        self.statusbit = 1 # Indicate error
 
                     self.interruptEnable = True # Re-enable interrupts
                 case 30:    # LD r1 r2
@@ -251,11 +256,17 @@ class Cpu:
                     x = x - 1
                     self.registers[op1] = x
                     self.memory.write(op2, str(x))
-                case 90:    # ANDI r val
+                case 82:    # ANDI r val
                     self.registers[op1] = self.registers[op1] & op2
-                case 91:    # XORX Ra adres	binary XOR wíth Ra and adres + R(i)
+                case 83:    # XORX Ra adres	binary XOR wíth Ra and adres + R(i)
                     adres = int(self.memory.read(op2)) + self.registers[0]
                     self.registers[op1] = self.registers[op1] ^ int(self.memory.read(adres))
+                case 90:    # PUSH r
+                    self.memory.write(self.SP, self.registers[op1])
+                    self.SP = self.SP - 1
+                case 91:    # POP r  
+                    self.SP = self.SP + 1
+                    self.registers[op1] = self.memory.read(self.SP)
                 case _:
                     print("CPU: Invalid instruction", inst, op1, op2)
                     exit("Invalid instruction")

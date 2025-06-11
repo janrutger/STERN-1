@@ -1,3 +1,27 @@
+so after assembling the loader and the kernel, the biniaries do not change as compiled now with assembler1c.py. This is a good sign. test_processes.asm looks visual good afer assembling and all files are loaded to stern computer (STERN2.py) affer this the compter startsup and is doing "noting". I need a way, and interrupt i can call to start a proces by chaning his state
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Please check the current codebase, after the freeze the first generation of the Stern-I project as TAG STERN-Iv1, i wanne build the next generation with proces management support.
 
 Herefore i did an CPU upgrade to the current cpu1.py, this new CPU supports the context switch instruction (cxtsw) i need for proces management.
@@ -7,12 +31,12 @@ I changes the kernel (asm/kernel3.asm) so it know about the processes and schedu
 
 Now i like to work on the assembler assembler1c.py, the current version is not proces aware, it assembles 3 codeblocks, loader, kernel and program, and assebles them in (what i call from now) in kernel mode. It uses a globel memory area (assembler_var_pointer) for vars and buffer, and is using prg_start as base adres per file to assemble
 
-I think i need a new assembler directive, to tell the assembler its compiling a user proces (0,1,2,3) instead of a kernel file (like loader3.asm, kernel3.asm). the new directive also init the stacksize of a proces (default = 32) so the assembler can calutate the memory off-sets (the size of 1k processpace is fixed, for now).
+I think i need a new assembler directive, to tell the assembler its compiling a user proces (1,2,3,4) instead of a kernel file (like loader3.asm, kernel3.asm). the new directive also init the stacksize of a proces (default = 32) so the assembler can calutate the memory off-sets (the size of 1k processpace is fixed, for now).
 PC = start proces block
 SP = start proces block + 1024
 var space = SP - stacksize
 
-the prog_start parameter of the assembler is used to calculate the proces/context start adres, where user proces 0 == context 1 since context p is the kernel.
+the prog_start parameter of the assembler is used to calculate the proces/context start adres.
 
 start adres of context 1 = prog_start + pid * 1024
 
@@ -31,7 +55,7 @@ prog_start is used to calculate the adresses for the processes, even when .PROCE
 * DO NOT PLACE A COMMENTS AFTER AN INSCTRUCTIONS. The assemblers expects comments (;) always starts at a newline
 
 
-report on this plan
+report on this plan, i think i did all of this
 
 
 

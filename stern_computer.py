@@ -5,7 +5,7 @@ import time # Or sleep from time
 
 # Import necessary components from your STERN-1 project
 from memory import Memory
-from cpu1 import Cpu
+from cpuNG import Cpu
 # assembler1b is not needed here if assembly happens before instantiation
 from hw_IO_manager3 import DeviceIO # verion 3 has network support
 from plotter_optimized import PlotterOptimized as Plotter

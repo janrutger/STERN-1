@@ -34,6 +34,9 @@ equ ~PROC_STATE_FREE 0
 equ ~PROC_STATE_READY 1
 equ ~PROC_STATE_KERNEL_ACTIVE 3
 
+; --- Syscall Numbers ---
+equ ~SYSCALL_SET_PROCESS_READY 10 ; Syscall to set a process to READY state
+
 
 
 @kernel_init
@@ -41,6 +44,7 @@ equ ~PROC_STATE_KERNEL_ACTIVE 3
     call @init_stern 
 
     ; Proces table starts at $PROCESS_TABLE_BASE and PTE size is ~PTE_SIZE
+    call @setup_syscall_vectors
     call @init_process_table
 
     # init the sheduler for now: Network Message Dispatcher
@@ -49,12 +53,20 @@ equ ~PROC_STATE_KERNEL_ACTIVE 3
     ldi M @scheduler_round_robin
     sto M $scheduler_routine_ptr
 
+    ; Make process 1 ready immediately (for testing)
+    ldi A 1
+    int ~SYSCALL_SET_PROCESS_READY
+
+    ; Make process 2 ready immediately (for testing)
+    ldi A 2
+    int ~SYSCALL_SET_PROCESS_READY
 
     ; This is the kernel's main work loop (for PID 0)
     ; Example: check for commands, manage system tasks, or idle.
     ; For now, it can be an idle loop.
 
 :kernel_main_loop
+    ; The rest of the main loop
     ; nop ; or some useful kernel background task
     jmp :kernel_main_loop 
 halt
@@ -65,6 +77,20 @@ halt
 ## INCLUDE helpers
 INCLUDE stacks_runtime
 INCLUDE networkdispatcher
+
+@setup_syscall_vectors
+    ; The loader (loader3.asm) already sets up the RTC ISR (Interrupt 8)
+    ; and its @RTC_ISR calls the routine pointed to by $scheduler_routine_ptr,
+    ; which this kernel sets to @scheduler_round_robin.
+
+    ; Setup Set Process Ready Syscall ISR (Interrupt ~SYSCALL_SET_PROCESS_READY)
+    ldi K ~SYSCALL_SET_PROCESS_READY
+    ldm M $INT_VECTORS            ; M (register) = Base address of IVT (e.g. $INT_VECTORS from loader3.asm)
+    add M K                       ; M (register) = IVT_base + interrupt_number. M now holds the target address.
+    ldi K @_isr_set_process_ready ; K (register) = Address of the ISR routine (this is the value to store).
+    ld I M                        ; Copy the target address from register M into register I (R0).
+    stx K $mem_start              ; Store value from K into Memory[I] (as $mem_start is 0).
+    ret
 
 
 @init_process_table
@@ -227,3 +253,42 @@ ret
     ret
 
 
+;-------------------------------------------------------------------------------
+; System Call: Set Process Ready
+; INT ~SYSCALL_SET_PROCESS_READY
+; Expects: Register A (R1) = PID of the process to set to READY state.
+;-------------------------------------------------------------------------------
+@_isr_set_process_ready ; Linked from IVT[~SYSCALL_SET_PROCESS_READY]
+    ; CPU has saved state and disabled interrupts.
+    ; Register A of the *calling process* (which is now the current CPU's Reg A) holds the target PID.
+
+    ; Validate Target PID in Register A
+    ; Must be > 0 (not kernel) and < $MAX_PROCESSES
+    tst A 0                             ; Check if PID is 0 (kernel)
+    jmpt :_isr_set_ready_invalid_pid    ; If A == 0, invalid.
+
+    ldm K $MAX_PROCESSES                ; K = MAX_PROCESSES (e.g., 5)
+    tstg K A                            ; Status = 1 if K > A (e.g., 5 > A). This means A is a valid user PID (1,2,3,4)
+    jmpf :_isr_set_ready_invalid_pid    ; If not (K > A), then A is >= K or invalid.
+
+    ; PID is valid. Calculate address of PTE[target_pid].state
+    ; Target PID is in register A.
+    ; PTE_state_addr = $PROCESS_TABLE_BASE + (target_pid_A * ~PTE_SIZE) + ~PTE_STATE
+    ldm K $PROCESS_TABLE_BASE           ; K (register) = base of process table
+    ld M A                              ; M (register) = target_pid (from register A)
+    muli M ~PTE_SIZE                    ; M (register) = target_pid * PTE_SIZE
+    add K M                             ; K (register) = address of PTE for target_pid (K = K + M)
+    addi K ~PTE_STATE                   ; K (register) = address of PTE[target_pid].state
+
+    ; Now K holds the direct address of the state field. Load this into I (R0) for stx.
+    ld I K                              ; I (register R0) = direct address of the state field (value from register K)
+    ldi A ~PROC_STATE_READY             ; A (register R1) = new state value ~PROC_STATE_READY (original target PID in A is overwritten)
+    stx A $mem_start                    ; M[I] = value_of_register_A (Assumes $mem_start contains 0)
+
+:_isr_set_ready_done
+    rti
+
+:_isr_set_ready_invalid_pid
+    ; Optionally, set an error status for the calling process or log. For now, just return.
+    ; The calling process's registers (including A) are preserved by the INT/RTI mechanism.
+    rti
