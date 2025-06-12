@@ -1,15 +1,39 @@
-so after assembling the loader and the kernel, the biniaries do not change as compiled now with assembler1c.py. This is a good sign. test_processes.asm looks visual good afer assembling and all files are loaded to stern computer (STERN2.py) affer this the compter startsup and is doing "noting". I need a way, and interrupt i can call to start a proces by chaning his state
+
+have a look on the current status of the Stern1 project. This version is supporting multiprocessing
+the system loads the software: loader (asm/loader3.asm) containts lowlevel drivers, the kernel /asm/kernel3.asm, loads the kernel
+and two user processes. afer loading, the kernel starts and starts the processes calling int ~SYSCALL_SET_PROCESS_READY
+
+this is working, but when the payload of BOTH user processes calling the print_to_BCD routine to print A to the screen, the computer will crash with an memory exeption.
+print_to_BCD is part op the printing routines /asm/incl/printing.asm and is included in the loader3.asm
+
+[Instance 0] Loading binaries from /home/janrutger/git/STERN-1/bin...
+[Instance 0] Starting CPU at address: 1024
+DEBUG CPU: Loaded context for ID 0: PC=1024, SP=14335
+[Instance 0] Starting Device IO loop...
+CPU Monitor: Started.
+DEBUG CPU: Loaded context for ID 1: PC=4096, SP=5119
+DEBUG CPU: Loaded context for ID 2: PC=5120, SP=6143
+DEBUG CPU: Loaded context for ID 0: PC=1033, SP=14335
+DEBUG CPU: Loaded context for ID 1: PC=4101, SP=5119
+DEBUG CPU: Loaded context for ID 2: PC=5124, SP=6143
+Exception in thread Thread-1 (run):
+Traceback (most recent call last):
+  File "/usr/lib/python3.11/threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.11/threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/janrutger/git/STERN-1/cpuNG.py", line 214, in run
+    self.memory.write(adres, str(self.registers[op1]))
+  File "/home/janrutger/git/STERN-1/memory.py", line 8, in write
+    self.validAddress(address)
+  File "/home/janrutger/git/STERN-1/memory.py", line 28, in validAddress
+    raise IndexError(f"Memory address {address} out of range (0-{len(self.memory)-1})")
+IndexError: Memory address 16384 out of range (0-16383)
+
+i think the problem lies in interrupt handling, the user proces disable the intrrupt before callin print_to_BCD, and @print_nl is calling int 4 when it needs to scroll the screen. but the RTI from this last interrupt, enables interrupt before the print_to_BCD returns to the user proces
 
 
-
-
-
-
-
-
-
-
-
+report on this
 
 
 

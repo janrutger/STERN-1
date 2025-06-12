@@ -35,7 +35,8 @@ equ ~PROC_STATE_READY 1
 equ ~PROC_STATE_KERNEL_ACTIVE 3
 
 ; --- Syscall Numbers ---
-equ ~SYSCALL_SET_PROCESS_READY 10 ; Syscall to set a process to READY state
+equ ~SYSCALL_SET_PROCESS_READY 10   ; Syscall to set a process to READY state
+equ ~SYSCALL_SCROLL_SCREEN_UP 4     ; Syscall is already setup in loader3.asm
 
 
 
@@ -90,6 +91,7 @@ INCLUDE networkdispatcher
     ldi K @_isr_set_process_ready ; K (register) = Address of the ISR routine (this is the value to store).
     ld I M                        ; Copy the target address from register M into register I (R0).
     stx K $mem_start              ; Store value from K into Memory[I] (as $mem_start is 0).
+    
     ret
 
 
@@ -152,6 +154,11 @@ ret
     ; interrupts already disabled
     ;di
     ; Interrupts are disabled during critical scheduling path
+
+    ; --- Call the network message dispatcher ---
+    ; This routine should be non-blocking and execute quickly,
+    ; aligning with the design to run service routines from the scheduler.
+    call @network_message_dispatcher
 
     ldm A $CURRENT_PROCESS_ID
     sto A $sched_old_pid

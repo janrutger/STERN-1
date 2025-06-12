@@ -530,10 +530,15 @@ class Assembler:
                     if len(instruction) < 3:
                          self._error(orig_line_num, current_line_content_for_error, "Directive '%' requires a target symbol and at least one value (e.g., % $myVar 10 ~COUNT \\a)")
                     target_symbol = instruction[1]
-                    if not target_symbol.startswith("$") or target_symbol not in self.symbols:
-                         self._error(orig_line_num, current_line_content_for_error, f"Invalid or undefined target symbol '{target_symbol}' for '%'. Must be a defined '$' variable.")
 
-                    adres = int(self.symbols[target_symbol])
+                    if not target_symbol.startswith("$"):
+                         self._error(orig_line_num, current_line_content_for_error, f"Target symbol '{target_symbol}' for '%' directive must be a '$' variable.")
+                    
+                    # Use get_adres to resolve the variable's address, respecting scope.
+                    # get_adres will raise an AssemblyError if the symbol is not found.
+                    adres_str = self.get_adres(target_symbol, orig_line_num, current_line_content_for_error, _gen_current_mode, _gen_current_pid)
+                    adres = int(adres_str)
+
                     values_to_write = instruction[2:]
 
                     for value_str in values_to_write:
