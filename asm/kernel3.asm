@@ -35,9 +35,33 @@ equ ~PROC_STATE_READY 1
 equ ~PROC_STATE_KERNEL_ACTIVE 3
 
 ; --- Syscall Numbers ---
-equ ~SYSCALL_SET_PROCESS_READY 10   ; Syscall to set a process to READY state
-equ ~SYSCALL_SCROLL_SCREEN_UP 4     ; Syscall is already setup in loader3.asm
+; Loader-defined syscalls (0-9 range typically for hardware/low-level)
+equ ~SYSCALL_CLEAR_SCREEN 1
+equ ~SYSCALL_FILL_SCREEN 2
+equ ~SYSCALL_SCROLL_SCREEN_UP 4
+equ ~SYSCALL_DRAW_SPRITE 5
 
+; Process Management Syscalls
+equ ~SYSCALL_START_PROCESS 10       ; Renamed from SET_PROCESS_READY. Input: PID in A.
+equ ~SYSCALL_STOP_PROCESS 11        ; Input: PID in A. Sets target to FREE, releases its SIO resources.
+
+; SIO Channel Management Syscalls
+equ ~SYSCALL_REQUEST_SIO_CHANNEL 12 ; Input: ChannelID in A. Output: Status in A. Claims SIO channel for caller.
+equ ~SYSCALL_RELEASE_SIO_CHANNEL 13 ; Input: ChannelID in A. Output: Status in A. Releases SIO channel if caller is owner.
+equ ~SYSCALL_WRITE_SIO_CHANNEL 14   ; Input: ChannelID in A, Data in B. Output: Status in A. Writes data if caller owns channel.
+equ ~SYSCALL_FORCE_RELEASE_SIO_CHANNEL 15 ; Input: ChannelID in A. Output: Status in A. Privileged release of SIO channel.
+
+; Basic Output Syscalls (renumbered to avoid conflict)
+equ ~SYSCALL_PRINT_NUMBER 16        ; must be pointing to @print_to_BCD (printing.asm)
+equ ~SYSCALL_PRINT_CHAR 17          ; must be pointing to @print_char (printing.asm)
+equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.asm)
+
+
+. $SIO_MAX_CHANNELS 1
+% $SIO_MAX_CHANNELS 4               ; Example: 4 SIO channels (0-3)
+. $SIO_TABLE 4                      ; 4 adresses reserverd for the table
+. $SIO_OWNERSHIP_TABLE 1            ; The pointer for the table  
+% $SIO_OWNERSHIP_TABLE $SIO_TABLE   ; The pointer points to the table
 
 
 @kernel_init
@@ -47,6 +71,7 @@ equ ~SYSCALL_SCROLL_SCREEN_UP 4     ; Syscall is already setup in loader3.asm
     ; Proces table starts at $PROCESS_TABLE_BASE and PTE size is ~PTE_SIZE
     call @setup_syscall_vectors
     call @init_process_table
+    call @init_sio_subsystem
 
     # init the sheduler for now: Network Message Dispatcher
     # ldi M @network_message_dispatcher
@@ -54,13 +79,13 @@ equ ~SYSCALL_SCROLL_SCREEN_UP 4     ; Syscall is already setup in loader3.asm
     ldi M @scheduler_round_robin
     sto M $scheduler_routine_ptr
 
-    ; Make process 1 ready immediately (for testing)
+    ; Start process 1  immediately (for testing)
     ldi A 1
-    int ~SYSCALL_SET_PROCESS_READY
+    int ~SYSCALL_START_PROCESS
 
-    ; Make process 2 ready immediately (for testing)
+    ; Start process 2  immediately (for testing)
     ldi A 2
-    int ~SYSCALL_SET_PROCESS_READY
+    int ~SYSCALL_START_PROCESS
 
     ; This is the kernel's main work loop (for PID 0)
     ; Example: check for commands, manage system tasks, or idle.
@@ -84,14 +109,72 @@ INCLUDE networkdispatcher
     ; and its @RTC_ISR calls the routine pointed to by $scheduler_routine_ptr,
     ; which this kernel sets to @scheduler_round_robin.
 
-    ; Setup Set Process Ready Syscall ISR (Interrupt ~SYSCALL_SET_PROCESS_READY)
-    ldi K ~SYSCALL_SET_PROCESS_READY
+    ; --- Setup Process Management Syscall ISRs ---
+    ldi K ~SYSCALL_START_PROCESS
     ldm M $INT_VECTORS            ; M (register) = Base address of IVT (e.g. $INT_VECTORS from loader3.asm)
     add M K                       ; M (register) = IVT_base + interrupt_number. M now holds the target address.
-    ldi K @_isr_set_process_ready ; K (register) = Address of the ISR routine (this is the value to store).
+    ldi K @_isr_start_process     ; K (register) = Address of the ISR routine (this is the value to store).
     ld I M                        ; Copy the target address from register M into register I (R0).
     stx K $mem_start              ; Store value from K into Memory[I] (as $mem_start is 0).
-    
+
+    ldi K ~SYSCALL_STOP_PROCESS
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_stop_process
+    ld I M
+    stx K $mem_start
+
+    ; --- Setup SIO Channel Management Syscall ISRs ---
+    ldi K ~SYSCALL_REQUEST_SIO_CHANNEL
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_request_sio_channel
+    ld I M
+    stx K $mem_start
+
+    ldi K ~SYSCALL_RELEASE_SIO_CHANNEL
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_release_sio_channel
+    ld I M
+    stx K $mem_start
+
+    ldi K ~SYSCALL_WRITE_SIO_CHANNEL
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_write_sio_channel
+    ld I M
+    stx K $mem_start
+
+    ldi K ~SYSCALL_FORCE_RELEASE_SIO_CHANNEL
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_force_release_sio_channel
+    ld I M
+    stx K $mem_start
+
+    ; --- Setup Basic Output Syscall ISRs ---
+    ldi K ~SYSCALL_PRINT_NUMBER
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_print_number
+    ld I M
+    stx K $mem_start
+
+    ldi K ~SYSCALL_PRINT_CHAR
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_print_char
+    ld I M
+    stx K $mem_start
+
+    ldi K ~SYSCALL_PRINT_NL
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_print_nl
+    ld I M
+    stx K $mem_start
+
     ret
 
 
@@ -142,6 +225,23 @@ INCLUDE networkdispatcher
     jmpf :init_pte_loop 
 ret
 
+@init_sio_subsystem
+    ; Initialize the SIO ownership table, marking all channels as free.
+    ; A channel is free if its entry in $SIO_OWNERSHIP_TABLE is 0.
+    ldi C 0 ; Loop counter for channel ID
+:init_sio_loop
+    ldm K $SIO_MAX_CHANNELS
+    tste C K
+    jmpt :init_sio_done ; If C == MAX_CHANNELS, then done
+
+    ldi M 0 ; Value to store (0 for free)
+    ld I C  ; I = channel_id (offset)
+    stx M $SIO_OWNERSHIP_TABLE ; M[$SIO_OWNERSHIP_TABLE + channel_id] = 0
+
+    addi C 1
+    jmp :init_sio_loop
+:init_sio_done
+ret
 ; --- Scheduler Temporary Variables ---
 . $sched_old_pid 1
 . $sched_next_pid 1
@@ -261,11 +361,11 @@ ret
 
 
 ;-------------------------------------------------------------------------------
-; System Call: Set Process Ready
-; INT ~SYSCALL_SET_PROCESS_READY
+; System Call: Start Process (was Set Process Ready)
+; INT ~SYSCALL_START_PROCESS
 ; Expects: Register A (R1) = PID of the process to set to READY state.
 ;-------------------------------------------------------------------------------
-@_isr_set_process_ready ; Linked from IVT[~SYSCALL_SET_PROCESS_READY]
+@_isr_start_process ; Linked from IVT[~SYSCALL_START_PROCESS]
     ; CPU has saved state and disabled interrupts.
     ; Register A of the *calling process* (which is now the current CPU's Reg A) holds the target PID.
 
@@ -298,4 +398,65 @@ ret
 :_isr_set_ready_invalid_pid
     ; Optionally, set an error status for the calling process or log. For now, just return.
     ; The calling process's registers (including A) are preserved by the INT/RTI mechanism.
+    rti
+
+; --- Syscall ISR Stubs & Implementations ---
+
+@_isr_stop_process
+    ; Args: A = PID to stop
+    ; TODO: Implement logic:
+    ; 1. Validate PID (not 0, < MAX_PROCESSES)
+    ; 2. Get PTE for PID_A
+    ; 3. Set state to ~PROC_STATE_FREE
+    ; 4. Release SIO channels owned by PID_A:
+    ;    Iterate $SIO_OWNERSHIP_TABLE. If M[$SIO_OWNERSHIP_TABLE+channel_idx] == (PID_A)+1,
+    ;    then set M[$SIO_OWNERSHIP_TABLE+channel_idx] = 0.
+    ; 5. Return status in A? (e.g. 0 for success)
+    rti
+
+@_isr_request_sio_channel
+    ; Args: A = ChannelID
+    ; TODO: Implement logic:
+    ; 1. Validate ChannelID (0 <= ChannelID < $SIO_MAX_CHANNELS)
+    ; 2. Get current_pid = $CURRENT_PROCESS_ID
+    ; 3. Check $SIO_OWNERSHIP_TABLE[ChannelID]:
+    ;    If 0 (free), set to (current_pid)+1. Set A = 0 (success).
+    ;    Else (owned), set A = 1 (failure/busy).
+    rti
+
+@_isr_release_sio_channel
+    ; Args: A = ChannelID
+    ; TODO: Implement logic:
+    ; 1. Validate ChannelID
+    ; 2. Get current_pid = $CURRENT_PROCESS_ID
+    ; 3. Check $SIO_OWNERSHIP_TABLE[ChannelID]:
+    ;    If (current_pid)+1, set to 0 (free). Set A = 0 (success).
+    ;    Else (not owner or already free), set A = 1 (failure).
+    rti
+
+@_isr_write_sio_channel
+    ; Args: A = ChannelID, B = Data
+    ; TODO: Implement logic (similar to release, check ownership, then call low-level SIO write e.g. @write_channel)
+    rti
+
+@_isr_force_release_sio_channel
+    ; Args: A = ChannelID
+    ; TODO: Implement logic:
+    ; 1. Privilege check: current_pid == 1 (shell)?
+    ; 2. If privileged, set $SIO_OWNERSHIP_TABLE[ChannelID] to 0.
+    ; 3. Return status.
+    rti
+
+@_isr_print_number
+    ; Args: A = number to print
+    call @print_to_BCD ; Assumes @print_to_BCD uses A and preserves other essential regs or syscall wrapper handles it.
+    rti
+
+@_isr_print_char
+    ; Args: A = char to print
+    call @print_char   ; Assumes @print_char uses A.
+    rti
+
+@_isr_print_nl
+    call @print_nl
     rti
