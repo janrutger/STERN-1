@@ -736,7 +736,7 @@ if __name__ == "__main__":
         assembler.assemble("kernel3.asm", kernel_start, "kernel.bin")
 
         program_start = 4096
-        assembler.assemble("test_processes.asm", program_start, "temp_chaos.bin", restore=True)
+        assembler.assemble("processes3.asm", program_start, "temp_processes.bin", restore=True)
 
         # Example: Assemble a test program, but restore state afterwards
         # print("\nAssembling a temporary program with state restoration...")

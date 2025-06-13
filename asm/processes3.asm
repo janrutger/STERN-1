@@ -12,6 +12,7 @@
     . $cmd_buffer_idx 1 ; Current index/length of command in buffer
     . $temp_char 1      ; Temporary storage for character read from keyboard
 
+
 :shell_loop
     call @print_shell_prompt
     ldi A 0
@@ -90,48 +91,110 @@
     tst K 0 ; Is length 0 (empty command)?
     jmpt :shell_loop ; If empty command, just show prompt again
 
-    ; --- Try to match "cls" command ---
+    ; --- Try commands of length 3 ---
     tst K 3 ; Is length 3?
-    jmpf :try_pid_command ; If not 3, cannot be "cls", try next command
+    jmpf :try_len5_commands ; If not length 3, try length 5 commands
 
+    ; Command is length 3. Try "cls" first.
     ldi I 0
     ldx A $cmd_buffer ; A = cmd_buffer[0]
     tst A \c
-    jmpf :try_pid_command ; Not 'c'
+    jmpf :try_ext_command ; Not 'c', try "ext"
     ldi I 1
     ldx A $cmd_buffer ; A = cmd_buffer[1]
     tst A \l
-    jmpf :try_pid_command ; Not 'l'
+    jmpf :try_ext_command ; Not 'l', try "ext"
     ldi I 2
     ldx A $cmd_buffer ; A = cmd_buffer[2]
     tst A \s
-    jmpf :try_pid_command ; Not 's'
+    jmpf :try_ext_command ; Not 's', try "ext"
     ; If all checks pass, it's "cls"
     call @print_cls ; This is `int 1` via printing.asm
     jmp :shell_loop
 
-:try_pid_command
-    ldm K $cmd_buffer_idx ; K = length of command
-    tst K 3 ; Is length 3?
-    jmpf :unknown_shell_command ; If not 3, cannot be "pid"
-
+:try_ext_command ; Still length 3
     ldi I 0
     ldx A $cmd_buffer
-    tst A \p
-    jmpf :unknown_shell_command
+    tst A \e
+    jmpf :unknown_shell_command ; Not 'e', and not 'cls', so unknown for length 3
     ldi I 1
     ldx A $cmd_buffer
-    tst A \i
+    tst A \x
+    jmpf :unknown_shell_command ; Not 'x'
+    ldi I 2
+    ldx A $cmd_buffer
+    tst A \t
+    jmpf :unknown_shell_command ; Not 't'
+    ; It's "ext" command - stop self (PID 1)
+    di
+    ldi A 1 ; This process is PID 1
+    int ~SYSCALL_STOP_PROCESS ; Kernel syscall to stop process
+    ; If the shell is successfully stopped by the kernel,
+    ; it might not reach the instructions below.
+    ; The kernel's _isr_stop_process would need to handle descheduling
+    ; the current process and switching to another.
+    ei
+    ; If ext fails or kernel returns, it will loop.
+    ; Ideally, the process halts or the system switches away.
+    jmp :shell_loop
+
+:try_len5_commands
+    ldm K $cmd_buffer_idx ; K = length of command (re-check, though branched here)
+    tst K 5 ; Is length 5? (e.g. "sta P" or "sto P")
+    jmpf :unknown_shell_command ; If not 5 (and wasn't 3), then unknown.
+
+    ; Command is length 5. Try "sta P"
+    ldi I 0
+    ldx A $cmd_buffer
+    tst A \s
+    jmpf :try_sto_command 
+    ldi I 1
+    ldx A $cmd_buffer
+    tst A \t
+    jmpf :try_sto_command
+    ldi I 2
+    ldx A $cmd_buffer
+    tst A \a
+    jmpf :try_sto_command
+    ldi I 3
+    ldx A $cmd_buffer
+    tst A \space ; Check for space separator
+    jmpf :try_sto_command
+    ; If all checks pass, it's "sta P"
+    di
+    ldi I 4           ; Index of PID character
+    ldx A $cmd_buffer ; A = ASCII char for PID
+    subi A 20         ; Convert ASCII '0'(20)...'9'(29) to number 0...9
+                      ; TODO: Add validation: PID should be >0 and <MAX_PROCESSES
+                      ; The kernel's _isr_start_process should also validate.
+    int ~SYSCALL_START_PROCESS ; Kernel syscall to start process
+    ei
+    jmp :shell_loop
+
+:try_sto_command ; Still length 5
+    ldi I 0
+    ldx A $cmd_buffer
+    tst A \s
+    jmpf :unknown_shell_command ; Not 's', so unknown for length 5
+    ldi I 1
+    ldx A $cmd_buffer
+    tst A \t
     jmpf :unknown_shell_command
     ldi I 2
     ldx A $cmd_buffer
-    tst A \d
+    tst A \o
     jmpf :unknown_shell_command
-    ; It's "pid" command
+    ldi I 3
+    ldx A $cmd_buffer
+    tst A \space ; Check for space separator
+    jmpf :unknown_shell_command
+    ; If all checks pass, it's "sto P"
     di
-    ldi A 1 ; This process is PID 1
-    call @print_to_BCD
-    call @print_nl
+    ldi I 4           ; Index of PID character
+    ldx A $cmd_buffer ; A = ASCII char for PID
+    subi A 20         ; Convert ASCII '0'(20)...'9'(29) to number 0...9
+                      ; TODO: Add validation for PID. Kernel's _isr_stop_process should validate.
+    int ~SYSCALL_STOP_PROCESS ; Kernel syscall to stop process
     ei
     jmp :shell_loop
 
@@ -185,12 +248,13 @@ ret
     
 
 :loop1
-    call @add1  
+    ;call @add1  
 
     
     di  
         ldm A $var1   
-        ;call @print_to_BCD 
+        ;int ~SYSCALL_PRINT_NUMBER
+    
     ei
 
     ; Infinite loop or halt

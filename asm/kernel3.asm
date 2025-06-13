@@ -92,10 +92,28 @@ equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.as
     ; For now, it can be an idle loop.
 
 :kernel_main_loop
-    ; The rest of the main loop
-    ; nop ; or some useful kernel background task
+    ; Check if PID 1 (the shell) is still running.
+    ; If not, halt the system.
+
+    ; Calculate address of PTE[1].state
+    ldm K $PROCESS_TABLE_BASE   ; K = base of process table
+    ldi M 1                     ; M = PID 1 (the shell)
+    muli M ~PTE_SIZE            ; M = PID_1 * PTE_SIZE
+    add K M                     ; K = address of PTE for PID 1
+    addi K ~PTE_STATE           ; K = address of PTE[1].state field
+    ld I K                      ; I = direct address of the state field
+    ldx A $mem_start            ; A = M[I] = current state of PID 1
+
+    ; Compare current state of PID 1 with ~PROC_STATE_FREE
+    tst A ~PROC_STATE_FREE
+    jmpt :_kernel_system_halt   ; If state is ~PROC_STATE_FREE, jump to halt
+
+    ; PID 1 is still running, or in another active/ready state.
+    ; Kernel can perform other background tasks here if any, or just loop.
     jmp :kernel_main_loop 
-halt
+
+:_kernel_system_halt
+    halt ; Halt the system if PID 1 is not running
 
 
 
@@ -403,16 +421,71 @@ ret
 ; --- Syscall ISR Stubs & Implementations ---
 
 @_isr_stop_process
-    ; Args: A = PID to stop
-    ; TODO: Implement logic:
-    ; 1. Validate PID (not 0, < MAX_PROCESSES)
-    ; 2. Get PTE for PID_A
-    ; 3. Set state to ~PROC_STATE_FREE
-    ; 4. Release SIO channels owned by PID_A:
-    ;    Iterate $SIO_OWNERSHIP_TABLE. If M[$SIO_OWNERSHIP_TABLE+channel_idx] == (PID_A)+1,
-    ;    then set M[$SIO_OWNERSHIP_TABLE+channel_idx] = 0.
-    ; 5. Return status in A? (e.g. 0 for success)
+    ; Args: A = PID to stop (target_pid)
+    ; Clobbers: K, M, I, B, C (internal usage)
+    ; Returns: A = 0 for success, 1 for invalid PID (optional, current setup just rti)
+
+    ; Save target_pid (from A) into B, as A will be used for return status/other values.
+    ld B A
+
+    ; 1. Validate PID (B)
+    ; Check if PID is 0 (kernel) - cannot stop kernel
+    tst B 0
+    jmpt :_isr_stop_process_fail ; If B == 0, invalid.
+
+    ; Check if PID < MAX_PROCESSES
+    ldm K $MAX_PROCESSES        ; K = MAX_PROCESSES
+    tstg K B                    ; Status = 1 if K > B (e.g., 5 > B). This means B is a valid user PID.
+    jmpf :_isr_stop_process_fail ; If not (K > B), then B is >= K, so invalid.
+
+    ; PID in B is valid (1 to MAX_PROCESSES-1)
+
+    ; 2. Get PTE for PID_B and 3. Set state to ~PROC_STATE_FREE
+    ldm K $PROCESS_TABLE_BASE   ; K = base of process table
+    ld M B                      ; M = target_pid (from B)
+    muli M ~PTE_SIZE            ; M = target_pid * PTE_SIZE
+    add K M                     ; K = address of PTE for target_pid
+    addi K ~PTE_STATE           ; K = address of PTE[target_pid].state
+    ld I K                      ; I = direct address of the state field
+    ldi M ~PROC_STATE_FREE      ; M = new state value
+    stx M $mem_start            ; M[I] = ~PROC_STATE_FREE
+
+    ; 4. Release SIO channels owned by PID_B
+    ; Owner is stored as (PID + 1). So, we look for (B + 1).
+    ld C B                      ; C = target_pid (from B)
+    addi C 1                    ; C = value to look for in SIO table (target_pid + 1)
+
+    ldi K 0                     ; K = channel_idx, loop counter
+:_isr_stop_sio_release_loop
+    ldm M $SIO_MAX_CHANNELS
+    tste K M
+    jmpt :_isr_stop_sio_release_done ; If channel_idx == MAX_CHANNELS, done iterating
+
+    ; Check ownership: M[$SIO_OWNERSHIP_TABLE + channel_idx]
+    ld I K                      ; I = channel_idx
+    ldx M $SIO_OWNERSHIP_TABLE  ; M = M[$SIO_OWNERSHIP_TABLE + channel_idx] (current owner)
+
+    tste M C                    ; Is current_owner (M) == (target_pid+1) (C)?
+    jmpf :_isr_stop_sio_next_channel ; If not equal, check next channel
+
+    ; Owner matches, release this channel
+    ldi M 0                     ; M = 0 (free)
+    ld I K                      ; I = channel_idx (still holds it)
+    stx M $SIO_OWNERSHIP_TABLE  ; M[$SIO_OWNERSHIP_TABLE + channel_idx] = 0
+
+:_isr_stop_sio_next_channel
+    addi K 1
+    jmp :_isr_stop_sio_release_loop
+:_isr_stop_sio_release_done
+
+    ; 5. Return status (optional, e.g., A=0 for success)
+    ; ldi A 0 ; Success
     rti
+
+:_isr_stop_process_fail
+    ; ldi A 1 ; Failure (invalid PID)
+    rti
+
 
 @_isr_request_sio_channel
     ; Args: A = ChannelID
