@@ -55,6 +55,7 @@ equ ~SYSCALL_FORCE_RELEASE_SIO_CHANNEL 15 ; Input: ChannelID in A. Output: Statu
 equ ~SYSCALL_PRINT_NUMBER 16        ; must be pointing to @print_to_BCD (printing.asm)
 equ ~SYSCALL_PRINT_CHAR 17          ; must be pointing to @print_char (printing.asm)
 equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.asm)
+equ ~SYSCALL_YIELD 19               ; Process voluntarily yields CPU
 
 
 . $SIO_MAX_CHANNELS 1
@@ -84,8 +85,8 @@ equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.as
     int ~SYSCALL_START_PROCESS
 
     ; Start process 2  immediately (for testing)
-    ldi A 2
-    int ~SYSCALL_START_PROCESS
+    ;ldi A 2
+    ;int ~SYSCALL_START_PROCESS
 
     ; This is the kernel's main work loop (for PID 0)
     ; Example: check for commands, manage system tasks, or idle.
@@ -246,9 +247,9 @@ ret
 @init_sio_subsystem
     ; Initialize the SIO ownership table, marking all channels as free.
     ; A channel is free if its entry in $SIO_OWNERSHIP_TABLE is 0.
+    ldm K $SIO_MAX_CHANNELS ; K = SIO_MAX_CHANNELS (load once)
     ldi C 0 ; Loop counter for channel ID
 :init_sio_loop
-    ldm K $SIO_MAX_CHANNELS
     tste C K
     jmpt :init_sio_done ; If C == MAX_CHANNELS, then done
 
@@ -473,6 +474,12 @@ ret
     ld I K                      ; I = channel_idx (still holds it)
     stx M $SIO_OWNERSHIP_TABLE  ; M[$SIO_OWNERSHIP_TABLE + channel_idx] = 0
 
+    ; Channel successfully claimed in the ownership table.
+    ; Now, call the hardware @close_channel routine.
+    ; @close_channel expects the ChannelID in register A. It's currently in K.
+    ld A K                              ; Move ChannelID from K to A for @close_channel
+    call @close_channel                  ; Call the SIO hardware open routine
+
 :_isr_stop_sio_next_channel
     addi K 1
     jmp :_isr_stop_sio_release_loop
@@ -489,35 +496,173 @@ ret
 
 @_isr_request_sio_channel
     ; Args: A = ChannelID
-    ; TODO: Implement logic:
-    ; 1. Validate ChannelID (0 <= ChannelID < $SIO_MAX_CHANNELS)
-    ; 2. Get current_pid = $CURRENT_PROCESS_ID
-    ; 3. Check $SIO_OWNERSHIP_TABLE[ChannelID]:
-    ;    If 0 (free), set to (current_pid)+1. Set A = 0 (success).
-    ;    Else (owned), set A = 1 (failure/busy).
+    ; Returns: A = 0 for success (channel acquired), 1 for failure (invalid ID or channel busy)
+    ; Clobbers: K, M, I, C (internal usage)
+
+    ; Save ChannelID (from A) into C, as A will be used for return status.
+    ld C A
+
+    ; 1. Validate ChannelID (C)
+    ; Must be >= 0 and < $SIO_MAX_CHANNELS
+    ldm K $SIO_MAX_CHANNELS             ; K = SIO_MAX_CHANNELS
+    tstg K C                            ; Status = 1 if K > C (e.g., 4 > C). Valid C is 0,1,2,3
+    jmpf :_isr_req_sio_invalid_id_or_busy ; If not (K > C), then C is >= K or <0, so invalid.
+
+    ; ChannelID in C is valid.
+
+    ; 2. Get current_pid
+    ldm K $CURRENT_PROCESS_ID           ; K = current_pid
+
+    ; 3. Check $SIO_OWNERSHIP_TABLE[ChannelID_C]
+    ; Address = $SIO_OWNERSHIP_TABLE + ChannelID_C
+    ld I C                              ; I = ChannelID_C (offset)
+    ldx M $SIO_OWNERSHIP_TABLE          ; M = M[$SIO_OWNERSHIP_TABLE + ChannelID_C] (current owner value)
+
+    tst M 0                             ; Is the channel free (owner is 0)?
+    jmpf :_isr_req_sio_invalid_id_or_busy ; If not 0 (M != 0), it's busy.
+
+    ; Channel is free. Claim it for current_pid (K).
+    ; Store (current_pid + 1) as the owner.
+    addi K 1                            ; K = current_pid + 1
+    ld I C                              ; I = ChannelID_C (offset, ensure it's still C)
+    stx K $SIO_OWNERSHIP_TABLE          ; M[$SIO_OWNERSHIP_TABLE + ChannelID_C] = (current_pid + 1)
+
+    ; Channel successfully claimed in the ownership table.
+    ; Now, call the hardware @open_channel routine.
+    ; @open_channel expects the ChannelID in register A. It's currently in C.
+    ld A C                              ; Move ChannelID from C to A for @open_channel
+    call @open_channel                  ; Call the SIO hardware open routine
+
+    ldi A 0                             ; Set A = 0 (success)
+    jmp :_isr_req_sio_done
+
+:_isr_req_sio_invalid_id_or_busy
+    ldi A 1                             ; Set A = 1 (failure: invalid ID or channel busy)
+
+:_isr_req_sio_done
     rti
 
 @_isr_release_sio_channel
     ; Args: A = ChannelID
-    ; TODO: Implement logic:
-    ; 1. Validate ChannelID
-    ; 2. Get current_pid = $CURRENT_PROCESS_ID
-    ; 3. Check $SIO_OWNERSHIP_TABLE[ChannelID]:
-    ;    If (current_pid)+1, set to 0 (free). Set A = 0 (success).
-    ;    Else (not owner or already free), set A = 1 (failure).
+    ; Returns: A = 0 for success (channel released), 1 for failure (invalid ID or not owner)
+    ; Clobbers: K, M, I, C (internal usage)
+
+    ; Save ChannelID (from A) into C, as A will be used for return status.
+    ld C A
+
+    ; 1. Validate ChannelID (C)
+    ldm K $SIO_MAX_CHANNELS
+    tstg K C
+    jmpf :_isr_rel_sio_fail ; If C >= K or C < 0
+
+    ; ChannelID in C is valid.
+
+    ; 2. Get current_pid and prepare ownership check value
+    ldm K $CURRENT_PROCESS_ID           ; K = current_pid
+    addi K 1                            ; K = value to check for ownership (current_pid + 1)
+
+    ; 3. Check $SIO_OWNERSHIP_TABLE[ChannelID_C]
+    ld I C                              ; I = ChannelID_C (offset)
+    ldx M $SIO_OWNERSHIP_TABLE          ; M = M[$SIO_OWNERSHIP_TABLE + ChannelID_C] (stored owner value)
+
+    tste M K                            ; Is stored_owner (M) == (current_pid+1) (K)?
+    jmpf :_isr_rel_sio_fail             ; If not equal, current process is not the owner (or channel was free).
+
+    ; Current process is the owner. Release the channel.
+    ldi M 0                             ; M = 0 (free)
+    ld I C                              ; I = ChannelID_C (offset, ensure it's still C)
+    stx M $SIO_OWNERSHIP_TABLE          ; M[$SIO_OWNERSHIP_TABLE + ChannelID_C] = 0
+
+    ; Channel successfully released in the ownership table.
+    ; Now, call the hardware @close_channel routine.
+    ; @close_channel expects the ChannelID in register A. It's currently in C.
+    ld A C                              ; Move ChannelID from C to A for @close_channel
+    call @close_channel                 ; Call the SIO hardware close routine
+
+    ldi A 0                             ; Set A = 0 (success)
+    jmp :_isr_rel_sio_done
+
+:_isr_rel_sio_fail
+    ldi A 1                             ; Set A = 1 (failure: invalid ID or not owner)
+
+:_isr_rel_sio_done
     rti
 
 @_isr_write_sio_channel
     ; Args: A = ChannelID, B = Data
-    ; TODO: Implement logic (similar to release, check ownership, then call low-level SIO write e.g. @write_channel)
+    ; Returns: A = 0 for success, 1 for failure (invalid ID, not owner), 2 for write error (channel specific)
+    ; Clobbers: K, M, I, C (internal usage)
+    ld C A ; C = ChannelID
+
+    ; 1. Validate ChannelID (C)
+    ldm K $SIO_MAX_CHANNELS
+    tstg K C
+    jmpf :_isr_write_sio_fail_invalid_id
+
+    ; 2. Get current_pid and prepare ownership check value
+    ldm K $CURRENT_PROCESS_ID
+    addi K 1                            ; K = (current_pid + 1)
+
+    ; 3. Check ownership $SIO_OWNERSHIP_TABLE[ChannelID_C]
+    ld I C                              ; I = ChannelID_C
+    ldx M $SIO_OWNERSHIP_TABLE          ; M = stored owner
+    tste M K
+    jmpf :_isr_write_sio_fail_not_owner
+
+    ; Owner confirmed. ChannelID is in C, Data is in B.
+    ; @write_channel expects ChannelID in A and Data in B.
+    ; ChannelID was originally in A, then moved to C. Data is already in B from syscall args.
+    ld A C              ; load A with ChannelID
+    call @write_channel ; A holds the channelID, B holds the data to write
+
+
+    ldi A 0 ; Success (if @write_channel returns, it's considered a success at this level)
+    jmp :_isr_write_sio_done
+
+:_isr_write_sio_fail_invalid_id
+    ldi A 1 ; Failure: Invalid ChannelID
+    jmp :_isr_write_sio_done
+:_isr_write_sio_fail_not_owner
+    ldi A 1 ; Failure: Not owner (can use same code as invalid ID for simplicity or a different one)
+:_isr_write_sio_done
     rti
 
 @_isr_force_release_sio_channel
     ; Args: A = ChannelID
-    ; TODO: Implement logic:
-    ; 1. Privilege check: current_pid == 1 (shell)?
-    ; 2. If privileged, set $SIO_OWNERSHIP_TABLE[ChannelID] to 0.
-    ; 3. Return status.
+    ; Returns: A = 0 for success, 1 for invalid ID, 2 for not privileged
+    ; Clobbers: K, M, I, C (internal usage)
+    ld C A ; C = ChannelID
+
+    ; 1. Privilege Check: current_pid == 0 (kernel) or current_pid == 1 (shell)
+    ldm K $CURRENT_PROCESS_ID
+    tst K 0 ; Is current_pid kernel (0)?
+    jmpt :_isr_force_rel_sio_privileged
+    tst K 1 ; Is current_pid shell (1)?
+    jmpf :_isr_force_rel_sio_not_privileged
+
+:_isr_force_rel_sio_privileged
+    ; 2. Validate ChannelID (C)
+    ldm K $SIO_MAX_CHANNELS
+    tstg K C
+    jmpf :_isr_force_rel_sio_invalid_id
+
+    ; ChannelID is valid and caller is privileged.
+    ; 3. Set $SIO_OWNERSHIP_TABLE[ChannelID_C] to 0 (free)
+    ldi M 0                             ; M = 0 (free)
+    ld I C                              ; I = ChannelID_C (offset)
+    stx M $SIO_OWNERSHIP_TABLE          ; M[$SIO_OWNERSHIP_TABLE + ChannelID_C] = 0
+
+    ldi A 0                             ; Set A = 0 (success)
+    jmp :_isr_force_rel_sio_done
+
+:_isr_force_rel_sio_not_privileged
+    ldi A 2                             ; Set A = 2 (failure: not privileged)
+    jmp :_isr_force_rel_sio_done
+
+:_isr_force_rel_sio_invalid_id
+    ldi A 1                             ; Set A = 1 (failure: invalid ID)
+
+:_isr_force_rel_sio_done
     rti
 
 @_isr_print_number

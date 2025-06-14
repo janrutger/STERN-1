@@ -226,13 +226,20 @@ ret
     . $var1 1
     % $var1 8
 
+    ldi A 0
+    int ~SYSCALL_REQUEST_SIO_CHANNEL
+
     
 
 :loop1
-    ;call @add1  
+     
 
-    ldm A $var1
+    ldi A 0
+    ldm B $var1
+    int ~SYSCALL_WRITE_SIO_CHANNEL
     ;int ~SYSCALL_PRINT_NUMBER
+
+    call @add1
 
     ; Infinite loop or halt
     jmp :loop1  
