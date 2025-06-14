@@ -47,9 +47,10 @@
     ; Erase char on screen by printing space and moving cursor back
     di
     dec X $cursor_x     ; Move cursor left
-    ldi A \space
-    call @print_char    ; Print space at new cursor_x, cursor_y
-    dec X $cursor_x     ; Move cursor left again to position correctly for next char
+    ldi A \space        ; Character to print for erasing
+    int ~SYSCALL_PRINT_CHAR ; Prints space at pos 5, syscall advances cursor to 6 and handles newline check
+    dec X $cursor_x     ; Move cursor back to where the space was (pos 5)
+    ;dec X $cursor_x     ; Move cursor to position before the erased char (pos 4)
     ei
     jmp :read_command_loop
 
@@ -64,18 +65,12 @@
     stx A $cmd_buffer       ; M[$cmd_buffer + I] = A (stores at index K)
 
     ; Echo char to screen
-    di
-    ldm A $temp_char    ; Get char to print
-    call @print_char    ; Prints char in A, uses current $cursor_x, $cursor_y
-    inc X $cursor_x     ; Advance cursor_x
-    call @check_nl      ; Check if newline needed after char print (if cursor at edge)
-    ei
+    ldm A $temp_char        ; Get char to print
+    int ~SYSCALL_PRINT_CHAR ; Syscall prints char, advances cursor, and handles newline check
     jmp :read_command_loop
 
 :process_shell_command
-    di
-    call @print_nl      ; Newline after user presses Enter
-    ei
+    int ~SYSCALL_PRINT_NL ; Newline after user presses Enter via syscall
 
     ; Null-terminate the command in buffer (if space permits)
     ldm I $cmd_buffer_idx ; I = number of chars entered (e.g., 3 for "cls")
@@ -126,14 +121,13 @@
     tst A \t
     jmpf :unknown_shell_command ; Not 't'
     ; It's "ext" command - stop self (PID 1)
-    di
     ldi A 1 ; This process is PID 1
     int ~SYSCALL_STOP_PROCESS ; Kernel syscall to stop process
     ; If the shell is successfully stopped by the kernel,
     ; it might not reach the instructions below.
     ; The kernel's _isr_stop_process would need to handle descheduling
     ; the current process and switching to another.
-    ei
+
     ; If ext fails or kernel returns, it will loop.
     ; Ideally, the process halts or the system switches away.
     jmp :shell_loop
@@ -161,14 +155,12 @@
     tst A \space ; Check for space separator
     jmpf :try_sto_command
     ; If all checks pass, it's "sta P"
-    di
     ldi I 4           ; Index of PID character
     ldx A $cmd_buffer ; A = ASCII char for PID
     subi A 20         ; Convert ASCII '0'(20)...'9'(29) to number 0...9
                       ; TODO: Add validation: PID should be >0 and <MAX_PROCESSES
                       ; The kernel's _isr_start_process should also validate.
     int ~SYSCALL_START_PROCESS ; Kernel syscall to start process
-    ei
     jmp :shell_loop
 
 :try_sto_command ; Still length 5
@@ -189,13 +181,11 @@
     tst A \space ; Check for space separator
     jmpf :unknown_shell_command
     ; If all checks pass, it's "sto P"
-    di
     ldi I 4           ; Index of PID character
     ldx A $cmd_buffer ; A = ASCII char for PID
     subi A 20         ; Convert ASCII '0'(20)...'9'(29) to number 0...9
                       ; TODO: Add validation for PID. Kernel's _isr_stop_process should validate.
     int ~SYSCALL_STOP_PROCESS ; Kernel syscall to stop process
-    ei
     jmp :shell_loop
 
 :unknown_shell_command
@@ -206,32 +196,23 @@
 
 ; --- Helper Routines for PROCES 1 Shell ---
 @print_shell_prompt ; Local to PROCES 1
-    di
-    ldi A \>
-    call @print_char
-    inc X $cursor_x
+    ldi A \>                ; First char of prompt
+    int ~SYSCALL_PRINT_CHAR ; Syscall prints '>', advances cursor, checks newline
     ldi A \space
-    call @print_char
-    inc X $cursor_x
-    ei
+    int ~SYSCALL_PRINT_CHAR ; Syscall prints ' ', advances cursor, checks newline
 ret
 
 @print_unknown_shell_cmd_msg ; Local to PROCES 1
-    di
+    ; Prints "unkn" then a newline
     ldi A \u
-    call @print_char; inc X $cursor_x
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \n
-    call @print_char; inc X $cursor_x
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \k
-    call @print_char; inc X $cursor_x
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \n
-    call @print_char; inc X $cursor_x
-    inc X $cursor_x
-    call @print_nl ; Add a newline after the message
-    ei
+    int ~SYSCALL_PRINT_CHAR
+    int ~SYSCALL_PRINT_NL ; Explicitly request a newline via syscall
 ret
 
 
@@ -250,12 +231,8 @@ ret
 :loop1
     ;call @add1  
 
-    
-    di  
-        ldm A $var1   
-        ;int ~SYSCALL_PRINT_NUMBER
-    
-    ei
+    ldm A $var1
+    ;int ~SYSCALL_PRINT_NUMBER
 
     ; Infinite loop or halt
     jmp :loop1  

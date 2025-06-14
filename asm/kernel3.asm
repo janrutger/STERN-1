@@ -527,7 +527,10 @@ ret
 
 @_isr_print_char
     ; Args: A = char to print
-    call @print_char   ; Assumes @print_char uses A.
+    call @print_char   ; Calls the routine from printing.asm that writes A to $VIDEO_MEM[$cursor_x, $cursor_y]
+    inc X $cursor_x    ; Advance cursor_x after printing the character
+    call @check_nl     ; Check if the new cursor position requires a newline (handles line wrap)
+                       ; @check_nl itself might call @print_nl if necessary.
     rti
 
 @_isr_print_nl
