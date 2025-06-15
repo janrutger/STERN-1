@@ -1,31 +1,13 @@
-# STACKS Runtime library
-#
-# Implements an "Empty Ascending Stack" for STACKS operations.
-# - $sr_stack_ptr: Base address of the STACKS runtime's data stack memory area.
-# - $sr_stack_idx: A memory variable storing the index of the NEXT FREE SLOT on the STACKS runtime data stack.
-#                     Initialized to 0. Stack grows upwards.
-#
-# Assumed behavior of specific STERN-1 instructions:
-# inc I <addr>:
-#   1. I = M[addr] (Register I gets current value from memory)
-#   2. M[addr] = M[addr] + 1 (Value in memory is incremented)
-#
-# dec I <addr>:
-#   1. I = M[addr] (Register I gets current value from memory)
-#   2. I = I - 1   (Register I is decremented)
-#   3. M[addr] = I (Decremented value from I is stored back to memory)
+# This version is updated for STERN-1 multiprocessing:
+# - Uses the native CPU stack for STACKS data operations (native push/pop).
+# - Uses kernel syscalls for SIO and basic printing.
 
-# --- STACKS Runtime Data Stack Definition ---
-; Memory area for the STACKS runtime data stack (e.g., 64 words)
-; Pointer to the base address of $sr_stack_mem
-; Index for the next free slot in $sr_stack_mem
-; Initialize $sr_stack_ptr to point to $sr_stack_mem
-; Initialize $sr_stack_idx to 0 (empty stack)
-. $sr_stack_mem 64          
-. $sr_stack_ptr 1           
-. $sr_stack_idx 1           
-% $sr_stack_ptr $sr_stack_mem 
-% $sr_stack_idx 0            
+# --- STACKS Runtime Data Stack ---
+# The STACKS runtime now uses the native CPU stack of the current process.
+# The global variables $sr_stack_mem, $sr_stack_ptr, and $sr_stack_idx,
+# and custom routines @push_A, @pop_A, @push_B, @pop_B are no longer used.
+# Native CPU instructions 'push R' and 'pop R' should be used by STACKS compiled code
+# or by these runtime routines.         
 
 
 
@@ -72,96 +54,84 @@ ret
 
 #################################
 @push_A
-    inc I $sr_stack_idx     
-    ; I_reg = M[$sr_stack_idx], then M[$sr_stack_idx]++
-    stx A $sr_stack_ptr     
-    ; M[M[$sr_stack_ptr] + I_reg] = A_reg
+    push A
 ret
 
 @push_B
-    inc I $sr_stack_idx     
-    ; I_reg = M[$sr_stack_idx], then M[$sr_stack_idx]++
-    stx B $sr_stack_ptr     
-    ; M[M[$sr_stack_ptr] + I_reg] = B_reg
+    push B
 ret
 
 
 @pop_A
-    dec I $sr_stack_idx     
-    ; temp = M[$sr_stack_idx]-1, I_reg = temp, M[$sr_stack_idx] = temp
-    ldx A $sr_stack_ptr     
-    ; A_reg = M[M[$sr_stack_ptr] + I_reg]
+    pop A
 ret
 
 @pop_B
-    dec I $sr_stack_idx     
-    ; temp = M[$sr_stack_idx]-1, I_reg = temp, M[$sr_stack_idx] = temp
-    ldx B $sr_stack_ptr     
-    ; B_reg = M[M[$sr_stack_ptr] + I_reg]
+    pop B
 ret
 
 #################################
 @dup 
-    call @pop_A
-    call @push_A
-    call @push_A
+    pop A
+    push A
+    push A
 ret
 
 @swap
-    call @pop_A
-    call @pop_B
-    call @push_A
-    call @push_B
+    pop A
+    pop B
+    push A
+    push B
 ret
 
 @drop
-    call @pop_A
+    pop A ; Value popped into A is discarded
 ret
 
 @over
     # ( x1 x2 -- x1 x2 x1 )
     # Duplicates the second item on the stack to the top.
-    call @pop_A  
-    call @pop_B  
-    call @push_B 
-    call @push_A 
-    call @push_B 
+    pop A  ; x2
+    pop B  ; x1
+    push B ; x1
+    push A ; x2
+    push B ; x1
 ret
 
 #################################
 @plus
-    call @pop_B
-    call @pop_A
+    pop B
+    pop A
     add A B
-    call @push_A
+    push A
 ret
 
 @minus
-    call @pop_B
-    call @pop_A
+    pop B
+    pop A
     sub A B
-    call @push_A
+    push A
 ret
 
 @multiply
-    call @pop_B
-    call @pop_A
+    pop B
+    pop A
     mul A B
-    call @push_A
+    push A
 ret
 
 @divide
-    call @pop_B
-    call @pop_A
+    pop B
+    pop A
     div A B
-    call @push_A
+    push A
 ret
 
 @mod
-    call @pop_B
-    call @pop_A
+    pop B
+    pop A
     dmod A B
-    call @push_B
+    push B ; dmod A B stores remainder in B
 ret
 
 @stacks_gcd
@@ -171,71 +141,59 @@ ret
     # Assumes non-negative inputs for simplicity.
     # GCD(x, 0) = |x|, GCD(0, y) = |y|, GCD(0,0) = 0 (conventionally).
     call @pop_B
-    # B gets the second operand (num2)
-    call @pop_A
-    # A gets the first operand (num1)
+    pop B ; B gets the second operand (num2)
+    pop A ; A gets the first operand (num1)
 
     # Handle cases where one or both operands are zero.
-    tst B 0
-    # Is B zero?
-    jmpt :_gcd_A_is_result
-    # If B is 0, GCD is A.
-    tst A 0
-    # Is A zero?
-    jmpt :_gcd_B_is_result
-    # If A is 0, GCD is B.
+    tst B 0                 ; Is B zero?
+    jmpt :_gcd_A_is_result  ; If B is 0, GCD is A.
+    tst A 0                 ; Is A zero?
+    jmpt :_gcd_B_is_result  ; If A is 0, GCD is B.
 
 :_gcd_loop
-    tste A B
-    # Is A equal to B?
-    jmpt :_gcd_A_is_result
-    # If A == B, then GCD is A (or B).
+    tste A B                ; Is A equal to B?
+    jmpt :_gcd_A_is_result  ; If A == B, then GCD is A (or B).
 
-    tstg A B
-    # Is A > B?
-    jmpt :_gcd_A_greater_B
-    # If A > B, jump to subtract B from A.
-    # Else (A < B, since A != B), so B = B - A.
+    tstg A B                ; Is A > B?
+    jmpt :_gcd_A_greater_B  ; If A > B, jump to subtract B from A.
+                            ; Else (A < B, since A != B), so B = B - A.
     sub B A
     jmp :_gcd_loop
 :_gcd_A_greater_B
-    # A > B, so A = A - B.
-    sub A B
+    sub A B                 ; A > B, so A = A - B
     jmp :_gcd_loop
 
 :_gcd_B_is_result
-    ld A B
-    # Result was B, move to A for pushing.
+    ld A B                  ; Result was B, move to A for pushing.
 :_gcd_A_is_result
-    call @push_A
-    # Push the result (which is in A).
+    push A                  ; Push the result (which is in A).
 ret
 
 # --- SIO Channel Control ---
-# These STACKS runtime routines will call the SIO handling routines
-# (e.g., @open_channel, @close_channel) which are provided by the
-# STERN-1 kernel (from serialIO.asm).
+# These STACKS runtime routines now use kernel syscalls for SIO management.
 
 @sio_channel_on
     # Pops channel number from the STACKS stack.
-    # Calls @open_channel, which expects the channel number in register A.
-    call @pop_A
-    # A now holds the channel number.
-    call @open_channel
+    # Calls SYSCALL_REQUEST_SIO_CHANNEL.
+    pop A  ; A = channel_id
+    int ~SYSCALL_REQUEST_SIO_CHANNEL ; Kernel handles request, returns status in A
+    ; TODO: After a return of an SYSCALL A does not holds the exitstatus (namymore)
+    ; push A ; Push status onto STACKS stack
 ret
 
 @sio_channel_off
     # Pops channel number from the STACKS stack.
-    # Calls @close_channel, which expects the channel number in register A.
-    call @pop_A
-    # A now holds the channel number.
-    call @close_channel
+    # Calls SYSCALL_RELEASE_SIO_CHANNEL.
+    pop A  ; A = channel_id
+    int ~SYSCALL_RELEASE_SIO_CHANNEL ; Kernel handles release, returns status in A
+    ; TODO: After a return of an SYSCALL A does not holds the exitstatus (namymore)
+    ; push A ; Push status onto STACKS stack
 ret
 
 # --- Timer Operations ---
 
 @stacks_sleep
-    call @pop_B
+    pop B ; B = sleep_duration
     ldm A $CURRENT_TIME
     add B A
     :sleep_loop
@@ -278,8 +236,7 @@ ret
     # If invalid, calls @fatal_error and does not return.
     # Clobbers: K
 
-    call @pop_A
-    # A now has the timer instance.
+    pop A ; A now has the timer instance.
 
     # Check if A > ~MAX_TIMER_IDX
     ldi K ~MAX_TIMER_IDX
@@ -333,9 +290,8 @@ ret
     # K_reg = stored epoch M[$TIMER_EPOCHS + I_reg].
     ldm A $CURRENT_TIME
     # A_reg = current time.
-    sub A K
-    # A_reg = current_time - epoch.
-    call @push_A
+    sub A K ; A_reg = current_time - epoch.
+    push A  ; Push elapsed time
 ret
 
 @stacks_timer_print
@@ -365,44 +321,35 @@ ret
 
     # Print "timer "
     ldi A \t
-    call @print_char
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \i
-    call @print_char
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \m
-    call @print_char
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \e
-    call @print_char
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \r
-    call @print_char
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \space
-    call @print_char
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
 
     # Print timer instance number (from $_timer_instance_temp)
     ldm A $_timer_instance_temp
-    call @print_to_BCD
-    # Assumes @print_to_BCD handles its own cursor advancement.
+    int ~SYSCALL_PRINT_NUMBER ; Syscall handles BCD conversion and printing
 
     # Print ": "
     ldi A \:
-    call @print_char
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
     ldi A \space
-    call @print_char
-    inc X $cursor_x
+    int ~SYSCALL_PRINT_CHAR
 
     # Print elapsed time (which is in B_reg)
     ld A B
     # Move elapsed time to A_reg for @print_to_BCD.
-    call @print_to_BCD
+    int ~SYSCALL_PRINT_NUMBER
 
     # Print newline
-    call @print_nl
+    int ~SYSCALL_PRINT_NL
     jmp :_timer_print_end 
     # Successfully printed, go to the end.
 
@@ -411,31 +358,34 @@ ret
 
 #################################
 @print
-    call @pop_A
-    call @print_to_BCD
-    call @print_nl
+    pop A                           ; Number to print
+    int ~SYSCALL_PRINT_NUMBER
+    int ~SYSCALL_PRINT_NL
 
 ret
 
-equ ~plotter 0
-@plot
-    call @pop_B
-    ldi A ~plotter
-    call @write_channel
+equ ~channel_id 0
+@plot 
+    ; Plot always use channel_id 0 
+    ; Expects: data on stack (top).
+    pop B ; B = data
+    ldi A ~channel_id
+    int ~SYSCALL_WRITE_SIO_CHANNEL  ; Kernel handles write, returns status in A
+    push A                          ; Push status onto STACKS stack
 ret
 
 
 #################################
 @eq
-    call @pop_B
-    call @pop_A
+    pop B
+    pop A
     tste A B
     call @set_true_false
 ret
 
 @ne
-    call @pop_B
-    call @pop_A
+    pop B
+    pop A
     tste A B
     jmpf :ne_true
         ; set FALSE
@@ -450,15 +400,15 @@ ret
 
 
 @gt 
-    call @pop_B
-    call @pop_A
+    pop B
+    pop A
     tstg A B
     call @set_true_false
 ret
 
 @lt
-    call @pop_A
-    call @pop_B
+    pop A       ; order of pop matters for LT: ( x y -- x<y ) -> pop y, pop x
+    pop B
     tstg A B
     call @set_true_false
 ret
@@ -469,11 +419,11 @@ ret
     # Pushes 1 (non-zero) onto the stack if the preceding comparison was FALSE.
     jmpf :set_false
         ldi A 0
-        call @push_A
+        push A      ; STACKS TRUE is 0
     jmp :set_end
     :set_false
         ldi A 1
-        call @push_A
+        push A      ; STACKS FALSE is 1 (non-zero)
 :set_end    
 ret
 
@@ -533,7 +483,7 @@ call @prompt_stacks
     # After this call, M[$stacks_buffer_indx] holds the count of characters
     # entered, including the terminating \Return character.
     call @stacks_read_input
-    call @print_nl
+    int ~SYSCALL_PRINT_NL
 
     # Initialize parsing variables for the new input line.
     sto Z $_input_read_offset
@@ -672,10 +622,8 @@ call @prompt_stacks
     # Apply the determined sign to the parsed number.
     ldm A $_parsed_number
     ldm K $_number_sign
-    mul A K
-    # A = parsed_number * sign.
-    call @push_A
-    # Push the final integer result onto the STACKS data stack.
+    mul A K         ; A = parsed_number * sign.
+    push A          ; Push the final integer result onto the STACKS data stack.
 ret
 
 
@@ -697,8 +645,7 @@ ret
     # $stacks_buffer is now filled with user input.
     # M[$stacks_buffer_indx] contains the length, including the trailing \Return.
     
-    call @print_nl
-    # Print a newline after the user presses Enter.
+    int ~SYSCALL_PRINT_NL   ; Print a newline after the user presses Enter.
 
 
     # --- Calculate the length of the actual string content ---
@@ -724,7 +671,7 @@ ret
     # --- Push string onto data stack ---
     # Push null terminator first (will be deepest element of string on stack)
     ldi A 0
-    call @push_A
+    push A 
 
     # Loop K times to push characters from $stacks_buffer in reverse order.
     # K currently holds the length. We need to access buffer indices from K-1 down to 0.
@@ -743,16 +690,12 @@ ret
         # Store K into memory to safely load into I
         # (assuming $_input_read_offset can be reused here)
 
-    ldm I $_input_read_offset 
-        # I = index of char to read from buffer
+    ldm I $_input_read_offset   ; I = index of char to read from buffer
 
-    ldx A $stacks_buffer_pntr
-    # A = M[M[$stacks_buffer_pntr] + I] (get char from $stacks_buffer).
-    call @push_A 
-        # Push the character
+    ldx A $stacks_buffer_pntr   ; A = M[M[$stacks_buffer_pntr] + I] (get char from $stacks_buffer).
+    push A                      ; Push the character
 
-    ldm K $_input_read_offset 
-        # K still holds current index, which is also remaining count before this iteration
+    ldm K $_input_read_offset   ; K still holds current index, which is also remaining count before this iteration
     jmp :_rawin_push_char_loop
 
 :_rawin_push_done
@@ -782,18 +725,27 @@ equ ~STACKS_BUFFER_MAX_DATA 15
         tst A \Return
         jmpt :end_input
 
+        ; Backspace handling
         tst A \BackSpace
         jmpf :store_in_buffer
             ldm X $cursor_x
-            tst X 0
-            jmpt :read_input
+            tst X 0                     ; Is cursor at column 0?
+            jmpt :read_input            ; If so, can't backspace further
 
-            dec X $cursor_x
-            dec I $stacks_buffer_indx
+            dec I $stacks_buffer_indx   ; Decrement buffer index
 
-            ldi A \space              
-            call @print_char          
-            ;dec X $cursor_x 
+            ; Screen erase logic (similar to processes3.asm shell)
+            ; Remember After a SYSCALLs return, interrupts are enabled
+            ;di ; Disable interrupts during cursor manipulation potentially
+            ldm K $cursor_x
+            subi K 1
+            sto K $cursor_x             ; Move global cursor_x left
+            ldi A \space                ; Character to print for erasing
+            int ~SYSCALL_PRINT_CHAR     ; Prints space, syscall advances $cursor_x
+            ldm K $cursor_x
+            subi K 1
+            sto K $cursor_x             ; Move global $cursor_x back to where the space was
+            ;ei                          ; Re-enable interrupts
 
         jmp :read_input
 
@@ -806,9 +758,7 @@ equ ~STACKS_BUFFER_MAX_DATA 15
             jmpt :read_input
 
             stx A $stacks_buffer_pntr
-            call @print_char
-
-            inc X $cursor_x
+            int ~SYSCALL_PRINT_CHAR ; Echo char, syscall handles cursor advancement
         jmp :read_input
 
 
@@ -839,7 +789,7 @@ ret
 # Expects @print_nl to print a newline.
 :_sshow_loop
     # Get character from data stack (A = char)
-    call @pop_A             
+    pop A             
 
     tst A 0
     # Is character in A the null terminator (0)?
@@ -847,9 +797,8 @@ ret
     # Yes, end of string
 
     # Print character in A
-    # Advance cursor (assuming @print_char doesn't)
-    call @print_char        
-    inc X $cursor_x         
+    int ~SYSCALL_PRINT_CHAR ; Syscall prints char and handles cursor     
+
     jmp :_sshow_loop
 
 :_sshow_done
@@ -872,7 +821,7 @@ ret
 :_shfs_loop
     # Get character (A = char)
     # Null terminator? Yes, finalize hash
-    call @pop_A             
+    pop A          
     tst A 0                 
     jmpt :_shfs_finalize    
 
@@ -889,10 +838,8 @@ ret
     jmp :_shfs_loop
 
 :_shfs_finalize
-    ldm A $_hash_accumulator 
-        # Load final hash into A
-    call @push_A             
-        # Push it onto the data stack
+    ldm A $_hash_accumulator    ; Load final hash into A
+    push A                      ; Push final hash onto the data stack
 ret
 
 # --- STACKS Array Operations ---
@@ -916,16 +863,14 @@ ret
     # Registers Used: A, B, I
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    call @pop_A                     
-    # A gets array_base_address from stack
+    pop A       ; A gets array_base_address from stack
     sto A $_array_base_pntr_temp    
     # M[$_array_base_pntr_temp] = array_base_address
     ldi I 0                         
     # I = 0 (offset for length field)
     ldx B $_array_base_pntr_temp    
     # B = M[M[$_array_base_pntr_temp] + I] => B = M[array_base_address + 0] = length
-    call @push_B                     
-    # Push the length onto the STACKS data stack
+    push B ; Push the length onto the STACKS data stack
 ret
 
 @stacks_array_write
@@ -951,14 +896,9 @@ ret
     #                 K (capacity, then current_length), I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    ;call @pop_C                     
-        ; C gets array_base_address from stack
-    call @pop_A
-    ld C A
-    call @pop_B                     
-        ; B gets index from stack
-    call @pop_A                    
-        ; A gets value from stack
+    pop C ; C gets array_base_address from stack
+    pop B ; B gets index from stack
+    pop A ; A gets value from stack
 
     sto C $_array_base_pntr_temp    
         ; M[$_array_base_pntr_temp] = array_base_address (from C)
@@ -1042,12 +982,8 @@ ret
     #                 I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    ;call @pop_C
-    call @pop_A
-    ld C A
-    # C gets array_base_address from stack
-    call @pop_A
-    # A gets value from stack
+    pop C ; C gets array_base_address from stack
+    pop A ; A gets value from stack
 
     sto C $_array_base_pntr_temp
     # M[$_array_base_pntr_temp] = array_base_address (from C)
@@ -1118,12 +1054,8 @@ ret
     #                 K (element_capacity), I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    ;call @pop_C
-    call @pop_A
-    ld C A
-    # C gets array_base_address from stack
-    call @pop_A
-    # A gets index from stack
+    pop C ; C gets array_base_address from stack
+    pop A ; A gets value from stack
 
     sto C $_array_base_pntr_temp
     # M[$_array_base_pntr_temp] = array_base_address (from C)
@@ -1160,8 +1092,7 @@ ret
     ldx B $_array_base_pntr_temp
     # B = M[M[$_array_base_pntr_temp] + I] (value_read)
 
-    call @push_B
-    # Push the read value (B) onto the STACKS data stack
+    push B ; Push the read value (B) onto the STACKS data stack
 ret
 
 ; ==============================================================================
@@ -1210,23 +1141,20 @@ ret
 
     ; --- Failure Case (Buffer Empty) ---
     ; CPU status bit was 0, indicating @read_service0_data found no data.
-    ; ldi A 0         ; Push 0 as a dummy value for the data part
-    ; call @push_A    ; Assumes @push_A is a STACKS runtime routine to push Reg A onto STACKS stack
-    ; No dummy value neeeded when no data availible, just return status
+    ; No dummy data value needed when no data available, just return status.
     ; Push 1 as the status_code (failure/no data)
     ldi A 1         
-    call @push_A
+    push A
     jmp :_srs0bps_done
 
 :_srs0bps_data_read_success
     ; --- Success Case (Data Read) ---
     ; CPU status bit was 1, data from @read_service0_data is in Register A.
     ; Register A already contains the data byte.
-    ; Push the actual data byte onto STACKS stack
-    call @push_A   
+    push A ; Push the actual data byte onto STACKS stack   
     ; Push 0 as the status_code (success) 
     ldi A 0         
-    call @push_A
+    push A
 
 :_srs0bps_done
 ret
