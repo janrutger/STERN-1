@@ -1,13 +1,13 @@
-from lexV2 import Lexer, LexerError
-from emitV2 import Emitter
-from parseV2 import Parser, ParserError
+from lexV3 import Lexer, LexerError
+from emitV3 import Emitter
+from parseV3 import Parser, ParserError
 import os # Import os module for path manipulation
 import sys
 
 def main():
     print("STACKS RPN Compiler") # General name, can be adapted for STERN-1 later
 
-    source_file_path = "/home/janrutger/git/STERN-1/STACKS/src/program.stacks" # Default input file
+    source_file_path = "/home/janrutger/git/STERN-1/STACKS/src/processes.stacks" # Default input file
     output_file_path = "/home/janrutger/git/STERN-1/asm/out.asm"               # Default output file (consistent with Emitter's original hardcoding)
     output_directory = "/home/janrutger/git/STERN-1/asm" # Target directory for output
 

@@ -140,7 +140,6 @@ ret
     # and pushes the result back onto the STACKS data stack.
     # Assumes non-negative inputs for simplicity.
     # GCD(x, 0) = |x|, GCD(0, y) = |y|, GCD(0,0) = 0 (conventionally).
-    call @pop_B
     pop B ; B gets the second operand (num2)
     pop A ; A gets the first operand (num1)
 

@@ -55,7 +55,7 @@ equ ~SYSCALL_FORCE_RELEASE_SIO_CHANNEL 15 ; Input: ChannelID in A. Output: Statu
 equ ~SYSCALL_PRINT_NUMBER 16        ; must be pointing to @print_to_BCD (printing.asm)
 equ ~SYSCALL_PRINT_CHAR 17          ; must be pointing to @print_char (printing.asm)
 equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.asm)
-equ ~SYSCALL_YIELD 19               ; Process voluntarily yields CPU
+
 
 
 . $SIO_MAX_CHANNELS 1
