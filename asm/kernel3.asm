@@ -68,6 +68,7 @@ equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.as
 @kernel_init
     ; from loader3.asm
     call @init_stern 
+    call @stern_runtime_init
 
     ; Proces table starts at $PROCESS_TABLE_BASE and PTE size is ~PTE_SIZE
     call @setup_syscall_vectors
@@ -485,8 +486,24 @@ ret
     jmp :_isr_stop_sio_release_loop
 :_isr_stop_sio_release_done
 
-    ; 5. Return status (optional, e.g., A=0 for success)
-    ; ldi A 0 ; Success
+    ; 5. Determine if a context switch is needed
+    ; B still holds target_pid (the one that was stopped)
+    ldm K $CURRENT_PROCESS_ID   ; K = current_pid (the one that *called* the syscall)
+    tste B K                    ; Is target_pid (B) == current_pid (K)?
+    jmpf :_isr_stop_process_rti ; If not equal, current process stopped another process, so RTI is fine.
+
+    ; Current process stopped itself. Need to schedule a new one.
+    ; Call the scheduler.
+    call @scheduler_round_robin
+    ; - If @scheduler_round_robin performed a CTXSW:
+    ;   Execution has switched to the new process. The old process's control flow
+    ;   (which includes this ISR) effectively ended at the CTXSW instruction.
+    ;   The RTI instruction below will NOT be executed by the old process's control flow.
+    ; - If @scheduler_round_robin did NOT perform a CTXSW (it 'ret'ed):
+    ;   This means no switch was needed (e.g., trying to stop kernel, or no other process ready).
+    ;   The RTI instruction below WILL be executed by the current process, which is correct in this case.
+
+:_isr_stop_process_rti
     rti
 
 :_isr_stop_process_fail
@@ -494,6 +511,9 @@ ret
     rti
 
 
+
+
+# SIO Request from here
 @_isr_request_sio_channel
     ; Args: A = ChannelID
     ; Returns: A = 0 for success (channel acquired), 1 for failure (invalid ID or channel busy)

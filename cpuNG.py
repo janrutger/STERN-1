@@ -147,7 +147,7 @@ class Cpu:
                     runState = False
                 case 12:    # RET
                     self.SP = self.SP + 1
-                    self.PC = self.memory.read(self.SP)
+                    self.PC = int(self.memory.read(self.SP)) # Ensure PC is an integer
                 case 13:    # EI
                     self.interruptEnable = True
                 case 14:    # DI
@@ -208,42 +208,56 @@ class Cpu:
                     adres = int(self.memory.read(op2)) + self.registers[0]
                     self.registers[op1] = int(self.memory.read(adres))
                 case 40:    # STO r mem
-                    self.memory.write(op2, str(self.registers[op1]))
+                    # Ensure value written is string, as memory stores strings.
+                    # If register holds int, convert to str. If str, it's fine.
+                    self.memory.write(op2, str(self.registers[op1])) 
                 case 41:    # STX r mem + ri
                     adres = int(self.memory.read(op2)) + self.registers[0]
-                    self.memory.write(adres, str(self.registers[op1]))
+                    self.memory.write(adres, str(self.registers[op1])) 
                 case 50:    # ADD r1 r2
-                    self.registers[op1] = self.registers[op1] + self.registers[op2]
+                    # Ensure operands are integers for arithmetic
+                    val1 = int(self.registers[op1])
+                    val2 = int(self.registers[op2])
+                    self.registers[op1] = val1 + val2
                 case 51:    # ADDI r val
-                    self.registers[op1] = self.registers[op1] + op2
+                    # op2 is already an int from decode
+                    self.registers[op1] = int(self.registers[op1]) + op2
                 case 52:    # SUB r1 r2
-                    self.registers[op1] = self.registers[op1] - self.registers[op2]
+                    val1 = int(self.registers[op1])
+                    val2 = int(self.registers[op2])
+                    self.registers[op1] = val1 - val2
                 case 53:    # SUBI r val
-                    self.registers[op1] = self.registers[op1] - op2
+                    self.registers[op1] = int(self.registers[op1]) - op2
                 case 60:    # MUL r1 r2
-                    self.registers[op1] = self.registers[op1] * self.registers[op2]
+                    val1 = int(self.registers[op1])
+                    val2 = int(self.registers[op2])
+                    self.registers[op1] = val1 * val2
                 case 61:    # MULI r val
-                    self.registers[op1] = self.registers[op1] * op2
+                    self.registers[op1] = int(self.registers[op1]) * op2
                 case 62:    # DIV r1 r2
-                    self.registers[op1] = self.registers[op1] // self.registers[op2]
+                    val1 = int(self.registers[op1])
+                    val2 = int(self.registers[op2])
+                    self.registers[op1] = val1 // val2
                 case 63:    # DIVI r1 val
-                    self.registers[op1] = self.registers[op1] // op2
+                    self.registers[op1] = int(self.registers[op1]) // op2
                 case 65:    # DMOD	Ra	Rb	    divmod Ra Rb, returns quotiënt in Ra, remainder in Rb
-                    quotient, remainder = divmod(self.registers[op1], self.registers[op2])
+                    val1 = int(self.registers[op1])
+                    val2 = int(self.registers[op2])
+                    quotient, remainder = divmod(val1, val2)
                     self.registers[op1] = quotient
                     self.registers[op2] = remainder
                 case 70:    # TST Ra integer 	set statusbit when equal
-                    if self.registers[op1] == op2:
+                    if int(self.registers[op1]) == op2: # op2 is already int
                         self.statusbit = 1
                     else:
                         self.statusbit = 0
                 case 71:     # TSTE r1 r2       set status bit when equal
-                    if self.registers[op1] == self.registers[op2]:
+                    if int(self.registers[op1]) == int(self.registers[op2]):
                         self.statusbit = 1
                     else:
                         self.statusbit = 0
                 case 72:     # TSTG r1 r2       set status bit when r1 > r2
-                    if self.registers[op1] > self.registers[op2]:
+                    if int(self.registers[op1]) > int(self.registers[op2]):
                         self.statusbit = 1
                     else:
                         self.statusbit = 0
@@ -263,10 +277,14 @@ class Cpu:
                     self.registers[op1] = self.registers[op1] ^ int(self.memory.read(adres))
                 case 90:    # PUSH r
                     self.memory.write(self.SP, self.registers[op1])
+                    # self.memory.write will store str(self.registers[op1])
                     self.SP = self.SP - 1
                 case 91:    # POP r  
                     self.SP = self.SP + 1
-                    self.registers[op1] = self.memory.read(self.SP)
+                    # Memory.read returns a string, convert to int for register
+                    # if it's intended to be used as a number.
+                    # This assumes values pushed are generally numbers.
+                    self.registers[op1] = int(self.memory.read(self.SP))
                 case _:
                     print("CPU: Invalid instruction", inst, op1, op2)
                     exit("Invalid instruction")

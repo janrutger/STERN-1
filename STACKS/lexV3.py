@@ -256,6 +256,11 @@ class TokenType(enum.Enum):
     CONNECTION = 131
     READ = 132
     WRITE = 133
+    PROCESS = 134      # New
+    # ENDPROCESS is not needed, END (112) will be used
+    STARTPROCESS = 135 # New
+    STOPPROCESS = 136  # New
+    MYPID = 137        # New (can be treated as a keyword for expressions)
 
     PLUS = 201
     MINUS = 202

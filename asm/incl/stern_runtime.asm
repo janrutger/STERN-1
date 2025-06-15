@@ -44,7 +44,7 @@ equ ~MAX_TIMER_IDX 7
 
 
 #################################
-@stacks_runtime_init
+@stern_runtime_init
     # when the lib must be initalized
 
     # Initialize timer epochs.
@@ -53,6 +53,13 @@ equ ~MAX_TIMER_IDX 7
 ret
 
 #################################
+@get_mypid
+    pop L
+    ldm A $CURRENT_PROCESS_ID
+    push A
+    push L
+ret
+
 @push_A
     push A
 ret
@@ -72,66 +79,84 @@ ret
 
 #################################
 @dup 
+    pop L
     pop A
     push A
     push A
+    push L
 ret
 
 @swap
+    pop L
     pop A
     pop B
     push A
     push B
+    push L
 ret
 
 @drop
+    pop L
     pop A ; Value popped into A is discarded
+    push L
 ret
 
 @over
     # ( x1 x2 -- x1 x2 x1 )
     # Duplicates the second item on the stack to the top.
+    pop L
     pop A  ; x2
     pop B  ; x1
     push B ; x1
     push A ; x2
     push B ; x1
+    push L
 ret
 
 #################################
 @plus
+    pop L
     pop B
     pop A
     add A B
     push A
+    push L
 ret
 
 @minus
+    pop L
     pop B
     pop A
     sub A B
     push A
+    push L
 ret
 
 @multiply
+    pop L
     pop B
     pop A
     mul A B
     push A
+    push L
 ret
 
 @divide
+    pop L
     pop B
     pop A
     div A B
     push A
+    push L
 ret
 
 @mod
+    pop L
     pop B
     pop A
     dmod A B
     push B ; dmod A B stores remainder in B
+    push L
 ret
 
 @stacks_gcd
@@ -140,6 +165,7 @@ ret
     # and pushes the result back onto the STACKS data stack.
     # Assumes non-negative inputs for simplicity.
     # GCD(x, 0) = |x|, GCD(0, y) = |y|, GCD(0,0) = 0 (conventionally).
+    pop L
     pop B ; B gets the second operand (num2)
     pop A ; A gets the first operand (num1)
 
@@ -166,7 +192,9 @@ ret
     ld A B                  ; Result was B, move to A for pushing.
 :_gcd_A_is_result
     push A                  ; Push the result (which is in A).
+    push L
 ret
+    
 
 # --- SIO Channel Control ---
 # These STACKS runtime routines now use kernel syscalls for SIO management.
@@ -174,24 +202,29 @@ ret
 @sio_channel_on
     # Pops channel number from the STACKS stack.
     # Calls SYSCALL_REQUEST_SIO_CHANNEL.
+    pop L
     pop A  ; A = channel_id
     int ~SYSCALL_REQUEST_SIO_CHANNEL ; Kernel handles request, returns status in A
     ; TODO: After a return of an SYSCALL A does not holds the exitstatus (namymore)
-    ; push A ; Push status onto STACKS stack
+    ; push A ; Push status onto STACKS stack (assuming syscall returns status in A)
+    push L
 ret
 
 @sio_channel_off
     # Pops channel number from the STACKS stack.
     # Calls SYSCALL_RELEASE_SIO_CHANNEL.
+    pop L
     pop A  ; A = channel_id
     int ~SYSCALL_RELEASE_SIO_CHANNEL ; Kernel handles release, returns status in A
     ; TODO: After a return of an SYSCALL A does not holds the exitstatus (namymore)
-    ; push A ; Push status onto STACKS stack
+    ; push A ; Push status onto STACKS stack (assuming syscall returns status in A)
+    push L
 ret
 
 # --- Timer Operations ---
 
 @stacks_sleep
+    pop L
     pop B ; B = sleep_duration
     ldm A $CURRENT_TIME
     add B A
@@ -199,6 +232,7 @@ ret
         ldm A $CURRENT_TIME
         tstg A B
         jmpf :sleep_loop
+    push L
 ret
 
 @stacks_timer_init
@@ -229,15 +263,14 @@ ret
 
 @_validate_and_get_timer_address
     # Pops timer instance from stack into A.
+    # MODIFIED: Expects timer instance in register A. Does NOT pop from stack.
     # Validates if 0 <= A <= ~MAX_TIMER_IDX.
     # If valid, Register I is set to the timer instance value (for indexed access),
     # and Register A contains the timer instance.
     # If invalid, calls @fatal_error and does not return.
     # Clobbers: K
+    # A (input) now has the timer instance.
 
-    pop A ; A now has the timer instance.
-
-    # Check if A > ~MAX_TIMER_IDX
     ldi K ~MAX_TIMER_IDX
     tstg A K
     # If A > K (e.g. A=8, K=7), status is TRUE (invalid)
@@ -260,9 +293,11 @@ ret
     # Expects: timer_instance on top of stack.
     # Pops timer_instance.
     # If valid (0-~MAX_TIMER_IDX), stores $CURRENT_TIME into $TIMER_EPOCHS[instance].
-    # If invalid, @fatal_error is called by @_validate_and_get_timer_address.
+    # If invalid, @fatal_error is called.
+    pop L
+    pop A ; Pop timer_instance into A
     call @_validate_and_get_timer_address
-    # If @_validate_and_get_timer_address returns, the index is valid.
+    # If @_validate_and_get_timer_address returns, A is valid and I is set.
     # No need to check status flag here.
 
     # Instance is valid, I_reg is set to instance, A_reg holds instance.
@@ -273,6 +308,7 @@ ret
 :_timer_set_end
     # This label is no longer strictly needed if there's only one path to ret,
     # but kept for clarity or future conditional logic if any.
+    push L
 ret
 
 @stacks_timer_get
@@ -280,9 +316,10 @@ ret
     # Pops timer_instance.
     # If valid, calculates elapsed time ($CURRENT_TIME - epoch) and pushes it.
     # If invalid, calls @fatal_error.
-    # The @fatal_error call is now handled by @_validate_and_get_timer_address.
+    pop L
+    pop A ; Pop timer_instance into A
     call @_validate_and_get_timer_address
-    # If @_validate_and_get_timer_address returns, the index is valid.
+    # If @_validate_and_get_timer_address returns, A is valid and I is set.
 
     # Instance is valid, I_reg is set to instance, A_reg holds instance.
     ldx K $TIMER_EPOCHS
@@ -291,6 +328,7 @@ ret
     # A_reg = current time.
     sub A K ; A_reg = current_time - epoch.
     push A  ; Push elapsed time
+    push L
 ret
 
 @stacks_timer_print
@@ -298,10 +336,10 @@ ret
     # Pops timer_instance.
     # If valid, prints "Timer [N]: [elapsed_time]\n".
     # Assumes @print_char does not advance cursor; @print_to_BCD does.
-    # If invalid, @fatal_error is called by @_validate_and_get_timer_address.
+    # If invalid, @fatal_error is called.
+    pop L
+    pop A ; Pop timer_instance into A
     call @_validate_and_get_timer_address
-    # A_reg holds the timer instance if valid.
-    # If @_validate_and_get_timer_address returns, the index is valid.
 
 
     # Instance is valid. I_reg is set to instance, A_reg holds instance.
@@ -353,63 +391,75 @@ ret
     # Successfully printed, go to the end.
 
 :_timer_print_end
+    push L
 ret
 
 #################################
 @print
+    pop L
     pop A                           ; Number to print
     int ~SYSCALL_PRINT_NUMBER
     int ~SYSCALL_PRINT_NL
-
+    push L
 ret
 
 equ ~channel_id 0
 @plot 
     ; Plot always use channel_id 0 
     ; Expects: data on stack (top).
+    pop L
     pop B ; B = data
     ldi A ~channel_id
     int ~SYSCALL_WRITE_SIO_CHANNEL  ; Kernel handles write, returns status in A
     push A                          ; Push status onto STACKS stack
+    push L
 ret
 
 
 #################################
 @eq
+    pop L
     pop B
     pop A
     tste A B
     call @set_true_false
+    push L
 ret
 
 @ne
+    pop L
     pop B
     pop A
     tste A B
     jmpf :ne_true
         ; set FALSE
         ldi A 1
-        call @push_A
+        push A ; was call @push_A
     jmp :ne_end
     :ne_true
         ldi A 0
-        call @push_A
+        push A ; was call @push_A
 :ne_end
+    push L
 ret
 
 
 @gt 
+    pop L
     pop B
     pop A
     tstg A B
     call @set_true_false
+    push L
 ret
 
 @lt
+    pop L
     pop A       ; order of pop matters for LT: ( x y -- x<y ) -> pop y, pop x
     pop B
     tstg A B
     call @set_true_false
+    push L
 ret
 
 @set_true_false
@@ -786,6 +836,7 @@ ret
 # Consumes the string from the stack.
 # Expects @print_char to print the character in register A.
 # Expects @print_nl to print a newline.
+    pop L ; Save return address
 :_sshow_loop
     # Get character from data stack (A = char)
     pop A             
@@ -807,6 +858,7 @@ ret
     # Or just ensure cursor is advanced if not done by print_char:
     # inc X $cursor_x (already done in loop, maybe one final one if needed)
 ret
+    push L ; Restore return address
     
 @stacks_hash_from_stack
 # Pops a null-terminated string from the data stack.
@@ -815,6 +867,7 @@ ret
 # Consumes the string from the stack.
 # Uses: $_hash_accumulator
     # Initialize hash accumulator (assuming Z is 0)
+    pop L ; Save return address
     sto Z $_hash_accumulator  
 
 :_shfs_loop
@@ -839,6 +892,7 @@ ret
 :_shfs_finalize
     ldm A $_hash_accumulator    ; Load final hash into A
     push A                      ; Push final hash onto the data stack
+    push L ; Restore return address
 ret
 
 # --- STACKS Array Operations ---
@@ -862,6 +916,7 @@ ret
     # Registers Used: A, B, I
     # Temporary Vars Used: $_array_base_pntr_temp
 
+    pop L ; Save return address
     pop A       ; A gets array_base_address from stack
     sto A $_array_base_pntr_temp    
     # M[$_array_base_pntr_temp] = array_base_address
@@ -870,6 +925,7 @@ ret
     ldx B $_array_base_pntr_temp    
     # B = M[M[$_array_base_pntr_temp] + I] => B = M[array_base_address + 0] = length
     push B ; Push the length onto the STACKS data stack
+    push L ; Restore return address
 ret
 
 @stacks_array_write
@@ -895,6 +951,7 @@ ret
     #                 K (capacity, then current_length), I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
+    pop L ; Save return address
     pop C ; C gets array_base_address from stack
     pop B ; B gets index from stack
     pop A ; A gets value from stack
@@ -956,6 +1013,7 @@ ret
     stx C $_array_base_pntr_temp    
     ; Store new length (C) into M[array_base_address + 0] (I is still 0)
 :_array_write_length_no_update
+    push L ; Restore return address
 ret
 
 @stacks_array_append
@@ -981,6 +1039,7 @@ ret
     #                 I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
+    pop L ; Save return address
     pop C ; C gets array_base_address from stack
     pop A ; A gets value from stack
 
@@ -1030,6 +1089,7 @@ ret
     # I = 0 (offset for length field)
     stx K $_array_base_pntr_temp
     # Store new_length (K) into M[array_base_address + 0]
+    push L ; Restore return address
 ret
 
 @stacks_array_read
@@ -1053,8 +1113,9 @@ ret
     #                 K (element_capacity), I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
+    pop L ; Save return address
     pop C ; C gets array_base_address from stack
-    pop A ; A gets value from stack
+    pop A ; A gets index from stack
 
     sto C $_array_base_pntr_temp
     # M[$_array_base_pntr_temp] = array_base_address (from C)
@@ -1092,6 +1153,7 @@ ret
     # B = M[M[$_array_base_pntr_temp] + I] (value_read)
 
     push B ; Push the read value (B) onto the STACKS data stack
+    push L ; Restore return address
 ret
 
 ; ==============================================================================

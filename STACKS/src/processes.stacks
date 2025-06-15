@@ -1,0 +1,18 @@
+PROCESS 1 64
+
+12 AS a 
+30 AS b 
+
+LABEL loop
+    a b + PRINT
+    a 1 - AS a
+
+    1 0 < DO 
+        12 PRINT
+    END
+
+# GOTO loop
+
+
+LABEL done 
+END
