@@ -120,7 +120,7 @@ equ ~SYSCALL_YIELD 19               ; Process voluntarily yields CPU
 
 
 ## INCLUDE helpers
-INCLUDE stacks_runtime
+INCLUDE stern_runtime
 INCLUDE networkdispatcher
 
 @setup_syscall_vectors
