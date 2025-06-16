@@ -1,19 +1,62 @@
+Review the Stern-1 project and the current state of the stacks language in STACKS/
+iam in the proces of debugging the new Multi processing features in the system, including the kernel, asm/kernel3.asm and asm/incl/stern_runtime.asm. and other file includes in /asm/incl. iam also debugging the stacks compiler STACKS/parse3.py.
+the cpuNG.py is the new cpu with push/pop/cxtsw as new features
 
-have a look on the current status of the Stern1 project. This version is supporting multiprocessing
-i am working on an simple shell, with can start/stop processes, the shell i running as PID 1
-screen and keyboard are bind to PID one, other processes can ask for onwership of an SIO channel
-
-Herefor i changed the kernel3.asm file by completing a list of SYSCALL and routines, some of them are Stubs.
-lets work a little to .PROCES 1 (the shell) in the new processes3.asm, i like to implement (for now) 3 shell-command 'sta pid', to start an proces, 'sto pid', to stop an proces and 'ext' to stop PID 1 (himself), remain 'cls' and ditch 'pid'
+for debugging i write STACKS/src/processes.stacks an i found a rare bug
+the current version of processses.stacks is working as expected, also when i use the '==' condition.
+But when i use '<'or '>' condition, the program fails
 
 
-Please report on the last status of kernel3.asm and processes3.asm
+please report on this
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+i am working on the new STACKS compiler, version 3 must be proces aware.
+I made already some changes, but is is work in progres
+
+please have a look 
 
 
 report on this
 
 
+when is use int ~SYSCALL_YIELD in the kernel mainloop, like in the current codebase, i get this error on run-time and the shell is crashing
 
+DEBUG CPU: Loaded context for ID 0: PC=1024, SP=14335
+CPU Monitor: Started.
+[Instance 0] Starting Device IO loop...
+CPU: Invalid instruction 99 99 None
+
+in the most of the time CPU: Invalid instruction 99 99 None means it reads a valid adres but the adres is un-used
+
+
+have a look on the current status of the @STERN-1 project. This version is supporting multiprocessing
+i am working on an simple shell, with can start/stop processes, the shell i running as PID 1
+screen and keyboard are bind to PID one, other processes can ask for onwership of an SIO channel
+
+Herefor i changed the @kernel3.asm  file by completing a list of SYSCALL and routines, some of them are Stubs.
+after the creating of a shell proces to .PROCES 1 processes3.asm file.  i implemented (for now) 4 shell-command 'sta pid', to start an proces, 'sto pid', to stop an proces and 'ext' to stop PID 1 (himself), 'cls' to clear the screen.
+
+now i like to work on device management, where the screen and keyboard are bound to PID 1. and processes can take onwenship of an SIO-channel when the channel is free, and a proces can release a channel when no longer needed
+
+
+Please report on the last status of kernel3.asm and @processes3.asm 
 
 
 

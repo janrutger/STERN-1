@@ -411,7 +411,7 @@ equ ~channel_id 0
     pop B ; B = data
     ldi A ~channel_id
     int ~SYSCALL_WRITE_SIO_CHANNEL  ; Kernel handles write, returns status in A
-    push A                          ; Push status onto STACKS stack
+    ; push A                          ; Push status onto STACKS stack
     push L
 ret
 
@@ -422,7 +422,15 @@ ret
     pop B
     pop A
     tste A B
-    call @set_true_false
+    jmpf :eq_is_false
+        ; stet TRUE = 0 in stacks
+        ldi A 0
+        push A
+    jmp :eq_end
+    :eq_is_false
+        ldi A 1
+        push A
+    :eq_end
     push L
 ret
 
@@ -449,7 +457,14 @@ ret
     pop B
     pop A
     tstg A B
-    call @set_true_false
+    jmpf :gt_is_false
+        ldi A 0
+        push A
+    jmp :gt_end
+    :gt_is_false
+        ldi A 1
+        push A
+    :gt_end
     push L
 ret
 
@@ -458,23 +473,17 @@ ret
     pop A       ; order of pop matters for LT: ( x y -- x<y ) -> pop y, pop x
     pop B
     tstg A B
-    call @set_true_false
+    jmpf :lt_is_false
+        ldi A 0
+        push A
+    jmp :lt_end
+    :lt_is_false
+        ldi A 1
+        push A
+    :lt_end
     push L
 ret
 
-@set_true_false
-    # Helper for comparison ops, assumes comparison instruction just ran.
-    # Pushes 0 onto the stack if the preceding comparison was TRUE.
-    # Pushes 1 (non-zero) onto the stack if the preceding comparison was FALSE.
-    jmpf :set_false
-        ldi A 0
-        push A      ; STACKS TRUE is 0
-    jmp :set_end
-    :set_false
-        ldi A 1
-        push A      ; STACKS FALSE is 1 (non-zero)
-:set_end    
-ret
 
 #################################
 
@@ -522,6 +531,7 @@ ret
 
 
 @stacks_input
+pop L
 call @prompt_stacks
 :_input_start_over
 # This label is a loop point to re-prompt the user if the input is completely invalid.
@@ -673,6 +683,7 @@ call @prompt_stacks
     ldm K $_number_sign
     mul A K         ; A = parsed_number * sign.
     push A          ; Push the final integer result onto the STACKS data stack.
+push L
 ret
 
 
@@ -683,6 +694,8 @@ ret
 # 2. Reads a line of raw characters using @stacks_read_input (into $stacks_buffer).
 # 3. Pushes the characters from $stacks_buffer onto the data stack in correct order:
 #    char1, char2, ..., charN, null_terminator (0) (top to bottom on stack).
+    
+    pop L ; Save return address
 
     call @prompt_stacks
 :_rawin_start_over
@@ -748,6 +761,7 @@ ret
     jmp :_rawin_push_char_loop
 
 :_rawin_push_done
+push L  ;restore return address
 ret
 
 #################################
@@ -857,8 +871,9 @@ ret
     # call @print_nl
     # Or just ensure cursor is advanced if not done by print_char:
     # inc X $cursor_x (already done in loop, maybe one final one if needed)
-ret
     push L ; Restore return address
+ret
+    
     
 @stacks_hash_from_stack
 # Pops a null-terminated string from the data stack.
@@ -880,20 +895,33 @@ ret
     # Simple hash: hash = (hash * 31) + char_code
     # This is just an example; choose a suitable algorithm.
     ldm K $_hash_accumulator
-    muli K 31               
-        # K = hash * 31
-    add K A                 
-        # K = (hash * 31) + char_code
-    sto K $_hash_accumulator  
-        # Store updated hash
+    muli K 31                 ; K = hash * 31
+    add K A                   ; K = (hash * 31) + char_code
+    sto K $_hash_accumulator  ; Store updated hash
 
     jmp :_shfs_loop
 
 :_shfs_finalize
     ldm A $_hash_accumulator    ; Load final hash into A
-    push A                      ; Push final hash onto the data stack
-    push L ; Restore return address
+    ; --- Add modulo operation to keep hash in a desired range ---
+    ldi K 1000000000000000 ; Modulo for up to 15 digits (10^15)
+                           ; Note: This immediate value is too large for LDI's typical operand.
+                           ; This needs to be handled by loading it in parts or from memory.
+    ; For now, let's assume a smaller, representable modulo for demonstration, e.g., 10^9
+    ; ldi K 1000000000 ; Example: 1,000,000,000 (fits in a 32-bit-like range if LDI supports it)
+    ; If K needs to be larger, it must be loaded from a memory variable:
+    ; ldm K $HASH_MODULO_VALUE ; where . $HASH_MODULO_VALUE 1 and % $HASH_MODULO_VALUE 1000000000000000
+    dmod A K      ; A = A / K (quotient), K = A % K (remainder)
+    ;ld A K        ; Load the remainder (the actual hash value) into A
+    ; --- End modulo operation ---
+    ;push A
+    push K                      ; Push final (modulo-adjusted) hash onto the data stack
+    push L                      ; Restore return address
 ret
+
+
+
+
 
 # --- STACKS Array Operations ---
 

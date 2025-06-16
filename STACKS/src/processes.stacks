@@ -1,18 +1,55 @@
 PROCESS 1 64
 
-12 AS a 
-30 AS b 
+INPUT PRINT 
+RAWIN SHOW
 
-LABEL loop
-    a b + PRINT
-    a 1 - AS a
+'hello world ' SHOW
+'a' HASH PRINT
+'hb' HASH PRINT
+'hello world ' HASH PRINT
 
-    1 0 < DO 
-        12 PRINT
+FUNCTION dothis
+    12 30 + PRINT
+END
+
+dothis
+2 STARTPROCESS
+
+800 WAIT
+
+2 STOPPROCESS
+
+dothis
+
+END
+
+
+
+PROCESS 2 64
+    0 CHANNEL ON
+
+    1 PLOT
+    1 PLOT
+    1 AS previous
+
+    2 AS next
+
+    {next 700 !=} DO
+        previous next GCD AS cfactor
+        1 cfactor == DO
+                previous next 1 + + AS r
+                GOTO nextnumber
+        END
+        previous cfactor / AS r
+
+        LABEL nextnumber
+        r PLOT
+        r AS previous 
+        next 1 + AS next
+
     END
 
-# GOTO loop
+    LABEL endless
+    GOTO endless
 
-
-LABEL done 
 END

@@ -447,7 +447,9 @@ class Parser:
                 self._print_info("STOPPROCESS: Emitted code to stop process and push status.")
                 self.nl()
             elif self.checkToken(TokenType.PRINT):
-                self.emitter.emitLine("call @print")
+                #self.emitter.emitLine("call @print")
+                self.emitter.emitLine("pop A") # Pop value from STACKS stack into A
+                self.emitter.emitLine("int ~SYSCALL_PRINT_NUMBER")
                 self._print_trace("PRINT operation.")
                 self.nextToken() # Consume PRINT
                 self.nl()
