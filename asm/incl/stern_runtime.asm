@@ -532,7 +532,7 @@ ret
 
 @stacks_input
 pop L
-call @prompt_stacks
+# call @prompt_stacks
 :_input_start_over
 # This label is a loop point to re-prompt the user if the input is completely invalid.
     
@@ -660,7 +660,7 @@ call @prompt_stacks
     jmpt :_input_finalize
     # Yes, a valid number part was found and ended by this non-digit. Finalize.
     
-    call @prompt_stacks_err
+    # call @prompt_stacks_err
     jmp :_input_start_over
     # No, the sequence is invalid (e.g., "-abc", "abc"). Restart the input process.
 
@@ -674,7 +674,7 @@ call @prompt_stacks
     jmpt :_found_valid_digits
     
     # No valid digits were found. Restart the input process.
-    call @prompt_stacks_err
+    # call @prompt_stacks_err
     jmp :_input_start_over
 
     :_found_valid_digits
@@ -697,7 +697,7 @@ ret
     
     pop L ; Save return address
 
-    call @prompt_stacks
+    #  call @prompt_stacks
 :_rawin_start_over
     # Loop point for re-prompting if input is empty.
     call @cursor_on
@@ -724,7 +724,7 @@ ret
     tst K 0
     jmpf :_rawin_len_ok
         # Content length is 0, input was empty. Re-prompt.
-        call @prompt_stacks_err 
+        # call @prompt_stacks_err 
         jmp :_rawin_start_over
 
 :_rawin_len_ok

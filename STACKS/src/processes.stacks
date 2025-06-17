@@ -1,52 +1,41 @@
 PROCESS 1 64
+    0 TIMER SET
+    'welkom at stern-' SHOW 1 PRINT
+    
 
-0 TIMER SET
+    LABEL loop
+        'give an instruction ' SHOW RAWIN HASH AS instruction
 
-42 PRINT
+        'start' HASH instruction == DO
+            'enter proces id     ' SHOW INPUT AS pid
+            pid STARTPROCESS
+            GOTO loop
+        END
 
-ARRAY myArray 5
+        'stop' HASH instruction == DO
+            'enter proces id     ' SHOW INPUT AS pid
+            pid STOPPROCESS
+            GOTO loop
+        END
 
-51 0 AS [myArray]
-52 1 AS [myArray]
-
-0 [myArray] PRINT 
-1 [myArray] PRINT
-myArray PRINT
-
-53 AS myArray
-
-myArray PRINT
+        'exit' HASH instruction == DO
+            GOTO endShell
+        END
 
 
+    'unkown instruction - ' SHOW
+    GOTO loop
 
-
-INPUT PRINT 
-RAWIN SHOW
-
-'hello world ' SHOW
-'a' HASH PRINT
-'hb' HASH PRINT
-'hello world ' HASH PRINT
-
-FUNCTION dothis
-    12 30 + PRINT
-END
-
-dothis
-2 STARTPROCESS
-
-800 WAIT
-
-2 STOPPROCESS
-
-dothis
-0 TIMER PRINT
+LABEL endShell
+    0 TIMER PRINT
+    100 WAIT
 END
 
 
 
 PROCESS 2 64
     0 CHANNEL ON
+    2 TIMER SET
 
     1 PLOT
     1 PLOT
@@ -69,6 +58,24 @@ PROCESS 2 64
 
     END
 
+    2 TIMER PRINT
+    LABEL endless
+    GOTO endless
+
+END
+
+
+PROCESS 3
+    0 CHANNEL ON
+
+    3 TIMER SET
+    0 AS n
+        {n 75 <} DO
+            n PLOT
+            n 1 + AS n
+        END
+
+    3 TIMER PRINT
     LABEL endless
     GOTO endless
 

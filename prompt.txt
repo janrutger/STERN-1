@@ -2,17 +2,20 @@ Review the Stern-1 project and the current state of the stacks language in STACK
 iam in the proces of debugging the new Multi processing features in the system, including the kernel, asm/kernel3.asm and asm/incl/stern_runtime.asm. and other file includes in /asm/incl. iam also debugging the stacks compiler STACKS/parse3.py.
 the cpuNG.py is the new cpu with push/pop/cxtsw as new features
 
-for debugging i write STACKS/src/processes.stacks an i found a rare bug
-the current version of processses.stacks is working as expected, also when i use the '==' condition.
-But when i use '<'or '>' condition, the program fails
+in the proces of moving to a full functional multi processing system i am working on the asm/incl/stern_runtime.asm, (bases on the original version asm/incl/stacks_runtime.asm).
 
+The stacks language has 2 input instructions, one called INPUT and expect an number in return on the stack, and RAWIN, for string input, and returns a string on the stack like 'hello world' does.
+
+i think the runtimes routines in asm/incl/stern_runtime.asm must be modified for correct working
 
 please report on this
 
+Review the Stern-1 project, the new CPU supports multi processing capabilities and the new loader3.asm, kernel3.asm runs an multi processig kernel. Also the STACKS language is now multi processes compatible. Each proces has a memory block of 1024 wich includes (configurable) datastack at the top of the block, this area is also used for vars and arrays. The programcode starts at the beginning of the 1k block. The STACKS language is PROCESS aware and can be used as language to write programs running in those processes. see the processes.stacks example file
+
+Please write an report of the status of this project
 
 
-
-
+i like to introduce an brand new STACKS instruction, called DRAW, draw expects an X-ax value, and and Y-ax value on the stack, and the DRAW instuction runtime routine send them borh to SIO channel 1, where the XY-Plotter is connected to. before use the process must perform an 1 CHANNEL ON before. where DRAW is of the same type as PRINT and PLOT
 
 
 

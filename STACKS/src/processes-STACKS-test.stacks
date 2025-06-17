@@ -1,0 +1,75 @@
+PROCESS 1 64
+    0 TIMER SET
+    'welkom at stern-' SHOW 1 PRINT
+
+42 PRINT
+
+ARRAY myArray 5
+
+51 0 AS [myArray]
+52 1 AS [myArray]
+
+0 [myArray] PRINT 
+1 [myArray] PRINT
+myArray PRINT
+
+53 AS myArray
+
+myArray PRINT
+
+
+
+
+INPUT PRINT 
+RAWIN SHOW
+
+'hello world ' SHOW
+'a' HASH PRINT
+'hb' HASH PRINT
+'hello world ' HASH PRINT
+
+FUNCTION dothis
+    12 30 + PRINT
+END
+
+dothis
+2 STARTPROCESS
+
+800 WAIT
+
+2 STOPPROCESS
+
+dothis
+0 TIMER PRINT
+END
+
+
+
+PROCESS 2 64
+    0 CHANNEL ON
+
+    1 PLOT
+    1 PLOT
+    1 AS previous
+
+    2 AS next
+
+    {next 700 !=} DO
+        previous next GCD AS cfactor
+        1 cfactor == DO
+                previous next 1 + + AS r
+                GOTO nextnumber
+        END
+        previous cfactor / AS r
+
+        LABEL nextnumber
+        r PLOT
+        r AS previous 
+        next 1 + AS next
+
+    END
+
+    LABEL endless
+    GOTO endless
+
+END

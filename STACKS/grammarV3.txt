@@ -13,6 +13,11 @@ statement  ::=  "LABEL" ident nl
 			|   "ARRAY" ident INTEGER nl  # Simplified: ARRAY name size_integer
 			            # Example: ARRAY myArray 10
 
+			|	ident CONNECTION READ readService0 nl
+			|	ident CONNECTION WRITE INTEGER INTEGER nl
+
+			|	INTEGER CHANNEL ON | OFF
+
 			|   "{" (expression | st) "}" "DO" nl {statement} nl "END" nl
 
 			# Process Management (YIELD is excluded as per request)

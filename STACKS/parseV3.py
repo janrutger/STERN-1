@@ -450,6 +450,7 @@ class Parser:
                 #self.emitter.emitLine("call @print")
                 self.emitter.emitLine("pop A") # Pop value from STACKS stack into A
                 self.emitter.emitLine("int ~SYSCALL_PRINT_NUMBER")
+                self.emitter.emitLine("int ~SYSCALL_PRINT_NL") # Add newline after printing number
                 self._print_trace("PRINT operation.")
                 self.nextToken() # Consume PRINT
                 self.nl()
