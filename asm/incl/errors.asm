@@ -13,5 +13,5 @@ halt
     ldi X 56
     ldi Y 25
     ldi C \f 
-    int 3
+    #int 3
 halt

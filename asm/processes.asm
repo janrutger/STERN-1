@@ -1,5 +1,57 @@
 .PROCES 1 64
 :~proc_entry_1 ; Default entry point for process 1
+ldi A 0
+push A
+call @stacks_timer_set
+ldi A 42
+push A
+pop A
+int ~SYSCALL_PRINT_NUMBER
+. $myArray 7
+% $myArray 0 7
+ldi A 51
+push A
+ldi A 0
+push A
+ldi A $myArray
+push A
+call @stacks_array_write
+ldi A 52
+push A
+ldi A 1
+push A
+ldi A $myArray
+push A
+call @stacks_array_write
+ldi A 0
+push A
+ldi A $myArray
+push A
+call @stacks_array_read
+pop A
+int ~SYSCALL_PRINT_NUMBER
+ldi A 1
+push A
+ldi A $myArray
+push A
+call @stacks_array_read
+pop A
+int ~SYSCALL_PRINT_NUMBER
+ldi A $myArray
+push A
+call @stacks_array_length
+pop A
+int ~SYSCALL_PRINT_NUMBER
+ldi A 53
+push A
+ldi A $myArray
+push A
+call @stacks_array_append
+ldi A $myArray
+push A
+call @stacks_array_length
+pop A
+int ~SYSCALL_PRINT_NUMBER
 call @stacks_input
 pop A
 int ~SYSCALL_PRINT_NUMBER
@@ -100,6 +152,9 @@ pop A
 int ~SYSCALL_STOP_PROCESS
 push A
 call @~dothis
+ldi A 0
+push A
+call @stacks_timer_print
 ldi A 1 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
 @~dothis

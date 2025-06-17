@@ -945,6 +945,8 @@ ret
     # Temporary Vars Used: $_array_base_pntr_temp
 
     pop L ; Save return address
+    di    ; Disable interrupts to protect $_array_base_pntr_temp
+
     pop A       ; A gets array_base_address from stack
     sto A $_array_base_pntr_temp    
     # M[$_array_base_pntr_temp] = array_base_address
@@ -952,8 +954,12 @@ ret
     # I = 0 (offset for length field)
     ldx B $_array_base_pntr_temp    
     # B = M[M[$_array_base_pntr_temp] + I] => B = M[array_base_address + 0] = length
+
+    ei    ; Re-enable interrupts
+
     push B ; Push the length onto the STACKS data stack
     push L ; Restore return address
+
 ret
 
 @stacks_array_write
@@ -980,6 +986,8 @@ ret
     # Temporary Vars Used: $_array_base_pntr_temp
 
     pop L ; Save return address
+    di    ; Disable interrupts
+
     pop C ; C gets array_base_address from stack
     pop B ; B gets index from stack
     pop A ; A gets value from stack
@@ -1041,6 +1049,7 @@ ret
     stx C $_array_base_pntr_temp    
     ; Store new length (C) into M[array_base_address + 0] (I is still 0)
 :_array_write_length_no_update
+    ei    ; Re-enable interrupts
     push L ; Restore return address
 ret
 
@@ -1063,11 +1072,13 @@ ret
     #   array_base_address + 2 onwards: array data elements
     #
     # Registers Used: A (value), C (array_base_address),
-    #                 K (current_length, then new_length), L (element_capacity),
-    #                 I (offset for ldx/stx)
+    #                 K (current_length, then new_length), L (for total_allocated_words/element_capacity),
+    #                 I (offset for ldx/stx), X (for preserving return address)
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    pop L ; Save return address
+    pop X ; Save return address, using X since L is in use 
+    di    ; Disable interrupts
+
     pop C ; C gets array_base_address from stack
     pop A ; A gets value from stack
 
@@ -1117,7 +1128,8 @@ ret
     # I = 0 (offset for length field)
     stx K $_array_base_pntr_temp
     # Store new_length (K) into M[array_base_address + 0]
-    push L ; Restore return address
+    ei    ; Re-enable interrupts
+    push X ; Restore return address, using X since L is in use
 ret
 
 @stacks_array_read
@@ -1142,6 +1154,8 @@ ret
     # Temporary Vars Used: $_array_base_pntr_temp
 
     pop L ; Save return address
+    di    ; Disable interrupts
+
     pop C ; C gets array_base_address from stack
     pop A ; A gets index from stack
 
@@ -1179,6 +1193,8 @@ ret
     # I = 2 + index (A)
     ldx B $_array_base_pntr_temp
     # B = M[M[$_array_base_pntr_temp] + I] (value_read)
+
+    ei    ; Re-enable interrupts
 
     push B ; Push the read value (B) onto the STACKS data stack
     push L ; Restore return address

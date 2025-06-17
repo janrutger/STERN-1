@@ -1,5 +1,25 @@
 PROCESS 1 64
 
+0 TIMER SET
+
+42 PRINT
+
+ARRAY myArray 5
+
+51 0 AS [myArray]
+52 1 AS [myArray]
+
+0 [myArray] PRINT 
+1 [myArray] PRINT
+myArray PRINT
+
+53 AS myArray
+
+myArray PRINT
+
+
+
+
 INPUT PRINT 
 RAWIN SHOW
 
@@ -20,7 +40,7 @@ dothis
 2 STOPPROCESS
 
 dothis
-
+0 TIMER PRINT
 END
 
 

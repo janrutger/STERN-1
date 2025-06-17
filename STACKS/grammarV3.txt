@@ -8,9 +8,9 @@ process_definition ::= "PROCESS" INTEGER [INTEGER] nl {statement} nl "END" nl
 
 statement  ::=  "LABEL" ident nl
 			|   "GOTO" ident nl
-			|   "TIMER" INTEGER ("SET" | "PRINT" | "GET") nl
+			|   INTEGER "TIMER" ("SET" | "PRINT" | "GET") nl
 			|   "FUNCTION" ident nl {statement} nl "END" nl
-			|   "ARRAY" array INTEGER nl  # Simplified: ARRAY name size_integer
+			|   "ARRAY" ident INTEGER nl  # Simplified: ARRAY name size_integer
 			            # Example: ARRAY myArray 10
 
 			|   "{" (expression | st) "}" "DO" nl {statement} nl "END" nl
@@ -29,7 +29,7 @@ statement  ::=  "LABEL" ident nl
 
 
 
-expression ::=	(INTEGER | STRING | "`" ident | ident | "MYPID" | word )+ # Added MYPID
+expression ::=	(INTEGER | STRING | "`" ident | ident | "MYPID" | '['ident']' | word )+ # Added MYPID
 word       ::=	('+'|'-'|'*'|'/'|'%'|'=='|'!='|'>'|'<'|'GCD'|'!'|'DUP'|'SWAP'|'OVER'|'DROP'|'INPUT'|'RAWIN'|'SHOW'|'HASH')
 
 # ident is a general identifier token. Its meaning (variable, function, label, array)
