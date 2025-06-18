@@ -10,7 +10,7 @@ i think the runtimes routines in asm/incl/stern_runtime.asm must be modified for
 
 please report on this
 
-Review the Stern-1 project, the new CPU supports multi processing capabilities and the new loader3.asm, kernel3.asm runs an multi processig kernel. Also the STACKS language is now multi processes compatible. Each proces has a memory block of 1024 wich includes (configurable) datastack at the top of the block, this area is also used for vars and arrays. The programcode starts at the beginning of the 1k block. The STACKS language is PROCESS aware and can be used as language to write programs running in those processes. see the processes.stacks example file
+Review the Stern-1 project, the new CPU supports multi processing capabilities and the new loader3.asm, kernel3.asm runs an multi processig kernel. Also the STACKS language is now multi processes compatible. Each proces has a memory block of 1024 wich includes (configurable) datastack at the top of the block, this area is also used for vars and arrays. The programcode starts at the beginning of the 1k block. The STACKS language is PROCESS aware and can be used as language to write programs running in those processes. see the processes.stacks example file. check STACKS/parseV3.py and STACKS/src/ example files for more details about the stacks-language
 
 Please write an report of the status of this project
 
