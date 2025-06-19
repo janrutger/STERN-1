@@ -1,40 +1,146 @@
 
 
-Review the Stern-1 project, the new CPU supports multi processing capabilities and the new loader3.asm, kernel3.asm runs an multi processing kernel. Also the STACKS language is now multi processes compatible. Each proces has a memory block of 1024 wich includes (configurable) datastack at the top of the block, this area is also used for vars and arrays. The programcode starts at the beginning of the 1k block. The STACKS language is PROCESS aware and can be used as language to write programs running in those processes. see the processes.stacks example file. check STACKS/parseV3.py and STACKS/src/ example files for more details about the stacks-language. asm/include/stern_runtime.asm is the the runtime library and is included in the /kernel3.asm
+The STERN-1 project is a custom virtual machine/emulator with its own assembly language and a higher-level language called STACKS. 
+It features a multi-processing kernel (V3) managing processes with dedicated 1KB memory blocks for code, stack, and local variables. 
+Emulated hardware includes a screen, keyboard, virtual disk, serial I/O, plotter, RTC, and network interface. 
+The assembler supports standard instructions, directives, labels, and constants, distinguishing between local ($) and global/shared (&) symbols. 
+The STACKS language, compiled to assembly, supports basic data types, operators, control flow, and runtime interactions with the emulated hardware, and is multi-process compatible
 
 i found 3x1024 unused memory and i like to introduce an memoryheap where PROCESSES can store and share vars and arrays
 Herefore i like to build an static heap at top of the last process block (now its tunning 4 processes).
-In STACKS a shared/heap allocation is done by SHARED VAR varname, or SHARED ARRAY myArray 16. When two PROCESSES define the same shared symbol, they share the symbol
+In STACKS a shared/heap allocation is done by SHARED VAR varname, or SHARED ARRAY myArray 16. 
+When two PROCESSES define the same shared symbol, they share the symbol
 
-when reading/writing to an shared adress, the kernel will check if the heap is locked (an other proces is using the heap), if not it locks the heap, and is doing the  read/write operation, after the operation is done, the kernel will release the lock
+when reading/writing to an shared adress, 
+- the kernel will check if the heap is locked (an other proces is using the heap), 
+- if not it locks the heap, and is doing the  read/write operation, 
+- after the operation is done, the kernel will release the lock
 
-if the heap is locked when a process is requestion an read/write operation to the heap, the kernel changed the process status to WAIT_FOR_UNLOCK, and this proces will not be scheduled anymore. when the kernel unlocks the previous proces it checks if any proces is WAIT_FOR_UNLOCK, is  its finds one, it will set the proces stattus to READY, so it will be scheduled again.
+if the heap is locked when a process is requestion an read/write operation to the heap, 
+- the kernel changed the process status to WAIT_FOR_UNLOCK, 
+- and this proces will not be scheduled anymore. 
+- when the kernel unlocks the previous proces it checks if any proces is WAIT_FOR_UNLOCK, 
+- if there   its finds one, it will set the proces stattus to READY, so it will be scheduled again.
 
-the assembler is using the &-prefix for global symbols, so when in the STACKS language a SHARED symbol is defined, it will generate ". &myVar 1" instead of ". $myVar 1" (for unshared symbols). the assembler keeps track of the shared symbols globaly like the assembler does in 'kernel' mode for non-shared symbols. where the in process symbols are reset before an new .PROCESS starts, shared object must not be reset at that point. But the shared objects are reset when the restore flag of the assembler is true (so if you want to share symbols in PROCESSES, the processes must be defined in the same sourcefile)
+the assembler is using the &-prefix for global symbols, 
+- so when in the STACKS language a SHARED symbol is defined, 
+- it will generate ". &myVar 1" instead of ". $myVar 1" (for unshared symbols). 
+- the assembler keeps track of the shared symbols globaly like the assembler does in 'kernel' mode for non-shared symbols. 
+- where the private symbols are reset before an new .PROCESS starts, shared object must not be reset at that point. 
+- But the shared objects are reset when the restore flag of the assembler is true 
+- (so if you want to share symbols in PROCESSES, the processes must be defined in the same sourcefile)
 
-While the kernel is resposible for the actually LOCK/UNLOCK and rescheduling, the stern_runtime must provide routines to hide the heavylifting from the assembler
+While the kernel is resposible for the actually LOCK/UNLOCK and rescheduling, 
+the stern_runtime must provide routines to hide the heavylifting from the assembler
 
 
 
+write an plan for implementing a memory heap for the stern-1 project and the STACKS languae
 
-The plan seems solid.
+**Plan for Implementing a Memory Heap in STERN-1**
 
-**Next Implementation Phase: Assembler Support for Shared Memory**
+**1. Heap Memory Region Definition:**
 
-The immediate next step should be to update the assembler (`assembler1c.py`) to handle shared symbols and allocations. Key modifications:
+*   **Location:** The static heap will be located at the top of the last process block. Given that there are currently 4 processes, and each process has a 1KB block for code, 1KB for stack, and 1KB for local variables, the heap will start after these 4 * 3KB = 12KB of process memory.
+*   **Size:** The prompt mentions "3x1024 unused memory". This will be the initial size of the heap (3KB).
+*   **Kernel Awareness:** The kernel needs to know the start address and size of this heap region.
 
-1.  **Shared Symbol Table & Pointer:**
-    *   Introduce `self.shared_symbols = {}` for `&symbol: address` mappings.
-    *   Introduce `self.NextSharedAddressPointer`, initialized to the start of the shared heap (e.g., `SHARED_HEAP_START_ADDRESS`, which needs to be defined based on the memory map after the last process block).
-2.  **Directive `.&`:**
-    *   In `parse_symbols`, add logic for `.& symbolName size`.
-    *   It should allocate `symbolName` (must start with `&`) in `self.shared_symbols` at `self.NextSharedAddressPointer` and increment the pointer by `size`.
-    *   These symbols should persist across `.PROCES` blocks and only be reset by `restore_state()`.
-3.  **Symbol Resolution:**
-    *   Update `get_adres` to resolve `&symbols` from `self.shared_symbols`.
-4.  **State Management:**
-    *   Integrate `self.shared_symbols` and `self.NextSharedAddressPointer` into `save_state()` and `restore_state()`.
-5.  **Initialization (`%`):**
-    *   Ensure `% &mySharedVar 123` works by allowing `get_adres` to resolve `&mySharedVar` as the target for the `%` directive.
+**2. Kernel Modifications (Kernel V3):**
 
-This will lay the groundwork for the STACKS compiler and runtime changes.
+*   **Heap Lock Management:**
+    *   Introduce a global kernel variable (e.g., `heap_lock_status`, `heap_locked_by_pid`).
+    *   **`LOCK_HEAP` Syscall/Internal Function:**
+        *   Checks if the heap is already locked.
+        *   If not locked, marks it as locked by the current Process ID (PID) and returns success.
+        *   If locked, returns a failure or a specific status indicating it's locked.
+    *   **`UNLOCK_HEAP` Syscall/Internal Function:**
+        *   Checks if the current PID is the one that locked the heap.
+        *   If yes, unlocks the heap.
+        *   Crucially, after unlocking, it must check for any processes in the `WAIT_FOR_UNLOCK` state.
+        *   If such processes exist, pick one (e.g., FIFO basis), change its status to `READY`, and potentially reschedule immediately or let the scheduler pick it up.
+*   **Process State Management:**
+    *   Introduce a new process state: `WAIT_FOR_UNLOCK`.
+    *   The scheduler must be modified to skip processes in the `WAIT_FOR_UNLOCK` state.
+*   **Shared Memory Access Handling (within Syscalls for read/write):**
+    *   When a process attempts to read/write to an address within the shared heap region (identified by the `&` prefix, which the assembler/runtime will translate to an absolute heap address):
+        1.  Attempt to `LOCK_HEAP`.
+        2.  If `LOCK_HEAP` succeeds:
+            *   Perform the read/write operation.
+            *   Call `UNLOCK_HEAP`.
+            *   Return the result/status to the process.
+        3.  If `LOCK_HEAP` fails (because it's already locked by another process):
+            *   Change the current process's status to `WAIT_FOR_UNLOCK`.
+            *   The process will yield, and the scheduler will pick another `READY` process. The kernel will *not* immediately retry the operation for this process; it will wait until `UNLOCK_HEAP` makes it `READY` again.
+*   **Shared Symbol Management (Kernel's Role):**
+    *   The kernel itself doesn't directly manage STACKS/assembly symbol names. Its primary role is managing the memory region and access control (locking). The translation of `&myVar` to a specific heap address is handled by the assembler and runtime.
+
+**3. Assembler Modifications:**
+
+*   **Symbol Table Extension:**
+    *   Maintain a separate global symbol table for shared symbols (those prefixed with `&`).
+    *   This table will store the symbol name and its allocated offset within the heap.
+*   **`&` Prefix Handling:**
+    *   When an instruction operand or a `. ` directive uses `&symbol`:
+        *   If `symbol` is new, allocate space for it in the shared heap region (incrementing a global heap pointer/offset) and store it in the shared symbol table.
+        *   Resolve `&symbol` to its absolute memory address (Heap Base + Offset).
+*   **`.PROCESS` Directive Behavior:**
+    *   The private symbol table (for `$symbols`) should be reset when a new `.PROCESS` directive is encountered (as it currently does).
+    *   The **shared symbol table** (for `&symbols`) and the heap pointer/offset **must not** be reset when a new `.PROCESS` directive is encountered *within the same source file compilation*. This allows processes defined in the same file to share symbols.
+*   **`restore` Flag Behavior:**
+    *   When the assembler's `restore` flag is true (typically at the start of a new, independent compilation session), the shared symbol table and the heap pointer/offset **must be reset**. This ensures a clean slate for new programs and prevents symbol clashes between unrelated compilations.
+*   **Directive for Shared Data:**
+    *   The `. &myVar 1` syntax is good. The assembler will interpret this as:
+        *   `&myVar`: A shared symbol.
+        *   `1`: The size (in words/bytes, depending on assembler convention) to allocate for this shared variable in the heap.
+
+**4. STACKS Language Compiler Modifications:**
+
+*   **`SHARED VAR varname`:**
+    *   When encountered, the compiler should generate assembly like:
+        ```assembly
+        . &varname 1 ; Assuming 1 word/unit for a VAR
+        ```
+*   **`SHARED ARRAY arrayName size`:**
+    *   When encountered, the compiler should generate assembly like:
+        ```assembly
+        . &arrayName size
+        ```
+*   **Symbol Resolution:**
+    *   When `varname` or `arrayName` (that was declared `SHARED`) is used in STACKS expressions, the compiler must ensure that the generated assembly references it using the `&` prefix (e.g., `LOAD A, &varname`).
+
+**5. `stern_runtime` Modifications:**
+
+*   **Purpose:** To provide higher-level routines that STACKS-compiled assembly (and potentially hand-written assembly) can call to interact with shared variables/arrays, abstracting the locking/unlocking and syscalls.
+*   **`RUNTIME_SHARED_WRITE (address_in_heap, value)`:**
+    *   Internally, this routine will:
+        1.  Make a syscall to the kernel to request a write to the `address_in_heap`.
+        2.  The kernel handles the locking:
+            *   If heap is free: lock, write, unlock, return.
+            *   If heap is busy: set process to `WAIT_FOR_UNLOCK`, current runtime call effectively blocks until process becomes `READY` again and the kernel re-attempts/completes the write.
+*   **`RUNTIME_SHARED_READ (address_in_heap)`:**
+    *   Internally, this routine will:
+        1.  Make a syscall to the kernel to request a read from the `address_in_heap`.
+        2.  The kernel handles the locking similarly to the write operation.
+        3.  Returns the read value.
+*   **Address Calculation:**
+    *   The STACKS compiler, when generating code that uses these runtime functions, will be responsible for passing the correct absolute heap address of the shared variable (which it gets from the assembler's `&symbol` resolution).
+
+**Implementation Steps & Order:**
+
+1.  **Kernel - Heap Region & Basic Lock:**
+    *   **Conceptual Heap Region:** Define the heap memory region to start at address `8192` (after 4 user process blocks of 1KB each, assuming kernel processes also use similar blocks or are accounted for before this) and have a size of `3072` bytes (ending at `11263`).
+    *   **Kernel Lock Variables:** Implement a kernel global variable `$kernel_heap_lock_pid` to store the PID of the locking process, and `~HEAP_LOCK_UNLOCKED` for the unlocked state.
+    *   **Syscalls for Locking:** Create `~SYSCALL_LOCK_HEAP` and `~SYSCALL_UNLOCK_HEAP`.
+        *   `_isr_lock_heap`: Attempts to acquire the lock. Allows re-entrant calls from the current lock owner.
+        *   `_isr_unlock_heap`: Releases the lock if held by the calling process.
+    *   **Status Return via PCB:** Syscall success/failure (1/0) is returned by writing to a new `~PTE_SYSCALL_RETVAL` field in the calling process's Process Table Entry (PTE). `~PTE_SIZE` is updated accordingly.
+    *   **Initialization:**
+        *   `@_kernel_init_heap_lock`: Initializes `$kernel_heap_lock_pid` to `~HEAP_LOCK_UNLOCKED` during kernel startup.
+        *   `@init_process_table`: Initializes `~PTE_SYSCALL_RETVAL` for all processes.
+        *   `@setup_syscall_vectors`: Sets up IVT entries for the new syscalls.
+    *   *This step does not yet include changing process states to `WAIT_FOR_UNLOCK` or modifying the scheduler for heap contention.*
+2.  **Assembler - Shared Symbol Table & `&` Prefix:**
+3.  **STACKS Compiler - `SHARED` Keyword:**
+4.  **Kernel - Process States & Scheduler for Heap:**
+5.  **`stern_runtime` - Shared Access Routines:**
+6.  **Integration and Testing:**
