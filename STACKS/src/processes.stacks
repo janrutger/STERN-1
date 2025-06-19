@@ -1,0 +1,93 @@
+PROCESS 1 64
+    'welkom at stern-' SHOW 1 PRINT
+
+    1 TIMER SET
+
+    FUNCTION pause
+        300 WAIT
+    END
+
+    
+    
+
+    LABEL loop
+        'give an instruction ' SHOW RAWIN HASH AS instruction
+
+        'start' HASH instruction == DO
+            'enter proces id     ' SHOW INPUT AS pid
+            pid STARTPROCESS
+            pause
+            1 TIMER PRINT
+            GOTO loop
+        END
+
+        'stop' HASH instruction == DO
+            'enter proces id     ' SHOW INPUT AS pid
+            pid STOPPROCESS
+            GOTO loop
+        END
+
+        'exit' HASH instruction == DO
+            GOTO endShell
+        END
+
+
+    'unkown instruction - ' SHOW
+    GOTO loop
+
+
+LABEL endShell
+    1 TIMER PRINT
+    1 TIMER GET 
+    . PRINT
+END
+
+
+
+PROCESS 2 64
+    0 CHANNEL ON
+    2 TIMER SET
+
+    1 PLOT
+    1 PLOT
+    1 AS previous
+
+    2 AS next
+
+    {next 700 !=} DO
+        previous next GCD AS cfactor
+        1 cfactor == DO
+                previous next 1 + + AS r
+                GOTO nextnumber
+        END
+        previous cfactor / AS r
+
+        LABEL nextnumber
+        r PLOT
+        r AS previous 
+        next 1 + AS next
+
+    END
+
+    2 TIMER PRINT
+    LABEL endless
+    GOTO endless
+
+END
+
+
+PROCESS 3
+    0 CHANNEL ON
+
+    3 TIMER SET
+    0 AS n
+        {n 75 <} DO
+            n PLOT
+            n 1 + AS n
+        END
+
+    3 TIMER PRINT
+    LABEL endless
+    GOTO endless
+
+END

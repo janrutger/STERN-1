@@ -1,6 +1,4 @@
 
-. $FONTS 1
-% $FONTS 2024
 
 . $VIDEO_MEM 1
 % $VIDEO_MEM 14336
@@ -10,14 +8,14 @@
 % $VIDEO_SIZE 2047
 
 . $INT_VECTORS 1
-% $INT_VECTORS 4096
+% $INT_VECTORS 3072
 
 . $mem_start 1
 % $mem_start 0
 
 # Prog_start adres = 4608
 . $prog_start 1
-% $prog_start 4608
+% $prog_start 4096
 
 . $random_seed 1
 % $random_seed 12345 
@@ -44,7 +42,7 @@
 . $NIC_baseadres 1
 % $NIC_baseadres 12283
 
-#INCLUDE printing
+INCLUDE printing
 INCLUDE serialIO
 include networkR3
 INCLUDE random
@@ -110,11 +108,6 @@ INCLUDE errors
     ldi M @read_nic_isr
     stx M $INT_VECTORS 
 
-    # NIC send Interrupt
-    ; equ ~networkSend 10
-    ; ldi I ~networkSend
-    ; ldi M @write_nic_isr
-    ; stx M $INT_VECTORS
 
 
 
@@ -228,71 +221,22 @@ rti
     # Reg Y = Y-pos on screen
     # Reg C =  char to draw
 
-    # calc the pointer to the font
-    # a char = 20 pixels
-    muli C 20
-    ldm M $FONTS
-    add C M
-
-    ldi A 4
-    ldi B 5
-
-    call @draw_sprite_function
+    # TODO: This ISR is currently non-functional as $FONTS is no longer pre-loaded.
+    # The system needs a new mechanism for character rendering.
+    # For now, this ISR does nothing to prevent errors.
+    # Example:
+    # ldi A \E  ; Load 'E' for Error
+    # call @PRINT_CHAR_SERIAL ; (if such a routine exists for debugging)
+    # or simply return:
 rti
 
 
 
 
 @scroll_line
-### MOVE memory block n positions
-. $screen_start 1
-. $read_pointer 1
-. $pxls_to_shift 1
-. $shifting 1
-
-ldm M $VIDEO_MEM
-sto M $screen_start
-
-# n postions to move
-# 1 lines x 64 pixels = 64
-addi M 64
-
-# pointer to read adres
-sto M $read_pointer
-
-# number of shifts
-# total lenght of block - 1 = 63
-# pixels to shift
-ldm M $VIDEO_SIZE
-subi M 63
-sto M $pxls_to_shift
-
-ldi I 0
-sto I $shifting
-
-:shift_loop
-    inc I $shifting
-    ldx M $read_pointer
-    stx M $screen_start
-
-    ldm K $shifting
-    ldm L $pxls_to_shift
-    tste K L 
-jmpf :shift_loop
-
-# fill with \space
-ldi K \space
-ld M Z
-:fill_zero
-    inc I $shifting
-    stx K $screen_start
-
-    addi M 1
-    # 1 line x 64 pixels = 64
-    # tst M 384
-    tst M 64
-jmpf :fill_zero    
-
+    ; This ISR is triggered by the 'int 4' instruction.
+    ; It now calls the centralized screen scrolling logic located in printing.asm.
+    call @_do_scroll_line ; Invoke the scrolling routine from printing.asm
 rti
 
 

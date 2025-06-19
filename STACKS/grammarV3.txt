@@ -1,0 +1,50 @@
+
+program    ::=	{ process_definition }
+
+process_definition ::= "PROCESS" INTEGER [INTEGER] nl {statement} nl "END" nl
+                        # Example: PROCESS 1 64 (PID 1, stack size 64)
+                        #          PROCESS 2    (PID 2, default stack size)
+                        # Note: "END" is used instead of "ENDPROCESS" as per request.
+
+statement  ::=  "LABEL" ident nl
+			|   "GOTO" ident nl
+			|   INTEGER "TIMER" ("SET" | "PRINT" | "GET") nl
+			|   "FUNCTION" ident nl {statement} nl "END" nl
+			|   "ARRAY" ident INTEGER nl  # Simplified: ARRAY name size_integer
+			            # Example: ARRAY myArray 10
+
+			|	ident CONNECTION READ readService0 nl
+			|	ident CONNECTION WRITE INTEGER INTEGER nl
+
+			|	INTEGER CHANNEL ON | OFF
+
+			|   "{" (expression | st) "}" "DO" nl {statement} nl "END" nl
+
+			# Process Management (YIELD is excluded as per request)
+			|   expression "STARTPROCESS" nl
+			|   expression "STOPPROCESS" nl
+
+			|   (expression | st) ( "PRINT" nl           # Corrected
+								| "PLOT" nl
+								| "WAIT"  nl           # Corrected
+								| "AS" (ident | '['ident']') nl # Assign to var or array element
+								| "DO"   nl {statement} nl "END" nl
+								| "GOTO" ident nl
+								|  nl ) # Expression can stand alone (values left on stack)
+
+
+
+expression ::=	(INTEGER | STRING | "`" ident | ident | "MYPID" | '['ident']' | word )+ # Added MYPID
+word       ::=	('+'|'-'|'*'|'/'|'%'|'=='|'!='|'>'|'<'|'GCD'|'!'|'DUP'|'SWAP'|'OVER'|'DROP'|'INPUT'|'RAWIN'|'SHOW'|'HASH')
+
+# ident is a general identifier token. Its meaning (variable, function, label, array)
+# is determined by the parser based on context.
+ident      ::=  [a-zA-Z][a-zA-Z0-9]*
+
+st         ::=	('.'|'..')
+nl         ::= '\n'+
+
+
+
+
+V3 is the current baseline emitV3.py parseV3.py lexV3.py stacks.py grammarV3.txt i like to change the parser and emitter so its follows the grammer and emmits in the right codeblock to initialize vars in the right proces

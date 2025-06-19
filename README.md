@@ -1,215 +1,105 @@
-# STERN-1 Virtual Computer & STERN-2 Multi-Instance Environment
+# Stern-1: Multiprocessing CPU & STACKS Language
 
-## 1. Overview
+## Overview
 
-The STERN-1 project is a sophisticated Python-based simulation of a custom 16-bit-like computer architecture. It provides a complete virtual environment, encompassing a CPU, memory, a rich set of I/O peripherals, and a graphical user interface. Programs for STERN-1 are developed using a dedicated assembly language and processed by a custom assembler.
+The Stern-1 project features a CPU architecture with newly integrated multiprocessing capabilities. This system is supported by a dedicated kernel (`kernel3.asm`) and bootloader (`loader3.asm`). The STACKS programming language has been specifically updated to be "process-aware," enabling developers to write and manage multi-process applications that run directly on this enhanced Stern-1 architecture.
 
-The `STERN-2.py` script elevates this by enabling the concurrent operation of multiple STERN-1 instances. These instances can communicate with each other over a simulated network, facilitated by virtual Network Interface Cards (NICs) and a central Network Hub.
+## Core Components
 
-This project serves as an excellent platform for educational exploration of computer architecture, operating system concepts, assembly language programming, and basic networking principles in a controlled, simulated setting.
+*   **Stern-1 CPU:** The central processing unit, now with hardware/architecture support for multiprocessing.
+*   **Kernel (`kernel3.asm`):** A new multiprocessing kernel responsible for process scheduling, memory management for individual processes, and handling system calls.
+*   **Bootloader (`loader3.asm`):** Initializes the system and loads the kernel.
+*   **STACKS Language:**
+    *   The primary high-level, stack-oriented language for programming the Stern-1.
+    *   Parser: `STACKS/parseV3.py` (defines language grammar and structure)
+    *   Lexer: `STACKS/lexV3.py`
+    *   Emitter: `STACKS/emitV3.py` (generates Stern-1 assembly from STACKS code)
+*   **Runtime Library (`asm/include/stern_runtime.asm`):** A library of essential routines and system call interfaces used by STACKS programs. It is included directly in `kernel3.asm`, making it available to all processes.
 
-## 2. Core Features
+## STACKS Language & Multiprocessing
 
-### 2.1. STERN-1 Simulated Hardware
-*   **Custom CPU (`cpu1.py`):**
-    *   Unique instruction set (detailed in `assembler1b.py`).
-    *   10 General-Purpose Registers (R0-R9), Program Counter (PC), Stack Pointer (SP).
-    *   Status bit for conditional operations.
-    - Interrupt handling mechanism.
-    *   CPU performance monitoring (`CPUmonitor1.py`).
-*   **Memory (`memory.py`):**
-    *   Simulated word-addressable memory space.
-    *   Dedicated regions for program code, data, stack, video RAM, and font data.
-*   **Interrupt Controller (`interrupts.py`):**
-    *   Manages a queue of pending hardware and software interrupts.
-*   **Real-Time Clock (RTC) (`rtc.py`):**
-    *   Generates periodic interrupts for time-based events.
+The STACKS language is intrinsically linked with Stern-1's multiprocessing model:
 
-### 2.2. Software Development & "Stacks Language"
-*   **Custom Assembly Language:**
-    *   Features a comprehensive set of instructions for data manipulation, arithmetic, control flow, and I/O.
-    *   **"Stacks Language" Aspect:** The architecture and assembly language heavily utilize a stack, managed by the Stack Pointer (SP). Subroutine calls (`CALL`, `CALLX`) push the return address onto the stack, and returns (`RET`, `RTI`) pop it. This explicit stack management is a fundamental characteristic of programming for STERN-1.
-*   **Assembler (`assembler1b.py`):**
-    - Translates STERN-1 assembly language (`.asm`) into machine code (`.bin`).
-    - Supports labels, global symbols (`@`, `$`), local labels (`:`), constants (`EQU ~NAME value`), and file includes (`INCLUDE`).
-    *   Provides detailed error reporting with line numbers and source context.
-    *   State management (`save_state`, `restore_state`) for modular assembly.
+*   **Process-Aware:** STACKS includes dedicated keywords and constructs for defining processes, managing their execution, and facilitating inter-process communication.
+*   **Process Memory Model:**
+    *   Each process operates within its own isolated memory block (typically 1024 bytes, though this can be configured).
+    *   Program code for a process is loaded at the beginning of its memory block.
+    *   A data stack is situated at the top of the memory block, growing downwards. This stack area is also utilized for storing variables and arrays local to the process.
+*   **Process Definition:** In STACKS, processes are defined using `PROCESS PID [STACK_SIZE] ... END` blocks, clearly delineating code for each concurrent task.
+*   **Example:** The `STACKS/src/processes.stacks` file provides a practical example of how to write multi-process programs using STACKS, demonstrating process creation and basic interactions.
 
-### 2.3. Input/Output (I/O) Subsystem & Peripherals
-*   **I/O Manager (`hw_IO_manager3.py`):**
-    *   Manages the Tkinter-based graphical user interface for each STERN-1 instance.
-    *   Coordinates updates for all connected virtual devices.
+## Key Files & Directories
+*   **Hardware Emulation & Interaction:**
+    *   `stern_computer.py`: Defines a single STERN-1 computer instance, integrating all components.
+    *   `hw_IO_manager3.py`: Manages the Tkinter-based GUI, screen updates, and keyboard input for each instance.
+    *   `memory.py`: Simulates the main memory.
+    *   `interrupts.py`: Handles interrupt queuing and dispatch.
+    *   `rtc.py`: Real-Time Clock for timed interrupts (used by the scheduler).
+    *   `virtualdisk.py`: Simulates disk operations.
+    *   `serialIO.py`: Core logic for Serial I/O channels.
+    *   `plotter_optimized.py`: Standard Y-value plotter using SIO.
+    *   `XY_plotter.py`: X,Y coordinate plotter using SIO.
+    *   `networkNICr2.py`: Virtual Network Interface Card for inter-process communication (simulated network).
+    *   `networkHub.py`: Central hub for routing messages between NICs of different STERN-1 instances (if multiple instances are run via `STERN2.py`).
+*   **CPU & Low-Level:**
+    *   `cpuNG.py` (presumably, based on `cpu1.py` and project evolution): The CPU core.
+    *   `decoder.py`: Decodes machine instructions.
+    *   `assembler1b.py` (or `assembler1c.py` as seen in `STERN2.py`): The STERN-1 assembler.
+
+*   **Assembly & Kernel:**
+    *   `asm/loader3.asm`: System bootloader.
+    *   `asm/kernel3.asm`: The multiprocessing kernel.
+    *   `asm/include/stern_runtime.asm`: Core STACKS runtime library.
+*   **STACKS Language Implementation:**
+    *   `STACKS/parseV3.py`: The language parser, key to understanding STACKS syntax.
+    *   `STACKS/lexV3.py`: The lexical analyzer.
+    *   `STACKS/emitV3.py`: The assembly code emitter.
+*   **STACKS Examples:**
+    *   `STACKS/src/`: Directory containing example STACKS programs.
+    *   `STACKS/src/processes.stacks`: A crucial example showcasing multiprocessing features.
+
+## Getting Started
+1.  **Understand the Architecture:** Familiarize yourself with the Stern-1 CPU, its multiprocessing model, the kernel's role (`kernel3.asm`), and how processes manage their memory.
+2.  **Learn STACKS:**
+    *   Study `STACKS/parseV3.py` to understand the language grammar and capabilities.
+    *   Review example programs in `STACKS/src/`, especially `processes.stacks`.
+3.  **Compilation & Execution Flow (Conceptual):**
+    *   Write STACKS code (e.g., `my_program.stacks`).
+    *   Use a compiler/toolchain (which would internally use `lexV3.py`, `parseV3.py`, and `emitV3.py`) to translate STACKS code into Stern-1 assembly (`.asm` file).
+    *   The Stern-1 assembler (e.g., `assembler1c.py`) compiles the `.asm` file into a `.bin` machine code file.
+    *   The `STERN2.py` script can be used to launch one or more Stern-1 instances. It handles:
+        *   Assembling common binaries like `loader3.asm` and `kernel3.asm`.
+        *   Assembling the STACKS program's generated `.asm` file (e.g., `processes.asm` to `processes.bin`).
+        *   Configuring and starting `SternComputer` instances, each loading the loader, kernel, and its specific program ROM.
+    *   The `loader3.asm` initializes basic hardware and interrupt vectors, then jumps to the `kernel3.asm`.
+    *   The `kernel3.asm` initializes process tables, SIO, syscalls, and starts the scheduler and initial user processes (like PID 1, often a shell).
+    *   STACKS processes then run, making syscalls (via `stern_runtime.asm` routines) for I/O, process management, etc.
+
+## Hardware Devices & Interaction
+
+The Stern-1 virtual environment includes several emulated hardware devices that STACKS programs can interact with, primarily through system calls handled by the kernel.
+
 *   **Screen Display:**
-    - Displays video memory output (text-based console).
-    *   Uses a custom bitmap font (`fontmaker.py`, `standard.font`).
+    *   Managed by `hw_IO_manager3.py` using Tkinter.
+    *   Presents a text-based console.
+    *   Output is typically achieved by STACKS programs via syscalls like `~SYSCALL_PRINT_NUMBER` and `~SYSCALL_PRINT_CHAR`, which are wrappers around routines in `printing.asm` (included in `stern_runtime.asm`). These routines write character codes to a designated video memory area, which `hw_IO_manager3.py` then renders.
+    *   Low-level screen operations (clear, scroll) are also available via interrupts/syscalls (e.g., `int ~SYSCALL_CLEAR_SCREEN`).
+
 *   **Keyboard Input:**
-    *   Captures key presses from the Tkinter input bar.
-    *   Generates keyboard interrupts with ASCII-like character codes.
-*   **Virtual Disk (`virtualdisk.py`):**
-    *   Simulates file system operations by mapping them to a directory on the host OS.
-    *   Supports opening files (by hash of filename) and reading their content.
-*   **Serial I/O (SIO) (`serialIO.py`):**
-    *   Provides a channel-based mechanism for serial communication.
-    *   Used by plotter devices to receive data from STERN-1 programs.
-*   **Graphical Plotters (Matplotlib-based):**
-    *   **Standard Plotter (`plotter_optimized.py`):** Visualizes a stream of Y-values against an auto-incrementing X-axis (sample index).
-    *   **XY Plotter (`XY_plotter.py`):** Plots (X, Y) coordinate pairs, suitable for graphical applications like fractals.
+    *   Captured by the Tkinter input bar in `hw_IO_manager3.py`.
+    *   Key presses generate an interrupt (ISR: `@KBD_WRITE` in `loader3.asm`), which stores the key code in a buffer.
+    *   STACKS programs typically read input using words like `INPUT` (for numbers) or `RAWIN` (for strings), which ultimately call runtime routines that read from this keyboard buffer (e.g., via `@KBD_READ` in `loader3.asm`).
 
-### 2.4. Networking (STERN-2 Multi-Instance)
-*   **Virtual Network Interface Card (NIC) (`networkNICr2.py`):**
-    *   Emulates a NIC in each STERN-1 instance.
-    *   Interfaced via memory-mapped registers.
-    *   Supports sending and receiving DATA and ACK/NACK packets.
-    *   Implements a basic Go-Back-N like retransmission strategy for NACKs.
-    *   Includes support for `service_id` for application-level multiplexing.
-*   **Network Hub (`networkHub.py`):**
-    *   A central process that routes packets between STERN-1 instances.
-    *   Uses shared `multiprocessing.Queue`s for Inter-Process Communication (IPC).
-*   **Multi-Instance Orchestration (`STERN2.py`):**
-    *   Launches multiple `SternComputer` instances, each in its own process.
-    *   Manages the setup of shared network queues.
-    *   Handles the assembly of common and instance-specific code.
+*   **Serial I/O (SIO) Subsystem:**
+    *   Provides channel-based communication, managed by `serialIO.py` and the kernel.
+    *   STACKS programs interact with SIO channels using `CHANNEL ON/OFF` statements, which translate to kernel syscalls (`~SYSCALL_REQUEST_SIO_CHANNEL`, `~SYSCALL_RELEASE_SIO_CHANNEL`).
+    *   Data is written to an owned SIO channel using routines that eventually call `~SYSCALL_WRITE_SIO_CHANNEL`.
+    *   **Plotters:** The `plotter_optimized.py` (standard Y-value plotter) and `XY_plotter.py` (X,Y coordinate plotter) are primary users of SIO channels. STACKS programs use `PLOT` (which might write to a default SIO channel, e.g., channel 0 for the standard plotter, or channel 1 for the XY plotter as seen in `processes.stacks`) to send data points. The respective plotter Python scripts monitor their assigned SIO channel for new data and update the Matplotlib visualisations.
 
-## 3. Directory Structure
+*   **Virtual Disk:**
+    *   Simulated by `virtualdisk.py`, mapping operations to a host OS directory.
+    *   Interaction is via memory-mapped I/O registers and interrupts (e.g., `int ~SYSCALL_OPEN_FILE`, `int ~SYSCALL_READ_FILE_LINE` which are ISRs in `loader3.asm` that interact with the virtual disk's registers).
 
-```
-STERN-1/
-├── STERN2.py               # Main launcher for multiple STERN-1 instances
-├── stern_computer.py       # Class defining a single STERN-1 computer instance
-├── README.md               # This file
-│
-├── cpu1.py                 # CPU logic and instruction execution
-├── memory.py               # Memory simulation
-├── decoder.py              # Decodes machine code instructions
-├── assembler1b.py          # STERN-1 assembly language assembler
-├── CPUmonitor1.py          # CPU performance monitoring utility
-│
-├── hw_IO_manager3.py       # I/O device manager, Tkinter GUI (supports networking)
-├── interrupts.py           # Interrupt controller
-├── rtc.py                  # Real-Time Clock simulation
-├── stringtable.py          # Character to ASCII-like value mapping
-├── FileIO.py               # Utilities for reading/writing project-specific files
-│
-├── serialIO.py             # Serial I/O device logic
-├── plotter_optimized.py    # Standard Y-value data plotter
-├── XY_plotter.py           # X,Y coordinate pair plotter
-├── virtualdisk.py          # Virtual disk drive simulation
-│
-├── networkNICr2.py         # Virtual Network Interface Card
-├── networkHub.py           # Network Hub for inter-instance communication
-│
-├── fontmaker.py            # Utility script to generate font files
-│
-├── asm/                    # Directory for assembly source files (*.asm)
-│   ├── incl/               # Directory for included assembly files (e.g., constants.asm)
-│   ├── loader2.asm         # Bootloader program
-│   ├── kernel2.asm         # Basic kernel/monitor program
-│   ├── ChaosGame3.asm      # Example program (plots a Sierpinski triangle)
-│   ├── ChaosGame4.asm      # Example program (plots a Sierpinski triangle using XY plotter)
-│   ├── networkEcho.asm     # Example network program (echo server)
-│   ├── out0.asm            # Example network client program
-│   ├── out1.asm            # Example network server program
-│   └── ...                 # Other assembly programs
-│
-├── bin/                    # Directory for compiled binaries (*.bin) and fonts (*.font)
-│   ├── standard.font       # Default font data
-│   ├── loader.bin
-│   ├── kernel.bin
-│   └── ...                 # Compiled programs
-│
-└── disk0/                  # Example virtual disk directory for instance 0
-```
-
-## 4. Prerequisites
-
-*   Python 3.x
-*   Tkinter (typically included with Python's standard library)
-*   Matplotlib (`pip install matplotlib`)
-*   NumPy (`pip install numpy`)
-
-## 5. How to Run
-
-The primary method for running the simulation is via the `STERN2.py` script, which orchestrates the assembly of necessary code and the launch of multiple STERN-1 computer instances.
-
-1.  **Ensure Prerequisites are Met:**
-    Install Python and the required libraries:
-    ```bash
-    pip install matplotlib numpy
-    ```
-2.  **Navigate to the Project Directory:**
-    ```bash
-    cd path/to/STERN-1
-    ```
-3.  **Run the `STERN2.py` Script:**
-    ```bash
-    python STERN2.py
-    ```
-
-This command will:
-1.  **Assemble Code:** Compile `loader2.asm`, `kernel2.asm`, and the programs specified in the `assembly_code()` function within `STERN2.py` (e.g., `ChaosGame4.asm`, `program0.bin`, `program1.bin`). The output `.bin` files will be placed in the `./bin/` directory.
-2.  **Launch Network Hub:** Start the `NetworkHub` process, which listens for and routes messages between STERN instances.
-3.  **Launch STERN Instances:** Initialize and start two (or more, if configured in `STERN2.py`) `SternComputer` instances. Each instance will:
-    *   Open its own Tkinter window for display and keyboard input.
-    *   Initialize its virtual hardware (CPU, Memory, RTC, NIC, etc.).
-    *   Load the `loader.bin` and `kernel.bin`.
-    *   Load its specific program ROM (defined in its configuration in `STERN2.py`).
-    *   Begin CPU execution and activate its I/O device loop.
-
-To stop the simulation, close the Tkinter windows of each STERN instance. The `STERN2.py` script will then attempt to gracefully terminate the Network Hub process.
-
-## 6. Key Architectural Components
-
-*   **`SternComputer` (`stern_computer.py`):**
-    An object encapsulating all hardware, software loading, and operational logic for a single STERN-1 machine. It is configured via a Python dictionary passed during instantiation.
-*   **`Cpu` (`cpu1.py`):**
-    The central processing unit. It fetches instructions from memory, decodes them using `decoder.py`, and executes them according to the defined instruction set.
-*   **`Memory` (`memory.py`):**
-    A list-based simulation of the computer's main memory, storing instructions, data, video buffer, and font.
-*   **`Assembler` (`assembler1b.py`):**
-    A crucial tool that translates human-readable STERN-1 assembly language into the machine code that the `Cpu` can execute.
-*   **`DeviceIO` (`hw_IO_manager3.py`):**
-    The bridge between the simulated hardware and the user. It manages the Tkinter GUI, handles screen updates, keyboard input, and polls other devices like the Virtual Disk, SIO channels, and the NIC.
-*   **`VirtualNIC` & `NetworkHub`:**
-    These components, along with `multiprocessing` queues, form the networking subsystem, allowing separate STERN-1 processes to exchange simple data packets.
-
-## 7. Customization and Experimentation
-
-*   **Write Assembly Programs:** Create new `.asm` files in the `./asm/` directory. Add them to the `assembly_code()` function in `STERN2.py` to have them compiled. You can then specify these new `.bin` files as the `start_rom` in an instance's configuration.
-*   **Configure Instances:** Modify the `instance1_config`, `instance2_config`, etc., dictionaries in `STERN2.py` to change parameters such as the program ROM to load, the virtual disk directory, or network queue assignments.
-*   **Modify Hardware Behavior:** The Python classes for each component (e.g., `cpu1.py`, `virtualdisk.py`, `networkNICr2.py`) can be modified to alter their functionality or experiment with new hardware features.
-*   **Extend Instruction Set:** Add new instructions to `assembler1b.py` (in `self.instructions`) and implement their corresponding execution logic in `cpu1.py` (in the `match inst:` block).
-*   **Develop New Peripherals:** Create new Python classes for custom I/O devices and integrate them into `DeviceIO` and the `SternComputer` setup.
-
-## 8. Potential Future Enhancements (Inferred)
-
-*   **Advanced Assembler Features:**
-    *   Implement robust range checking for immediate values and constants.
-    *   Support for macros or more complex expressions in `EQU` directives.
-*   **Networking:**
-    *   More sophisticated network protocols or error handling.
-    *   A more graceful shutdown mechanism for the `NetworkHub`.
-*   **Operating System Concepts:**
-    *   Develop a more advanced kernel with features like basic process management (within a single STERN instance) or a simple file system API.
-*   **Debugging Tools:**
-    *   A built-in debugger or enhanced tracing capabilities for assembly programs.
-*   **Configuration Flexibility:**
-    *   Make more memory layout parameters (e.g., `start_var`, `start_font`, `intVectors` in `stern_computer.py`) easily configurable via the instance configuration dictionary in `STERN2.py`.
-
-This STERN-1 environment provides a rich and flexible platform for learning and experimentation. Enjoy exploring the intricacies of computer systems!
-        - Enables basic packet-based communication between STERN instances.
-        - Supports DATA and ACK/NACK packets.
-        - Implements a simple Go-Back-N like retransmission for NACKs.
-        - Uses shared queues for inter-process communication (IPC).
-- **Multi-Instance Support (`STERN2.py`):**
-    - Launches multiple `SternComputer` instances using Python's `multiprocessing`.
-    - Each instance runs in its own process with its own Tkinter window.
-- **Network Hub (`networkHub.py`):**
-    - A central process that routes messages between the NICs of different STERN instances.
-- **System Components:**
-    - **Interrupt Controller (`interrupts.py`):** Manages hardware and software interrupts.
-    - **Real-Time Clock (RTC) (`rtc.py`):** Generates timed interrupts.
-    - **Font Loading:** Loads custom font files (`.font`) for display.
-    - **Binary Loading (`FileIO.py`):** Loads pre-compiled programs, kernel, and loader into memory.
-- **CPU Performance Monitoring (`CPUmonitor1.py`):**
-    - Measures and reports estimated clock speed and cycle times.
-
+*   **Networking (Virtual NIC):**
+    *   Each Stern-1 instance can have a `networkNICr2.py` for inter-process communication if multiple instances are run (e.g., via `STERN2.py`).
+    *   STACKS programs use `CONNECTION` objects to send/receive data, which call runtime routines (`@stacks_network_write`, service routines for read) that interact with the NIC's memory-mapped registers and potentially trigger network interrupts.

@@ -92,7 +92,8 @@ ret
 
     tst Y 31
     jmpf :end
-     int 4 
+    ; int 4 
+    call @_do_scroll_line
      # ldi Y 31
      sto Y $cursor_y
 :end
@@ -107,63 +108,78 @@ ret
 
 
 @print_to_BCD
-    ldi M 0
-    sto M $BCDstring_index
+    sto Z $BCDstring_index ; Initialize BCD string index/count to 0 (assuming Z holds 0)
 
     # expects the number value to print in A 
     # + signed numbers is the default M=1
     # Check is A has - sign, M=0
     # Multiply A * -1, to change sign
-    ldi M 1
+    ldi K 1 ; K will be our sign flag: 1 for positive, 0 for negative
 
-    ;tstg A Z
-    ;jmpt :get_bcd_string_val
+    tstg Z A ; Is 0 > A? (i.e., is A negative?)
+    jmpf :_ptb_positive_or_zero ; If not (A >= 0), jump.
+        ; A is negative
+        ldi K 0     ; Set sign flag to 0 for negative
+        muli A -1   ; Make A positive for BCD conversion
 
-    tstg Z A
-    jmpf :get_bcd_string_val
+:_ptb_positive_or_zero
+    ; Handle the case where A is 0 initially
+    tst A 0
+    jmpf :_ptb_convert_loop ; If A is not 0, start conversion
+        ; A is 0. Store '0' and proceed to sign/print.
+        ldi C 0 ; Digit 0
+        addi C 20 ; Convert to your ASCII '0'
+        ldm I $BCDstring_index ; I = current count (0)
+        stx C $BCDstring_pntr ; Store '0' at BCDstring[0]
+        inc X $BCDstring_index ; Increment count to 1
+        jmp :_ptb_handle_sign ; Skip conversion loop if number was 0
 
-    ldi M 0
-    muli A -1
+:_ptb_convert_loop
+    ; A holds the number, K holds the sign flag (but K is reused here)
+    ; C will hold the digit
+        ldi C 10
+        dmod A C ; A = A / 10 (quotient), C = A % 10 (remainder/digit)
 
-    :get_bcd_string_val
-        ldi K 10
-        dmod A K
+        addi C 20 ; Convert digit in C to your ASCII character
+        ldm I $BCDstring_index ; I = current number of digits stored
+        stx C $BCDstring_pntr ; Store char at BCDstring[I]
+        inc X $BCDstring_index ; Increment count of digits stored
 
-        addi K 20
-        inc I $BCDstring_index
-        stx K $BCDstring_pntr
-
-        tst A 0 
-        jmpf :get_bcd_string_val
+        tst A 0 ; Is the remaining number (quotient in A) zero?
+        jmpf :_ptb_convert_loop ; If not zero, loop to get next digit
         
-        # Check sign M, when negative M=0
-        # add sign (-) in front 
-        tst M 1
-        jmpt :print_values_reverse
+:_ptb_handle_sign
+    ; K (sign flag) is 1 if positive, 0 if negative.
+    tst K 1 ; Was it positive?
+    jmpt :_ptb_print_loop ; If positive, skip adding sign.
+        ; Number was negative, add '-' sign
         ldi A \-
-        inc I $BCDstring_index
-        stx A $BCDstring_pntr
-
+        ldm I $BCDstring_index ; I = current count of digits
+        stx A $BCDstring_pntr ; Store '-' at BCDstring[I]
+        inc X $BCDstring_index ; Increment total character count
 
     # print in reverse order
-    :print_values_reverse
-        dec I $BCDstring_index
-        ldx A $BCDstring_pntr
-        ld M I
+:_ptb_print_loop
+    ldm K $BCDstring_index  ; K = count of characters currently in BCDstring
+    tst K 0                ; If count is 0, nothing left to print
+    jmpt :_ptb_done        ; If K == 0 (status=1), jump to done
+
+    dec X $BCDstring_index ; Decrement count for next iteration. X now holds the new count.
+                           ; K still holds the original count for this iteration.
+    ld I K                 ; I = original count
+    subi I 1               ; I = index of char to print (original count - 1)
+    ldx A $BCDstring_pntr  ; A = $BCDstring[I] (character to print)
 
         call @print_char
         inc X $cursor_x
         call @check_nl
-        ;ld I M
+        jmp :_ptb_print_loop ; Loop until $BCDstring_index (tracked by K at loop start) becomes 0
 
-        tst M 0
-        jmpf :print_values_reverse
-    
+:_ptb_done
     ldi A \space
     call @print_char
     inc X $cursor_x
     call @check_nl
-
 ret
 
 
@@ -176,4 +192,54 @@ ret
 ret
 
 
-    
+@_do_scroll_line
+### MOVE memory block n positions
+. $screen_start 1   ; Define local static variable for the start of the screen area to modify
+. $read_pointer 1   ; Define local static variable for the source address during copy
+. $pxls_to_shift 1  ; Define local static variable for the number of pixels to shift
+. $shifting 1       ; Define local static variable for the loop counter during shift/fill
+
+ldm M $VIDEO_MEM
+sto M $screen_start
+
+# n postions to move
+# 1 lines x 64 pixels = 64
+addi M 64
+
+# pointer to read adres
+sto M $read_pointer
+
+# number of shifts
+# total lenght of block - 1 = 63
+# pixels to shift
+ldm M $VIDEO_SIZE
+subi M 63
+sto M $pxls_to_shift
+
+ldi I 0
+sto I $shifting
+
+:shift_loop1
+    inc I $shifting
+    ldx M $read_pointer
+    stx M $screen_start
+
+    ldm K $shifting
+    ldm L $pxls_to_shift
+    tste K L 
+jmpf :shift_loop1
+
+# fill with \space
+ldi K \space
+ld M Z
+:fill_zero1
+    inc I $shifting
+    stx K $screen_start
+
+    addi M 1
+    # 1 line x 64 pixels = 64
+    # tst M 384
+    tst M 64
+jmpf :fill_zero1   
+
+ret  

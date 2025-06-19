@@ -23,3 +23,21 @@ st         ::=	('.'|'..')
 nl         ::= '\n'+
 
 
+regenerate  the grammmer file
+notes for version 3:
+
+must be proces aware to write code for processes
+so a program exits of one or more processes.
+each proces has an PID and optional a stack-size
+
+<program>
+	<context id [stack-size]>
+		<statements>
+	<end>	# end of context
+
+	<context id [stack-size]>
+		<statements>
+	<end>	# end of context
+
+A YIELD instrucion is hard to impement on the CPU side, so do not implement for Now
+use END instead of ENDPROCES

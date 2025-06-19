@@ -1,125 +1,40 @@
-have a look to the Stern-1 project, especially the loader file (loader2.py), for hardware communication and interrupts. the kernel file (kernel2.py) with serves a commandline, the datastack and printing routines. and asm/incl/stacks_runtime.asm with holds the runtime routines for running an STACKS-compiled program
-
-report on this
 
 
+Review the Stern-1 project, the new CPU supports multi processing capabilities and the new loader3.asm, kernel3.asm runs an multi processing kernel. Also the STACKS language is now multi processes compatible. Each proces has a memory block of 1024 wich includes (configurable) datastack at the top of the block, this area is also used for vars and arrays. The programcode starts at the beginning of the 1k block. The STACKS language is PROCESS aware and can be used as language to write programs running in those processes. see the processes.stacks example file. check STACKS/parseV3.py and STACKS/src/ example files for more details about the stacks-language. asm/include/stern_runtime.asm is the the runtime library and is included in the /kernel3.asm
 
+i found 3x1024 unused memory and i like to introduce an memoryheap where PROCESSES can store and share vars and arrays
+Herefore i like to build an static heap at top of the last process block (now its tunning 4 processes).
+In STACKS a shared/heap allocation is done by SHARED VAR varname, or SHARED ARRAY myArray 16. When two PROCESSES define the same shared symbol, they share the symbol
 
+when reading/writing to an shared adress, the kernel will check if the heap is locked (an other proces is using the heap), if not it locks the heap, and is doing the  read/write operation, after the operation is done, the kernel will release the lock
 
+if the heap is locked when a process is requestion an read/write operation to the heap, the kernel changed the process status to WAIT_FOR_UNLOCK, and this proces will not be scheduled anymore. when the kernel unlocks the previous proces it checks if any proces is WAIT_FOR_UNLOCK, is  its finds one, it will set the proces stattus to READY, so it will be scheduled again.
 
-have a look to the Stern-1 project and the stacks-langauage (/lexV2.py, /parseV2.py and asm/incl/stacks_runtime.asm) as runtime library. look in STACKS/src directory for examples in the Stacks language
+the assembler is using the &-prefix for global symbols, so when in the STACKS language a SHARED symbol is defined, it will generate ". &myVar 1" instead of ". $myVar 1" (for unshared symbols). the assembler keeps track of the shared symbols globaly like the assembler does in 'kernel' mode for non-shared symbols. where the in process symbols are reset before an new .PROCESS starts, shared object must not be reset at that point. But the shared objects are reset when the restore flag of the assembler is true (so if you want to share symbols in PROCESSES, the processes must be defined in the same sourcefile)
 
-i get the following error when compiling this STACKS line
-
-1 cfactor == DO
-
-Output error:
-
-TRACE: Entering statement()
-      TRACE: Entering expression()
-        TRACE: Pushing NUMBER 1
-        TRACE: Entering ident() for token 'cfactor'
-          TRACE: IDENT: 'cfactor' is a VARIABLE.
-          INFO: Loading variable 'cfactor' to stack.
-        TRACE: Entering word() for token '==' (EQEQ)
-      TRACE: Exiting expression()
-Compilation Error: Expected NEWLINE, got DO
-
-
-Check stern2.py and hw_io_manager.py
-for some reason, one of the two Tkinter windows is dying in siliance after a while. What can be the reason. a leak of updates? time in the mainloop?
+While the kernel is resposible for the actually LOCK/UNLOCK and rescheduling, the stern_runtime must provide routines to hide the heavylifting from the assembler
 
 
 
 
-I like to extend the Stack-language with a sort of struct-datatype.
+The plan seems solid.
 
-To define
-STRUCT My_struct
-    VAR Y
-    VAR X
-    ARRAY list 10
-END
+**Next Implementation Phase: Assembler Support for Shared Memory**
 
-USE My_struct AS p1
-USE My_struct AS p2
+The immediate next step should be to update the assembler (`assembler1c.py`) to handle shared symbols and allocations. Key modifications:
 
-To read
-p1.Y PRINT          ; Prints the value of Y in p1
-3 [p1.list] PRINT   ; Prints index 3 from the list in p1
+1.  **Shared Symbol Table & Pointer:**
+    *   Introduce `self.shared_symbols = {}` for `&symbol: address` mappings.
+    *   Introduce `self.NextSharedAddressPointer`, initialized to the start of the shared heap (e.g., `SHARED_HEAP_START_ADDRESS`, which needs to be defined based on the memory map after the last process block).
+2.  **Directive `.&`:**
+    *   In `parse_symbols`, add logic for `.& symbolName size`.
+    *   It should allocate `symbolName` (must start with `&`) in `self.shared_symbols` at `self.NextSharedAddressPointer` and increment the pointer by `size`.
+    *   These symbols should persist across `.PROCES` blocks and only be reset by `restore_state()`.
+3.  **Symbol Resolution:**
+    *   Update `get_adres` to resolve `&symbols` from `self.shared_symbols`.
+4.  **State Management:**
+    *   Integrate `self.shared_symbols` and `self.NextSharedAddressPointer` into `save_state()` and `restore_state()`.
+5.  **Initialization (`%`):**
+    *   Ensure `% &mySharedVar 123` works by allowing `get_adres` to resolve `&mySharedVar` as the target for the `%` directive.
 
-To write
-42 AS p2.X          ; Stores value 42 in p2.X
-42 5 AS [p2.list]   ; Stores value 42 at index 5 of p2.list
-or
-42 AS p2.list       ; appends 42 to p2.list
-
-Please give information how to start
-
-STEP 1
-
-
-
-
-
-
-
-
-
-
-
-About the lentgh and size question, i like declare an size (max index) and keep track of the length. The length can be stored at index 0 (quick acces) and the maxsize must be protected and can be stored at index 1.
-
-STEP 1> Prepare lexer
-
-STEP 2> To declare an Array: 
-Syntax: ARRAY <name_of_array> size      
-eg ARRAY my_array 10, will create an array of memory size size+2
-
-
-
-STEP 3> to writing:
-Syntax: value index AS [name_of_array]. 
-will write the value at index of the array
-
-or
-Syntax: value AS name_of_array
-will append the value to the array
-
-the compilers (/parseV3.py) is aware of the typing of the AS construction, value AS var, and VALUE as connection are valid types (vars and connections) the array-type must fit in this schema. it does or it write a var, or a connection, or a ARRAY from now on
-
-STEP 4> to read: 
-For a value read from the array to TOS, the index is on TOS. 
-Syntax: 3 [name_of_array]  
-eg will read the thirt value of the array from memory and place it on TAS
-
-For reading the lenght, (just) name_of_array will put the lenght on TOS 
-Syntax: name_of_array
-
-step-by-step
-
-Step 1: lexV2.py, done
-step 2: parser must handle ARRAY definition ARRAY name size, done
-step 3: write to/append to a array using the AS statement, done
-step 4: read from index /read lentgh of a ARRAY, done
-step 5: identify (all) the runtime routines: @stacks_array_write, @stacks_array_append, @stacks_array_read, @stacks_array_length. done
-step 6: implementing @stacks_array_length, done
-step 7: implementing @stacks_array_write
-step 8: implementing @stacks_array_append
-step 9: implementing @stacks_array_read
-
-We wrote the ARRAY support in 9 steps, please verify and write an test program in the Stacks-language
-
-* All diffs must be from the current baseline
-* place/start all comments (;,#) at an newline
-
-
-This is not correct, the first token can be ident_name or a '['
-
-if ident_name in self.arrays:
-            # Peek at the *next* token to distinguish read length vs indexed read
-            if self.checkPeek(TokenType.OPENBL):
-                # Syntax: index [array_name] (Read at index)
-                # The index is already on the stack (pushed by the preceding expression)
-
-
+This will lay the groundwork for the STACKS compiler and runtime changes.
