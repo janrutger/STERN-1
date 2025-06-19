@@ -229,9 +229,16 @@ ret
     ldm A $CURRENT_TIME
     add B A
     :sleep_loop
+        ; Check if the target time has been reached or passed
         ldm A $CURRENT_TIME
-        tstg A B
-        jmpf :sleep_loop
+        tstg A B            ; Sets status bit if A (current_time) > B (target_time)
+        jmpt :_sleep_done   ; If current_time > target_time, sleep is finished
+
+        ; Not yet time to wake up, so yield to other processes
+        int ~SYSCALL_YIELD
+
+        jmp :sleep_loop ; Continue checking
+    :_sleep_done
     push L
 ret
 

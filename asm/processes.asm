@@ -1,8 +1,5 @@
 .PROCES 1 64
 :~proc_entry_1 ; Default entry point for process 1
-ldi A 0
-push A
-call @stacks_timer_set
 ; --- String Literal 'welkom at stern-' pushed to stack ---
 ldi A 0
 push A
@@ -45,6 +42,9 @@ push A
 pop A
 int ~SYSCALL_PRINT_NUMBER
 int ~SYSCALL_PRINT_NL
+ldi A 1
+push A
+call @stacks_timer_set
 :loop
 ; --- String Literal 'give an instruction ' pushed to stack ---
 ldi A 0
@@ -171,6 +171,10 @@ push A
 pop A
 int ~SYSCALL_START_PROCESS
 push A
+call @~pause
+ldi A 1
+push A
+call @stacks_timer_print
 jmp :loop
 :_0_do_end
 ; --- String Literal 'stop' pushed to stack ---
@@ -317,14 +321,22 @@ push A
 call @stacks_show_from_stack
 jmp :loop
 :endShell
-ldi A 0
+ldi A 1
 push A
 call @stacks_timer_print
-ldi A 100
+ldi A 1
 push A
-call @stacks_sleep
+call @stacks_timer_get
+pop A
+int ~SYSCALL_PRINT_NUMBER
+int ~SYSCALL_PRINT_NL
 ldi A 1 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
+@~pause
+ldi A 300
+push A
+call @stacks_sleep
+ret
 .PROCES 2 64
 :~proc_entry_2 ; Default entry point for process 2
 ldi A 0

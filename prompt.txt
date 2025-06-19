@@ -1,161 +1,40 @@
-Review the Stern-1 project and the current state of the stacks language in STACKS/
-iam in the proces of debugging the new Multi processing features in the system, including the kernel, asm/kernel3.asm and asm/incl/stern_runtime.asm. and other file includes in /asm/incl. iam also debugging the stacks compiler STACKS/parse3.py.
-the cpuNG.py is the new cpu with push/pop/cxtsw as new features
 
-in the proces of moving to a full functional multi processing system i am working on the asm/incl/stern_runtime.asm, (bases on the original version asm/incl/stacks_runtime.asm).
 
-The stacks language has 2 input instructions, one called INPUT and expect an number in return on the stack, and RAWIN, for string input, and returns a string on the stack like 'hello world' does.
+Review the Stern-1 project, the new CPU supports multi processing capabilities and the new loader3.asm, kernel3.asm runs an multi processing kernel. Also the STACKS language is now multi processes compatible. Each proces has a memory block of 1024 wich includes (configurable) datastack at the top of the block, this area is also used for vars and arrays. The programcode starts at the beginning of the 1k block. The STACKS language is PROCESS aware and can be used as language to write programs running in those processes. see the processes.stacks example file. check STACKS/parseV3.py and STACKS/src/ example files for more details about the stacks-language. asm/include/stern_runtime.asm is the the runtime library and is included in the /kernel3.asm
 
-i think the runtimes routines in asm/incl/stern_runtime.asm must be modified for correct working
+i found 3x1024 unused memory and i like to introduce an memoryheap where PROCESSES can store and share vars and arrays
+Herefore i like to build an static heap at top of the last process block (now its tunning 4 processes).
+In STACKS a shared/heap allocation is done by SHARED VAR varname, or SHARED ARRAY myArray 16. When two PROCESSES define the same shared symbol, they share the symbol
 
-please report on this
+when reading/writing to an shared adress, the kernel will check if the heap is locked (an other proces is using the heap), if not it locks the heap, and is doing the  read/write operation, after the operation is done, the kernel will release the lock
 
-Review the Stern-1 project, the new CPU supports multi processing capabilities and the new loader3.asm, kernel3.asm runs an multi processig kernel. Also the STACKS language is now multi processes compatible. Each proces has a memory block of 1024 wich includes (configurable) datastack at the top of the block, this area is also used for vars and arrays. The programcode starts at the beginning of the 1k block. The STACKS language is PROCESS aware and can be used as language to write programs running in those processes. see the processes.stacks example file. check STACKS/parseV3.py and STACKS/src/ example files for more details about the stacks-language
+if the heap is locked when a process is requestion an read/write operation to the heap, the kernel changed the process status to WAIT_FOR_UNLOCK, and this proces will not be scheduled anymore. when the kernel unlocks the previous proces it checks if any proces is WAIT_FOR_UNLOCK, is  its finds one, it will set the proces stattus to READY, so it will be scheduled again.
 
-Please write an report of the status of this project
+the assembler is using the &-prefix for global symbols, so when in the STACKS language a SHARED symbol is defined, it will generate ". &myVar 1" instead of ". $myVar 1" (for unshared symbols). the assembler keeps track of the shared symbols globaly like the assembler does in 'kernel' mode for non-shared symbols. where the in process symbols are reset before an new .PROCESS starts, shared object must not be reset at that point. But the shared objects are reset when the restore flag of the assembler is true (so if you want to share symbols in PROCESSES, the processes must be defined in the same sourcefile)
 
+While the kernel is resposible for the actually LOCK/UNLOCK and rescheduling, the stern_runtime must provide routines to hide the heavylifting from the assembler
 
-i like to introduce an brand new STACKS instruction, called DRAW, draw expects an X-ax value, and and Y-ax value on the stack, and the DRAW instuction runtime routine send them borh to SIO channel 1, where the XY-Plotter is connected to. before use the process must perform an 1 CHANNEL ON before. where DRAW is of the same type as PRINT and PLOT
 
 
 
+The plan seems solid.
 
+**Next Implementation Phase: Assembler Support for Shared Memory**
 
+The immediate next step should be to update the assembler (`assembler1c.py`) to handle shared symbols and allocations. Key modifications:
 
+1.  **Shared Symbol Table & Pointer:**
+    *   Introduce `self.shared_symbols = {}` for `&symbol: address` mappings.
+    *   Introduce `self.NextSharedAddressPointer`, initialized to the start of the shared heap (e.g., `SHARED_HEAP_START_ADDRESS`, which needs to be defined based on the memory map after the last process block).
+2.  **Directive `.&`:**
+    *   In `parse_symbols`, add logic for `.& symbolName size`.
+    *   It should allocate `symbolName` (must start with `&`) in `self.shared_symbols` at `self.NextSharedAddressPointer` and increment the pointer by `size`.
+    *   These symbols should persist across `.PROCES` blocks and only be reset by `restore_state()`.
+3.  **Symbol Resolution:**
+    *   Update `get_adres` to resolve `&symbols` from `self.shared_symbols`.
+4.  **State Management:**
+    *   Integrate `self.shared_symbols` and `self.NextSharedAddressPointer` into `save_state()` and `restore_state()`.
+5.  **Initialization (`%`):**
+    *   Ensure `% &mySharedVar 123` works by allowing `get_adres` to resolve `&mySharedVar` as the target for the `%` directive.
 
-
-
-
-
-
-
-
-i am working on the new STACKS compiler, version 3 must be proces aware.
-I made already some changes, but is is work in progres
-
-please have a look 
-
-
-report on this
-
-
-when is use int ~SYSCALL_YIELD in the kernel mainloop, like in the current codebase, i get this error on run-time and the shell is crashing
-
-DEBUG CPU: Loaded context for ID 0: PC=1024, SP=14335
-CPU Monitor: Started.
-[Instance 0] Starting Device IO loop...
-CPU: Invalid instruction 99 99 None
-
-in the most of the time CPU: Invalid instruction 99 99 None means it reads a valid adres but the adres is un-used
-
-
-have a look on the current status of the @STERN-1 project. This version is supporting multiprocessing
-i am working on an simple shell, with can start/stop processes, the shell i running as PID 1
-screen and keyboard are bind to PID one, other processes can ask for onwership of an SIO channel
-
-Herefor i changed the @kernel3.asm  file by completing a list of SYSCALL and routines, some of them are Stubs.
-after the creating of a shell proces to .PROCES 1 processes3.asm file.  i implemented (for now) 4 shell-command 'sta pid', to start an proces, 'sto pid', to stop an proces and 'ext' to stop PID 1 (himself), 'cls' to clear the screen.
-
-now i like to work on device management, where the screen and keyboard are bound to PID 1. and processes can take onwenship of an SIO-channel when the channel is free, and a proces can release a channel when no longer needed
-
-
-Please report on the last status of kernel3.asm and @processes3.asm 
-
-
-
-
-
-
-
-
-
-Please check the current codebase, after the freeze the first generation of the Stern-I project as TAG STERN-Iv1, i wanne build the next generation with proces management support.
-
-Herefore i did an CPU upgrade to the current cpu1.py, this new CPU supports the context switch instruction (cxtsw) i need for proces management.
-the working od cxtsw is to 'return from interrupt and switch" "rts <adres>. since an context switch is (mostly) interrupt driven, the return part of the instuction will restore the state before the interrupt, the switch part will save the current context and load the new context to run. the ("pcb") information is stored in memory on the CPU
-
-I changes the kernel (asm/kernel3.asm) so it know about the processes and schedule the processes.
-
-Now i like to work on the assembler assembler1c.py, the current version is not proces aware, it assembles 3 codeblocks, loader, kernel and program, and assebles them in (what i call from now) in kernel mode. It uses a globel memory area (assembler_var_pointer) for vars and buffer, and is using prg_start as base adres per file to assemble
-
-I think i need a new assembler directive, to tell the assembler its compiling a user proces (1,2,3,4) instead of a kernel file (like loader3.asm, kernel3.asm). the new directive also init the stacksize of a proces (default = 32) so the assembler can calutate the memory off-sets (the size of 1k processpace is fixed, for now).
-PC = start proces block
-SP = start proces block + 1024
-var space = SP - stacksize
-
-the prog_start parameter of the assembler is used to calculate the proces/context start adres.
-
-start adres of context 1 = prog_start + pid * 1024
-
-when compiling an proces source, the kernelsymbols must be availble, because the can be used in the processes. earlier i introduced the restore flag = True when the symbols must be restored to the previous state
-
-by default the assembler run in kernel mode and stores var/buffers in the globel memory space from assembler_var_pointer and is using the system SP
-when the assembler see the ".PROCES <id> [<stacksize>] directive 
-the assembler needs to keep track of the local (proces) SP and var_space
-
-1 sourcefile can have multiple .PROCES directives, but must start with a directive and not in combination with files in kernelmode
-and for compiling an proces the restore flag must be true so after compiling only the kernel symbols are known.
-
-prog_start is used to calculate the adresses for the processes, even when .PROCES 3 in a seperate sourcefile, is the same prog_start (must be) used
-
-* All diff must be to/from the current baseline
-* DO NOT PLACE A COMMENTS AFTER AN INSCTRUCTIONS. The assemblers expects comments (;) always starts at a newline
-
-
-report on this plan, i think i did all of this
-
-
-
-====
-Please look to /assembler1b.py and /cpu1.py, after the freeze the first generation of the Stern-I project as TAG STERN-Iv1, i wanne build the next generation with proces management support.
-
-Herefore i did an CPU upgrade to the current cpu1.py, this new CPU supports the context switch instruction (cxtsw) i need for proces management.
-the working od cxtsw is to 'return from interrupt and switch" "rts <adres>. since an context switch is (mostly) interrupt driven, the return part of the instuction will restore the state before the interrupt, the switch part will save the current context and load the new context to run. the ("pcb") information is stored in memory on the CPU
-
-now i need to work on the softwarestack, asm/loader3.asm with contains lowlevel (interrupt) routines to communicatie with hardware.
-and the asm/kernelv2.asm where the current file reflexs the first version of the Stern-I.
-
-for now i leave the loaderV3.asm as is and i focus on the kernel.
-The workingfile for this is asm/kernel3.asm.
-
-- the new kernel starts from 1024 and is
-- intitialize the stern computer
-- keep track of the active processes (at start, just 1 kernel pid=0)
-- a service routine to switch round robin tru the active processen
-- be able to start up to 4 user processes
-- has an runtime environment, like asm/incl/stacks_runtie.asm, to keep the processes small
-- it must fit in 2k of memory 
-
-important you need to remember:
-* Since i don't have processes to run, i can live with the old stacks_runtime.
-* the new CPU is taking care of PCB with the cxtsw instruction
-* DO NOT PLACE A COMMENTS AFTER AN INSCTRUCTIONS. The assemblers expects comments (;) always starts at a newline
-
-please check the current codebase give an status report
-
-
-in this step, make the CPU context aware. 
-
-the idea is an new CPU instruction to 'return from interrupt and switch" "rts <adres>. since an context switch is (mostly) interrupt driven, the return part of the instuction will restore the state before the interrupt, the switch part will save the current context and load the new context to run. the ("pcb") information is stored in memory on the CPU
-
-by default the CPU starts running the kernel and can run 4 user processes. The kernel proces is dispatching the processes based on a service interrupt called by the RTC. since the cxt-switch happens in interrupt mode, a previous interrupt will finish first, before the switch is executed
-
-each proces takes 1024 adresses. and the proces-blocks starts from start_prog (programmemory) if that context is new it saves the general registers =0 , and for PC = program start + (context number * 1024), and for SP =  (program start + (context number * 1024)) + 1024
-
-
-please report on my ideas on this concept
-
-Let change the assembler
-
-A new instruction (eg ctxswith <pointer_next_ctx>) saves the current context (Registers, program counter, stack pointer and the statusbit). and loads the new context. the information is stored in a 'cache' on the CPU
-
-the CPU needs a extra register to hold the base adres, in this case the proces memory starts at programmemory (start_prog). to calculate each proces startadres. each proces takes 1024 adresses.
-
-by default the CPU start running in kernel-mode and can run 4 processes in user-mode. The kernel proces is dispatching the processes based on a service interrupt called by the RTC 
-
-when ctxswitch cpu instruction is called, all information is save by context number and load the information from the next context, 
-if that context is new it saves the general registers =0 , and for PC = program start + (context number * 1024), and for SP =  (program start + (context number * 1024)) + 1024
-
-since the cxt-switch happens in interrupt mode, a previous interrupt will finish first, before the switch is executed
-
-please check my ideas on this concept
+This will lay the groundwork for the STACKS compiler and runtime changes.

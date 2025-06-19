@@ -140,8 +140,9 @@ class Cpu:
             # execute instruction
             match inst:
                 # --- (Instruction cases remain the same) ---
-                case 10:    # NOP
-                    continue
+                case 10:    # NOP - No Operation
+                    sleep(0.020) # Sleep for 20 milliseconds to yield to IO manager
+                    # continue
                 case 11:    # HALT
                     self.PC = self.PC - 1
                     runState = False

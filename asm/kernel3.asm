@@ -44,6 +44,7 @@ equ ~SYSCALL_DRAW_SPRITE 5
 ; Process Management Syscalls
 equ ~SYSCALL_START_PROCESS 10       ; Renamed from SET_PROCESS_READY. Input: PID in A.
 equ ~SYSCALL_STOP_PROCESS 11        ; Input: PID in A. Sets target to FREE, releases its SIO resources.
+equ ~SYSCALL_YIELD 19               ; New syscall for a process to voluntarily yield CPU time
 
 ; SIO Channel Management Syscalls
 equ ~SYSCALL_REQUEST_SIO_CHANNEL 12 ; Input: ChannelID in A. Output: Status in A. Claims SIO channel for caller.
@@ -64,10 +65,26 @@ equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.as
 . $SIO_OWNERSHIP_TABLE 1            ; The pointer for the table  
 % $SIO_OWNERSHIP_TABLE $SIO_TABLE   ; The pointer points to the table
 
+. $_initial_current_time_kernel_init 1 ; Temporary storage for initial time
+
 
 @kernel_init
     ; from loader3.asm
     call @init_stern 
+
+    ; --- Wait for the first RTC tick to ensure $CURRENT_TIME is valid ---
+    ; Store the initial value of $CURRENT_TIME
+    ldm A $CURRENT_TIME
+    sto A $_initial_current_time_kernel_init
+
+:_wait_first_rtc_tick_loop
+    nop ; NOP is a 20ms sleep, allows hw_IO_manager (RTC) to run
+    ldm A $CURRENT_TIME
+    ldm B $_initial_current_time_kernel_init
+    tste A B ; Is current_time == initial_current_time?
+    jmpt :_wait_first_rtc_tick_loop ; If equal, loop again
+    ; $CURRENT_TIME has changed, meaning at least one RTC tick has occurred.
+
     call @stern_runtime_init
 
     ; Proces table starts at $PROCESS_TABLE_BASE and PTE size is ~PTE_SIZE
@@ -112,6 +129,9 @@ equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.as
 
     ; PID 1 is still running, or in another active/ready state.
     ; Kernel can perform other background tasks here if any, or just loop.
+
+    int ~SYSCALL_YIELD
+
     jmp :kernel_main_loop 
 
 :_kernel_system_halt
@@ -141,6 +161,14 @@ INCLUDE networkdispatcher
     ldm M $INT_VECTORS
     add M K
     ldi K @_isr_stop_process
+    ld I M
+    stx K $mem_start
+
+    ; Setup YIELD Syscall ISR
+    ldi K ~SYSCALL_YIELD
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_yield
     ld I M
     stx K $mem_start
 
@@ -510,6 +538,24 @@ ret
     ; ldi A 1 ; Failure (invalid PID)
     rti
 
+;-------------------------------------------------------------------------------
+; System Call: Yield CPU
+; INT ~SYSCALL_YIELD
+; The calling process voluntarily yields the CPU. The scheduler will pick the
+; next available process. The calling process remains in a READY state.
+;-------------------------------------------------------------------------------
+@_isr_yield
+    ; The INT instruction has already:
+    ; 1. Saved the calling process's (P_A) PC and Flags on its stack.
+    ; 2. Called self.save_state() in the CPU, storing P_A's context (regs, PC, SP, status) in self.saved_state.
+    ; 3. Disabled interrupts.
+    ; 4. Transferred control here.
+    ; The process P_A is currently in a KERNEL_ACTIVE state from the kernel's perspective.
+    call @scheduler_round_robin
+    ; If scheduler_round_robin performed a ctxsw to a *different* process, execution does not return here for P_A.
+    ; If scheduler_round_robin returned (e.g., no other process was ready, or it decided to continue P_A),
+    ; then the following RTI will resume P_A using the context in self.saved_state.
+    rti
 
 
 

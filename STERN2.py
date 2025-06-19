@@ -40,7 +40,7 @@ def assembly_code():
     mem_size_sim = 1024 * 16
     video_size_sim = Vw * Vh
     stack_pointer_sim = mem_size_sim - 1 - video_size_sim
-    assembler_var_pointer = stack_pointer_sim - 2024 # This correctly calculates to 12311
+    assembler_var_pointer = stack_pointer_sim - 2048 # This correctly calculates to 12311 (2024)
     try:
         #assembler = Assembler(1024 * 12) # Use appropriate start_var pointer (consistent with instance layout)
         assembler = Assembler(assembler_var_pointer)

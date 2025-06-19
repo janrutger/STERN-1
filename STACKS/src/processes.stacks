@@ -1,6 +1,13 @@
 PROCESS 1 64
-    0 TIMER SET
     'welkom at stern-' SHOW 1 PRINT
+
+    1 TIMER SET
+
+    FUNCTION pause
+        300 WAIT
+    END
+
+    
     
 
     LABEL loop
@@ -9,6 +16,8 @@ PROCESS 1 64
         'start' HASH instruction == DO
             'enter proces id     ' SHOW INPUT AS pid
             pid STARTPROCESS
+            pause
+            1 TIMER PRINT
             GOTO loop
         END
 
@@ -26,9 +35,11 @@ PROCESS 1 64
     'unkown instruction - ' SHOW
     GOTO loop
 
+
 LABEL endShell
-    0 TIMER PRINT
-    100 WAIT
+    1 TIMER PRINT
+    1 TIMER GET 
+    . PRINT
 END
 
 

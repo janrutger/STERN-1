@@ -716,7 +716,7 @@ class Assembler:
 # --- Example Usage (Illustrative) ---
 if __name__ == "__main__":
     start_var_pointer = 1024 * 12
-    assembler = Assembler(12311)
+    assembler = Assembler(start_var_pointer)
     try:
         # You might define common constants in a separate file and include it
         # e.g., in constants.asm:
