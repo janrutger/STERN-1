@@ -128,19 +128,71 @@ write an plan for implementing a memory heap for the stern-1 project and the STA
 **Implementation Steps & Order:**
 
 1.  **Kernel - Heap Region & Basic Lock:**
+    *   **Status: COMPLETED**
+    *   **Summary:**
     *   **Conceptual Heap Region:** Define the heap memory region to start at address `8192` (after 4 user process blocks of 1KB each, assuming kernel processes also use similar blocks or are accounted for before this) and have a size of `3072` bytes (ending at `11263`).
     *   **Kernel Lock Variables:** Implement a kernel global variable `$kernel_heap_lock_pid` to store the PID of the locking process, and `~HEAP_LOCK_UNLOCKED` for the unlocked state.
     *   **Syscalls for Locking:** Create `~SYSCALL_LOCK_HEAP` and `~SYSCALL_UNLOCK_HEAP`.
         *   `_isr_lock_heap`: Attempts to acquire the lock. Allows re-entrant calls from the current lock owner.
         *   `_isr_unlock_heap`: Releases the lock if held by the calling process.
-    *   **Status Return via PCB:** Syscall success/failure (1/0) is returned by writing to a new `~PTE_SYSCALL_RETVAL` field in the calling process's Process Table Entry (PTE). `~PTE_SIZE` is updated accordingly.
+    *   **Status Return via PCB:** Syscall success/failure (0 for success, non-zero for failure/busy/not_owner) is returned by writing to a new `~PTE_SYSCALL_RETVAL` field in the calling process's Process Table Entry (PTE). `~PTE_SIZE` is updated accordingly.
     *   **Initialization:**
         *   `@_kernel_init_heap_lock`: Initializes `$kernel_heap_lock_pid` to `~HEAP_LOCK_UNLOCKED` during kernel startup.
         *   `@init_process_table`: Initializes `~PTE_SYSCALL_RETVAL` for all processes.
         *   `@setup_syscall_vectors`: Sets up IVT entries for the new syscalls.
     *   *This step does not yet include changing process states to `WAIT_FOR_UNLOCK` or modifying the scheduler for heap contention.*
 2.  **Assembler - Shared Symbol Table & `&` Prefix:**
+    *   **Status: COMPLETED**
+    *   **Summary:**
+        *   Defined heap constants (`DEFAULT_SHARED_HEAP_START_ADDRESS`, `DEFAULT_SHARED_HEAP_SIZE`).
+        *   Added assembler attributes: `shared_symbols` (dictionary for `&symbol` -> heap address) and `NextSharedVarPointer` (tracks next free heap address).
+        *   Modified `parse_symbols` to handle `. &symbol size` directives, allocating space in the heap region and performing necessary checks (redefinition, overflow).
+        *   Updated `get_adres` and `get_value` to correctly resolve `&`-prefixed symbols to their absolute heap addresses.
+        *   Modified `generate_binary` to allow the `% &target_symbol ...` directive for initializing shared memory locations.
+        *   Updated `save_state` and `restore_state` to include `shared_symbols` and `NextSharedVarPointer`, ensuring correct behavior with the `restore=True` flag for isolating or persisting shared symbol definitions across assembly calls.
+        *   Ensured that `shared_symbols` and `NextSharedVarPointer` are *not* reset upon encountering a `.PROCES` directive within the same assembly file, allowing processes defined in that file to share these symbols.
 3.  **STACKS Compiler - `SHARED` Keyword:**
+    *   **Status: COMPLETED**
+    *   **Summary:**
+        *   Updated `lexV3.py` to recognize `SHARED` and `VAR` keywords.
+        *   Updated `parseV3.py` to:
+            *   Parse `SHARED VAR varname` and `SHARED ARRAY arrayName size` declarations.
+            *   Correctly handle name collision checks for shared symbols against local symbols, functions, and connections.
+            *   Generate appropriate assembly using the `&` prefix for shared symbols when they are declared, assigned to (`AS`), or accessed (e.g., reading length or value).
+        *   Updated `emitV3.py` to include `emitSharedDataLine` for placing shared symbol definitions (`. &symbol size`) in a distinct section of the output assembly, separate from per-process code.
 4.  **Kernel - Process States & Scheduler for Heap:**
+    *   **Part 4.1: Define New Process State and Modify Scheduler to Skip It**
+        *   **Goal:** Introduce the `~PROC_STATE_WAIT_FOR_UNLOCK` state and ensure the scheduler ignores processes in this state.
+        *   **Tasks:**
+            1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, define the new process state: `equ ~PROC_STATE_WAIT_FOR_UNLOCK 4`
+            2.  Modify `scheduler_round_robin` in `/home/janrutger/git/STERN-1/asm/kernel3.asm` to skip processes if their state is `~PROC_STATE_WAIT_FOR_UNLOCK`.
+    *   **Part 4.2: Modify `_isr_lock_heap` to Set Waiting State**
+        *   **Goal:** When a process tries to lock an already locked heap (and it's not the owner), change its state to `~PROC_STATE_WAIT_FOR_UNLOCK`.
+        *   **Tasks:**
+            1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, within `_isr_lock_heap`:
+                *   If the heap is locked by another process, get the current process's PTE state field address.
+                *   Set the process state to `~PROC_STATE_WAIT_FOR_UNLOCK`.
+                *   Set syscall return value to 1 (failure/busy) and `rti`.
+    *   **Part 4.3: Modify `_isr_unlock_heap` to Wake Up Waiting Processes**
+        *   **Goal:** When the heap is unlocked, find any processes waiting for it and set them back to `READY`.
+        *   **Tasks:**
+            1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, within `_isr_unlock_heap`:
+                *   After releasing the lock, loop through user processes.
+                *   For each process, if its state is `~PROC_STATE_WAIT_FOR_UNLOCK`, change it to `~PROC_STATE_READY`.
+                *   Set syscall return value to 0 (success) and `rti`.
 5.  **`stern_runtime` - Shared Access Routines:**
+    *   **TODO in this step:**
+        *   Implement a new routine: `@stacks_shared_var_write`. This routine will take a heap address and a value from the STACKS stack. It will use `~SYSCALL_LOCK_HEAP` and `~SYSCALL_UNLOCK_HEAP` to safely write the value to the shared variable at the given heap address.
+        *   Modify existing array manipulation routines (`@stacks_array_write`, `@stacks_array_read`, `@stacks_array_append`, `@stacks_array_length`) to become "heap-aware."
+            *   These routines will need to determine if the base address passed to them (from the STACKS stack) falls within the shared heap region.
+            *   If the address is in the shared heap, they must use `~SYSCALL_LOCK_HEAP` before accessing the array data/metadata and `~SYSCALL_UNLOCK_HEAP` afterwards.
+    *   **Summary:**
+        *   Updated `lexV3.py` to recognize `SHARED` and `VAR` keywords.
+        *   Updated `parseV3.py` to:
+            *   Parse `SHARED VAR varname` and `SHARED ARRAY arrayName size` declarations.
+            *   Correctly handle name collision checks for shared symbols against local symbols, functions, and connections.
+            *   Generate appropriate assembly using the `&` prefix for shared symbols when they are declared, assigned to (`AS`), or accessed (e.g., reading length or value).
+        *   Updated `emitV3.py` to include `emitSharedDataLine` for placing shared symbol definitions (`. &symbol size`) in a distinct section of the output assembly, separate from per-process code.
+            *   If the address is not in the shared heap (i.e., it's a local array), they should operate as they do currently, without attempting to lock the heap.
+        *   All routines interacting with the heap will need to handle the status returned by the lock/unlock syscalls (e.g., if `LOCK_HEAP` fails, the kernel will change process state, and the runtime routine will effectively block until the process is `READY` again and the operation can be re-attempted/completed by the kernel).
 6.  **Integration and Testing:**

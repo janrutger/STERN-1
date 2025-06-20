@@ -1,10 +1,11 @@
 from typing import List
-
+ 
 # Emitter object keeps track of the generated code and outputs it.
 class Emitter:
     def __init__(self, outputPath: str):
         self.fullPath: str = outputPath
         self._header_lines: List[str] = []
+        self._shared_data_lines: List[str] = [] # For shared variables/arrays (. &symbol size)
         self._code_lines: List[str] = [] # Main code stream, including per-process code
         # For collecting function code within the current process segment
         self._current_process_function_lines: List[str] = []
@@ -25,6 +26,10 @@ class Emitter:
         else:
             self._code_lines.append(code + '\n')
 
+    def emitSharedDataLine(self, code: str) -> None:
+        # This method appends code to the shared data section.
+        self._shared_data_lines.append(code + '\n')
+
     def headerLine(self, code: str) -> None:
         self._header_lines.append(code + '\n')
 
@@ -32,6 +37,7 @@ class Emitter:
         with open(self.fullPath, 'w') as outputFile:
             outputFile.write("".join(self._header_lines))
             outputFile.write("".join(self._code_lines)) # All code, including functions flushed per process
+            outputFile.write("".join(self._shared_data_lines)) # Shared data definitions go after code
 
     def start_process_segment(self, pid: str, stack_size: str) -> None:
         # All subsequent code, data, and functions for this process

@@ -21,6 +21,8 @@ class Parser:
         self.arrays: Set[str] = set()     # All arrays declared.
         self.array_details: dict = {}     # Stores details for arrays (label, max_size).
         self.labelsDeclared: Set[str] = set() # Keep track of all labels declared
+        self.shared_symbols: Set[str] = set() # All shared variables/arrays declared globally.
+        self.shared_array_details: dict = {} # Stores details for shared arrays (label, max_size).
         self.labelsGotoed: Set[str] = set() # All labels goto'ed, so we know if they exist or not.
 
         #self.string_literal_counter: int = 0 # For generating unique labels for string literals
@@ -127,6 +129,8 @@ class Parser:
         self.labelsGotoed = set()
         self.arrays = set()
         self.array_details = {}
+        # Shared symbols/arrays are NOT reset per process, they are global to the compilation unit.
+        # self.shared_symbols = set()
         self.connections = set() # Connections are also per-process
         self.connection_details = {}
         self._print_info(f"Starting new process scope for PID {pid_token.text}.")
@@ -266,6 +270,7 @@ class Parser:
             if array_name in self.symbols or \
                array_name in self.functions or \
                array_name in self.connections or \
+               array_name in self.shared_symbols or \
                array_name in self.arrays:
                 self.abort(f"Identifier '{array_name}' already declared as a variable, function, connection, or array.")
             
@@ -279,6 +284,67 @@ class Parser:
             self.nl()
             self._dedent()
 
+        # | "SHARED" "VAR" ident nl
+        elif self.checkToken(TokenType.SHARED):
+            self._print_trace("Parsing SHARED definition statement.")
+            self._indent()
+            self.nextToken() # Consume SHARED
+
+            if self.checkToken(TokenType.VAR):
+                self._print_trace("  Parsing SHARED VAR.")
+                self.nextToken() # Consume VAR
+                if not self.checkToken(TokenType.IDENT):
+                    self.abort(f"Expected identifier for shared variable name after SHARED VAR, got {self.curToken.kind.name if self.curToken else 'None'}")
+                shared_var_name_token = self.curToken
+                shared_var_name = shared_var_name_token.text
+                self.nextToken() # Consume IDENT (shared_var_name)
+
+                # Check for name collisions across all symbol types
+                if shared_var_name in self.symbols or \
+                   shared_var_name in self.functions or \
+                   shared_var_name in self.connections or \
+                   shared_var_name in self.arrays or \
+                   shared_var_name in self.shared_symbols: # Check against existing shared symbols too
+                    self.abort(f"Identifier '{shared_var_name}' already declared as a variable, function, connection, array, or shared symbol.")
+
+                self.shared_symbols.add(shared_var_name)
+                self.emitter.emitSharedDataLine(f". &{shared_var_name} 1") # Emit to shared data section
+                self._print_info(f"Declared SHARED VAR '{shared_var_name}'. STERN-1: . &{shared_var_name} 1")
+                self.nl()
+
+            elif self.checkToken(TokenType.ARRAY):
+                self._print_trace("  Parsing SHARED ARRAY.")
+                self.nextToken() # Consume ARRAY
+                if not self.checkToken(TokenType.IDENT):
+                    self.abort(f"Expected identifier for shared array name after SHARED ARRAY, got {self.curToken.kind.name if self.curToken else 'None'}")
+                shared_array_name_token = self.curToken
+                shared_array_name = shared_array_name_token.text
+                self.nextToken() # Consume IDENT (shared_array_name)
+
+                if not self.checkToken(TokenType.NUMBER):
+                    self.abort(f"Expected number for shared array size after shared array name '{shared_array_name}', got {self.curToken.kind.name if self.curToken else 'None'}")
+                shared_array_size_val = int(self.curToken.text)
+                self.nextToken() # Consume NUMBER (shared_array_size)
+
+                # Check for name collisions (same logic as SHARED VAR)
+                if shared_array_name in self.symbols or shared_array_name in self.functions or shared_array_name in self.connections or shared_array_name in self.arrays or shared_array_name in self.shared_symbols:
+                     self.abort(f"Identifier '{shared_array_name}' already declared as a variable, function, connection, array, or shared symbol.")
+                
+                self.shared_symbols.add(shared_array_name) # Add to general shared symbols
+                self.shared_array_details[shared_array_name] = {
+                    'label': f"&{shared_array_name}", # Store with '&' prefix
+                    'max_size': shared_array_size_val # Store user-defined size
+                }
+                
+                # Emit to shared data section
+                # Allocate space for user elements + 2 metadata fields (current_length, total_allocated_size)
+                total_allocated_size = shared_array_size_val + 2
+                self.emitter.emitSharedDataLine(f". &{shared_array_name} {total_allocated_size}")
+                # Initialize metadata: current_length = 0, total_allocated_size = total_allocated_size
+                self.emitter.emitSharedDataLine(f"% &{shared_array_name} 0 {total_allocated_size}")
+
+                self._print_info(f"Declared SHARED ARRAY '{shared_array_name}' with user size {shared_array_size_val} (total allocated: {total_allocated_size}). STERN-1: . &{shared_array_name} {total_allocated_size}, % &{shared_array_name} 0 {total_allocated_size}")
+                self.nl()
             
         # | "FUNCTION" ident nl {statement} nl "END" nl
         elif self.checkToken(TokenType.FUNCTION):
@@ -291,6 +357,7 @@ class Parser:
             if func_name in self.symbols or \
                func_name in self.functions or \
                func_name in self.connections or \
+               func_name in self.shared_symbols or \
                func_name in self.arrays:
                 self.abort(f"Identifier '{func_name}' already declared as a variable, function, or connection.")
             
@@ -361,8 +428,9 @@ class Parser:
             if conn_name_token.text in self.symbols or \
                conn_name_token.text in self.functions or \
                conn_name_token.text in self.connections or \
-               conn_name_token.text in self.arrays:
-                self.abort(f"Identifier '{conn_name_token.text}' already declared as a variable, function, or connection.")
+               conn_name_token.text in self.arrays or \
+               conn_name_token.text in self.shared_symbols: # Check against shared symbols
+                self.abort(f"Identifier '{conn_name_token.text}' already declared as a variable, function, connection, array, or shared symbol.")
             
             self.connections.add(conn_name_token.text)
             self._print_info(f"Declaring connection: {conn_name_token.text}")
@@ -470,40 +538,76 @@ class Parser:
                 self._indent()
                 self.nextToken() # Consume AS
 
-                # Case 1: value index AS [array_name]
+                # Case 1: value index AS [array_name] (local or shared)
                 if self.checkToken(TokenType.OPENBL):
                     self.nextToken() # Consume [
                     if not self.checkToken(TokenType.IDENT):
                         self.abort("Expected array name after '[' in AS [array_name] statement.")
-                    array_name = self.curToken.text
-                    if array_name not in self.arrays:
-                        self.abort(f"Undeclared array '{array_name}' in AS [array_name] statement.")
+
+                    array_name_token = self.curToken
+                    array_name = array_name_token.text
+
+                    # Check if it's a local array or a shared array
+                    if array_name in self.shared_array_details:
+                        self._print_info(f"AS: Target '{array_name}' is a SHARED ARRAY (indexed write).")
+                        self.emitter.emitLine(f"ldi A &{array_name}") # Load SHARED array base address
+                    elif array_name in self.array_details: # Check local arrays
+                        self._print_info(f"AS: Target '{array_name}' is a LOCAL ARRAY (indexed write).")
+                        self.emitter.emitLine(f"ldi A ${array_name}") # Load LOCAL array base address
+                    else:
+                         self.abort(f"Undeclared array '{array_name}' in AS [array_name] statement.")
                     
-                    self._print_info(f"AS: Target '{array_name}' is an ARRAY (indexed write).")
-                    self.emitter.emitLine(f"ldi A ${array_name}") # Load array base address
+                    # Common emission part for both shared and local indexed writes
                     self.emitter.emitLine("push A")         # Push array base address
                     self.emitter.emitLine("call @stacks_array_write") # Pops value, index, base
                     
-                    self.match(TokenType.IDENT)   # Consume array_name
+                    self.match(TokenType.IDENT)   # Consume array_name (already consumed by array_name_token, but match advances)
                     self.match(TokenType.CLOSEBL) # Consume ]
                     self.nl()
                 
-                # Case 2: value AS target_name (where target_name can be array, connection, or variable)
+                # Case 2: value AS target_name (where target_name can be local/shared array, connection, or local/shared variable)
                 elif self.checkToken(TokenType.IDENT):
                     target_name = self.curToken.text
 
                     if target_name in self.functions:
                         self.abort(f"Cannot use AS with '{target_name}'. It is declared as a function.")
 
-                    # Is it an array append: value AS array_name?
-                    if target_name in self.arrays:
-                        self._print_info(f"AS: Target '{target_name}' is an ARRAY (append).")
-                        self.emitter.emitLine(f"ldi A ${target_name}") # Load array base address
-                        self.emitter.emitLine("push A")         # Push array base address
+                    # Order of checks is important to distinguish between shared vars and shared arrays.
+                    # Both shared vars and shared arrays are in self.shared_symbols.
+                    # self.shared_array_details only contains shared arrays.
+
+                    # 1. Is it a shared variable: value AS shared_var_name?
+                    #    (Must be in shared_symbols but NOT in shared_array_details)
+                    if target_name in self.shared_symbols and target_name not in self.shared_array_details:
+                        self._print_info(f"AS: Target '{target_name}' is a SHARED VARIABLE.")
+                        # Value is already on the stack from the expression.
+                        # Push the address of the shared variable.
+                        self.emitter.emitLine(f"ldi A &{target_name}") # Load shared variable address
+                        self.emitter.emitLine("push A")         # Push shared variable address
+                        self.emitter.emitLine("call @stacks_shared_var_write") # Pops value, address
+                        self.match(TokenType.IDENT) # Consume shared_var_name token
+                        self.nl()
+
+                    # 2. Is it a local array append: value AS array_name?
+                    elif target_name in self.arrays: # self.arrays only contains local arrays
+                        self._print_info(f"AS: Target '{target_name}' is a LOCAL ARRAY (append).")
+                        self.emitter.emitLine(f"ldi A ${target_name}") # Load local array base address
+                        self.emitter.emitLine("push A")         # Push local array base address
                         self.emitter.emitLine("call @stacks_array_append") # Pops value, base
                         self.match(TokenType.IDENT) # Consume array_name
                         self.nl()
-                    # Is it a WRITE connection: value AS connection_name?
+
+                    # 3. Is it a shared array append: value AS shared_array_name?
+                    #    (Must be in shared_array_details)
+                    elif target_name in self.shared_array_details:
+                        self._print_info(f"AS: Target '{target_name}' is a SHARED ARRAY (append).")
+                        self.emitter.emitLine(f"ldi A &{target_name}") # Load shared array base address
+                        self.emitter.emitLine("push A")         # Push shared array base address
+                        self.emitter.emitLine("call @stacks_array_append") # Pops value, base
+                        self.match(TokenType.IDENT) # Consume shared_array_name
+                        self.nl()
+
+                    # 4. Is it a WRITE connection: value AS connection_name?
                     elif target_name in self.connections:
                         connection_info = self.connection_details[target_name]
                         if connection_info['type'] == 'READ':
@@ -513,8 +617,8 @@ class Parser:
                         self._print_info(f"AS: Emitted call to {connection_info['stub_label']} to send value via WRITE connection '{target_name}'.")
                         self.match(TokenType.IDENT) # Consume connection_name
                         self.nl()
-                    # Is it a variable (existing or new): value AS variable_name?
-                    else: # Must be a variable
+                    # 5. Is it a local variable (existing or new): value AS variable_name?
+                    else: # Must be a local variable
                         if target_name not in self.symbols: # If new, declare it
                             self.symbols.add(target_name)
                             # Emit variable declaration into the current process segment
@@ -523,7 +627,7 @@ class Parser:
                         
                         self.emitter.emitLine("pop A")
                         self.emitter.emitLine(f"sto A ${target_name}")
-                        self._print_info(f"AS: Assigned stack top to variable '${target_name}'.")
+                        self._print_info(f"AS: Assigned stack top to local variable '${target_name}'.")
                         self.match(TokenType.IDENT) # Consume variable_name
                         self.nl()
                 else:
@@ -629,11 +733,16 @@ class Parser:
                 if not self.checkToken(TokenType.IDENT):
                     self.abort("Expected array name after '[' in expression for indexed read.")
                 array_name = self.curToken.text
-                if array_name not in self.arrays:
+
+                if array_name in self.shared_array_details:
+                    self._print_trace(f"EXPRESSION: Indexed read from SHARED ARRAY '{array_name}'.")
+                    self.emitter.emitLine(f"ldi A &{array_name}") # Load SHARED array base address
+                elif array_name in self.array_details: # Check local arrays (self.arrays is just a set of names)
+                    self._print_trace(f"EXPRESSION: Indexed read from LOCAL ARRAY '{array_name}'.")
+                    self.emitter.emitLine(f"ldi A ${array_name}") # Load LOCAL array base address
+                else:
                     self.abort(f"Undeclared array '{array_name}' in indexed read expression '[{array_name}]'.")
-                
-                self._print_trace(f"EXPRESSION: Indexed read from ARRAY '{array_name}'.")
-                self.emitter.emitLine(f"ldi A ${array_name}") # Load array base address
+
                 self.emitter.emitLine("push A")         # Push array base address
                 self.emitter.emitLine("call @stacks_array_read") # Pops index, base; pushes value
                 
@@ -724,14 +833,31 @@ class Parser:
         self._indent()
         ident_name = self.curToken.text
 
-        # Check if the identifier is an Array (this is for reading array length: `array_name`)
-        # Indexed array read `[array_name]` is now handled directly in the `expression()` method.
-        if ident_name in self.arrays:
+        # Check if the identifier is a SHARED Array (used as `&array_name` to get length)
+        if ident_name in self.shared_array_details:
+            self._print_trace(f"IDENT: '{ident_name}' is a SHARED ARRAY (read length).")
+            self.emitter.emitLine(f"ldi A &{ident_name}") # Load shared array base address
+            self.emitter.emitLine("push A")         # Push shared array base address
+            self.emitter.emitLine("call @stacks_array_length") # Pops base, pushes length
+            self.match(TokenType.IDENT) # Consume array name
+
+        # Check if the identifier is a Local Array (used as `array_name` to get length)
+        # This must be elif to prevent fall-through if it was a shared_array
+        elif ident_name in self.arrays:
             self._print_trace(f"IDENT: '{ident_name}' is an ARRAY (read length).")
             self.emitter.emitLine(f"ldi A ${ident_name}") # Load array base address
             self.emitter.emitLine("push A")         # Push array base address
             self.emitter.emitLine("call @stacks_array_length") # Pops base, pushes length
             self.match(TokenType.IDENT) # Consume array name
+
+        # Check if the identifier is a SHARED Variable
+        # It must be in shared_symbols but NOT in shared_array_details
+        elif ident_name in self.shared_symbols and ident_name not in self.shared_array_details:
+            self._print_trace(f"IDENT: '{ident_name}' is a SHARED VARIABLE.")
+            self.emitter.emitLine(f"ldm A &{self.curToken.text}") # Use '&' for STERN-1 shared var access
+            self.emitter.emitLine("push A")
+            self._print_info(f"Loading shared variable '{ident_name}' to stack.")
+            self.match(TokenType.IDENT) # Consume shared variable name
 
         # Check if the identifier is a Variable
         elif ident_name in self.symbols:
@@ -764,7 +890,7 @@ class Parser:
                 self._print_info(f"Executing WRITE connection '{ident_name}' by calling {details['stub_label']}.")
             self.match(TokenType.IDENT) # Consume connection name
         else:
-            self.abort(f"Referencing undeclared identifier (variable, function, connection, or array): '{ident_name}'")
+            self.abort(f"Referencing undeclared identifier (variable, function, connection, array, or shared symbol): '{ident_name}'")
 
         self._dedent()
         # self._print_trace("Exiting ident()") # match() will be the last call, advancing token

@@ -10,10 +10,12 @@ statement  ::=  "LABEL" ident nl
 			|   "GOTO" ident nl
 			|   INTEGER "TIMER" ("SET" | "PRINT" | "GET") nl
 			|   "FUNCTION" ident nl {statement} nl "END" nl
-			|   "ARRAY" ident INTEGER nl  # Simplified: ARRAY name size_integer
-			            # Example: ARRAY myArray 10
-
+			|   "VAR" ident nl                          # For non-shared, process-local variables
+			|   "ARRAY" ident INTEGER nl                # For non-shared, process-local arrays
+			|   "SHARED" "VAR" ident nl                 # For shared variables in the heap
+			|   "SHARED" "ARRAY" ident INTEGER nl       # For shared arrays in the heap
 			|	ident CONNECTION READ readService0 nl
+
 			|	ident CONNECTION WRITE INTEGER INTEGER nl
 
 			|	INTEGER CHANNEL ON | OFF

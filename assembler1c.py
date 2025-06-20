@@ -7,6 +7,10 @@ import sys # Import sys for stderr
 class AssemblyError(Exception):
     """Custom exception for assembly errors."""
     pass
+
+# --- Constants for shared heap ---
+DEFAULT_SHARED_HEAP_START_ADDRESS = 8192  # After 4 user processes (4096 + 4*1024)
+DEFAULT_SHARED_HEAP_SIZE = 3072          # 3 * 1024 as per prompt
 # --- End Optional ---
 
 class Assembler:
@@ -29,6 +33,11 @@ class Assembler:
         self.myASCII = makechars()
         self.symbols = {} # Global symbols (@, $)
         self.kernel_file_labels = {} # Labels (:) defined in kernel mode for the current file
+
+        self.SHARED_HEAP_START_ADDRESS = DEFAULT_SHARED_HEAP_START_ADDRESS
+        self.SHARED_HEAP_SIZE = DEFAULT_SHARED_HEAP_SIZE
+        self.NextSharedVarPointer = self.SHARED_HEAP_START_ADDRESS
+        self.shared_symbols = {} # &symbol -> address in heap
         self.process_file_labels = {} # {pid: {label_or_var_name: address}} for current file
         self.constants = {} # Global constants (~) - NEW
         self.assembly = []
@@ -41,6 +50,8 @@ class Assembler:
         self._saved_symbols = None
         self._saved_constants = None
         self._saved_next_var_pointer = None
+        self._saved_shared_symbols = None
+        self._saved_next_shared_var_pointer = None
 
         # --- Process Management State ---
         self.current_mode = 'kernel'  # 'kernel' or 'process'
@@ -335,10 +346,20 @@ class Assembler:
                     except ValueError:
                          self._error(orig_line_num, current_line_content_for_error, f"Invalid size '{size_str}' for directive '.'. Must be a positive integer.")
 
-                    if not symbol_name.startswith("$"):
-                         self._error(orig_line_num, current_line_content_for_error, f"Variable symbol '{symbol_name}' defined with '.' must start with '$'.")
-
-                    if self.current_mode == 'kernel':
+                    if symbol_name.startswith("&"): # Shared symbol
+                        if symbol_name in self.shared_symbols:
+                            self._error(orig_line_num, current_line_content_for_error, f"Shared symbol '{symbol_name}' already defined (at heap address {self.shared_symbols[symbol_name]}).")
+                        if self.NextSharedVarPointer + size > self.SHARED_HEAP_START_ADDRESS + self.SHARED_HEAP_SIZE:
+                            self._error(orig_line_num, current_line_content_for_error,
+                                        f"Shared symbol '{symbol_name}' allocation (size {size}) exceeds heap limit. "
+                                        f"Next available: {self.NextSharedVarPointer}, Heap end: {self.SHARED_HEAP_START_ADDRESS + self.SHARED_HEAP_SIZE -1}.")
+                        self.shared_symbols[symbol_name] = self.NextSharedVarPointer
+                        self.NextSharedVarPointer += size
+                    elif symbol_name.startswith("$"): # Kernel or Process local variable
+                        if self.current_mode == 'kernel':
+                            # Check global symbols (which includes kernel $vars)
+                            if symbol_name in self.symbols:
+                                self._error(orig_line_num, current_line_content_for_error, f"Kernel variable symbol '{symbol_name}' already defined (at address {self.symbols[symbol_name]}).")
                         if symbol_name in self.symbols: # Check global symbols
                             self._error(orig_line_num, current_line_content_for_error, f"Symbol '{symbol_name}' already defined globally (at address {self.symbols[symbol_name]}).")
                         self.symbols[symbol_name] = self.NextVarPointer
@@ -358,8 +379,8 @@ class Assembler:
                                         f"(ends at {self.current_process_var_next_free_addr -1}) "
                                         f"exceeds 1KB block limit (top of block is {self.current_process_initial_sp_val -1}). Reduce variable sizes or stack size.")
                     else: # Should not happen
-                        self._error(orig_line_num, line, "Internal error: Variable definition outside known mode.")
-
+                        self._error(orig_line_num, current_line_content_for_error, f"Variable symbol '{symbol_name}' defined with '.' must start with '$' (for local/kernel) or '&' (for shared).")
+ 
                 elif directive.startswith("%"):
                     continue # PC doesn't advance
                 elif directive_upper == "INCLUDE":
@@ -375,6 +396,9 @@ class Assembler:
                  self._error(orig_line_num, line, f"Unexpected error during symbol parsing: {e}")
  # Original line for error messages
     def get_adres(self, label_or_sym: str, line_num: int, line_content: str, current_gen_mode: str, current_gen_pid: int) -> str:
+        # --- Check for shared symbols first ---
+        if label_or_sym.startswith("&") and label_or_sym in self.shared_symbols:
+            return str(self.shared_symbols[label_or_sym])
         # Global symbols (@name, or $kernel_var)
         if label_or_sym.startswith(("@", "$")) and label_or_sym in self.symbols:
             return str(self.symbols[label_or_sym])
@@ -403,6 +427,12 @@ class Assembler:
         if not value_str:
              self._error(line_num, line_content, "Value cannot be empty.")
 
+        # --- Handle Shared Symbols used as values ---
+        if value_str.startswith("&"):
+            if value_str in self.shared_symbols:
+                return str(self.shared_symbols[value_str])
+            else:
+                self._error(line_num, line_content, f"Unknown shared symbol '{value_str}' used as value.")
         # --- Handle Constants ---
         if value_str.startswith("~"):
             if value_str in self.constants:
@@ -436,7 +466,7 @@ class Assembler:
                 return self.get_adres(value_str, line_num, line_content, current_gen_mode, current_gen_pid)
             self._error(line_num, line_content, f"Unknown symbol '{value_str}' used as value in current context (mode: {current_gen_mode}, pid: {current_gen_pid}).")
         else:
-            self._error(line_num, line_content, f"Invalid value format '{value_str}'. Expected number, \\char, symbol (@,$), or constant (~).")
+            self._error(line_num, line_content, f"Invalid value format '{value_str}'. Expected number, \\char, symbol (@,$,&), or constant (~).")
     
     def generate_binary(self, prg_start_for_file, output_file):
         self.binary = []
@@ -531,8 +561,8 @@ class Assembler:
                          self._error(orig_line_num, current_line_content_for_error, "Directive '%' requires a target symbol and at least one value (e.g., % $myVar 10 ~COUNT \\a)")
                     target_symbol = instruction[1]
 
-                    if not target_symbol.startswith("$"):
-                         self._error(orig_line_num, current_line_content_for_error, f"Target symbol '{target_symbol}' for '%' directive must be a '$' variable.")
+                    if not (target_symbol.startswith("$") or target_symbol.startswith("&")):
+                         self._error(orig_line_num, current_line_content_for_error, f"Target symbol '{target_symbol}' for '%' directive must be a '$' (local/kernel) or '&' (shared) variable.")
                     
                     # Use get_adres to resolve the variable's address, respecting scope.
                     # get_adres will raise an AssemblyError if the symbol is not found.
@@ -636,6 +666,8 @@ class Assembler:
         self._saved_symbols = self.symbols.copy()
         self._saved_constants = self.constants.copy()
         self._saved_next_var_pointer = self.NextVarPointer
+        self._saved_shared_symbols = self.shared_symbols.copy() # New
+        self._saved_next_shared_var_pointer = self.NextSharedVarPointer # New
         # print(f"DEBUG ASSEMBLER: State saved. Symbols: {len(self._saved_symbols)}, Constants: {len(self._saved_constants)}, NextVarPointer: {self._saved_next_var_pointer}", file=sys.stderr)
 
     def restore_state(self):
@@ -645,10 +677,14 @@ class Assembler:
         """
         if self._saved_symbols is not None and \
            self._saved_constants is not None and \
-           self._saved_next_var_pointer is not None:
+           self._saved_next_var_pointer is not None and \
+           self._saved_shared_symbols is not None and \
+           self._saved_next_shared_var_pointer is not None:
             self.symbols = self._saved_symbols.copy()
             self.constants = self._saved_constants.copy()
             self.NextVarPointer = self._saved_next_var_pointer
+            self.shared_symbols = self._saved_shared_symbols.copy() # New
+            self.NextSharedVarPointer = self._saved_next_shared_var_pointer # New
             # kernel_file_labels and process_file_labels are cleared per assemble() call,
             # so they don't need to be part of the save/restore mechanism that persists
             # across multiple files if restore=False.
@@ -658,7 +694,8 @@ class Assembler:
             self.is_first_directive_processed = False
             self.is_process_definition_file = False
             self._reset_process_context_for_new_block() # Full reset of process specific memory pointers
-            print(f"DEBUG ASSEMBLER: State restored. Symbols: {len(self.symbols)}, Constants: {len(self.constants)}, NextVarPointer: {self.NextVarPointer}", file=sys.stderr)
+            # print(f"DEBUG ASSEMBLER: State restored. Symbols: {len(self.symbols)}, Constants: {len(self.constants)}, NextVarPointer: {self.NextVarPointer}", file=sys.stderr)
+            # print(f"DEBUG ASSEMBLER: Shared Symbols: {len(self.shared_symbols)}, NextSharedVarPointer: {self.NextSharedVarPointer}", file=sys.stderr)
         else:
             # This case should ideally not be hit if save_state() is always called first in assemble()
             print("WARNING: Assembler restore_state() called but no state was saved. Current state remains unchanged.", file=sys.stderr)
@@ -673,6 +710,9 @@ class Assembler:
             self._current_filename = filename # Store for error messages
             self.kernel_file_labels.clear() # Clear kernel labels for this new file
             self.process_file_labels.clear() # Clear all process labels for this new file
+            # self.shared_symbols and self.NextSharedVarPointer are NOT cleared here.
+            # They persist across calls to assemble() unless restore=True,
+            # handled by save_state() and restore_state().
 
             # Reset assembler mode states for the new file
             self.current_mode = 'kernel' # Default to kernel mode
@@ -736,7 +776,7 @@ if __name__ == "__main__":
         assembler.assemble("kernel3.asm", kernel_start, "kernel.bin")
 
         program_start = 4096
-        assembler.assemble("processes.asm", program_start, "temp_processes.bin", restore=True)
+        assembler.assemble("test.asm", program_start, "temp_processes.bin", restore=True)
 
         # Example: Assemble a test program, but restore state afterwards
         # print("\nAssembling a temporary program with state restoration...")
@@ -757,10 +797,14 @@ if __name__ == "__main__":
         print("Final Symbols Table:")
         for symbol, address in assembler.symbols.items():
             print(f"  {symbol}: {address}")
+        print("Shared Symbols Table (&):")
+        for symbol, address in assembler.shared_symbols.items():
+            print(f"  {symbol}: {address}")
         print("Final Constants Table:") # <-- Print constants too
         for name, value in assembler.constants.items():
             print(f"  {name}: {value}")
-        print(f"Next Available Variable Address: {assembler.NextVarPointer}")
+        print(f"Next Available Kernel Variable Address: {assembler.NextVarPointer}")
+        print(f"Next Available Shared Heap Address: {assembler.NextSharedVarPointer}")
 
     except (AssemblyError, FileNotFoundError):
         # Specific errors from assembler are already printed.

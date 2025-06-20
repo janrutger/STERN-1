@@ -1,10 +1,22 @@
-'printen en slapen' SHOW
-5 WAIT
-'printen..' SHOW
+PROCESS 1 64
+    SHARED VAR myVar
+    SHARED ARRAY myArr 16
+
+    ARRAY myArr1 8
+
+    12 AS myVar
+    42 1 AS [myArr]
+    43 AS myArr
+
+    67 AS myArr1
+
+    1 [myArr] PRINT
+
+    myArr1 PRINT
+
+    myVar PRINT
+
+    myArr PRINT
 
 
-0 PRINT
-
-10 42 % PRINT ; 10
-
-42 10 % PRINT ; 2
+END
