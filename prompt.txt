@@ -161,38 +161,79 @@ write an plan for implementing a memory heap for the stern-1 project and the STA
             *   Generate appropriate assembly using the `&` prefix for shared symbols when they are declared, assigned to (`AS`), or accessed (e.g., reading length or value).
         *   Updated `emitV3.py` to include `emitSharedDataLine` for placing shared symbol definitions (`. &symbol size`) in a distinct section of the output assembly, separate from per-process code.
 4.  **Kernel - Process States & Scheduler for Heap:**
+    *   **Status: COMPLETED**
     *   **Part 4.1: Define New Process State and Modify Scheduler to Skip It**
+        *   **Status: COMPLETED**
         *   **Goal:** Introduce the `~PROC_STATE_WAIT_FOR_UNLOCK` state and ensure the scheduler ignores processes in this state.
         *   **Tasks:**
             1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, define the new process state: `equ ~PROC_STATE_WAIT_FOR_UNLOCK 4`
             2.  Modify `scheduler_round_robin` in `/home/janrutger/git/STERN-1/asm/kernel3.asm` to skip processes if their state is `~PROC_STATE_WAIT_FOR_UNLOCK`.
+        *   **Summary:** Defined `~PROC_STATE_WAIT_FOR_UNLOCK` (value 4). Modified `scheduler_round_robin` to check the state of a candidate process; if it's `~PROC_STATE_WAIT_FOR_UNLOCK`, the scheduler skips it and continues to the next process.
     *   **Part 4.2: Modify `_isr_lock_heap` to Set Waiting State**
+        *   **Status: COMPLETED**
         *   **Goal:** When a process tries to lock an already locked heap (and it's not the owner), change its state to `~PROC_STATE_WAIT_FOR_UNLOCK`.
         *   **Tasks:**
             1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, within `_isr_lock_heap`:
                 *   If the heap is locked by another process, get the current process's PTE state field address.
                 *   Set the process state to `~PROC_STATE_WAIT_FOR_UNLOCK`.
                 *   Set syscall return value to 1 (failure/busy) and `rti`.
+        *   **Summary:** In `_isr_lock_heap`, if the heap is locked by a different process, the current process's state in its PTE is updated to `~PROC_STATE_WAIT_FOR_UNLOCK`. The syscall returns 1 (busy/failure) to the process (via `~PTE_SYSCALL_RETVAL`). Re-entrant locks by the same owner are still treated as success.
     *   **Part 4.3: Modify `_isr_unlock_heap` to Wake Up Waiting Processes**
+        *   **Status: COMPLETED**
         *   **Goal:** When the heap is unlocked, find any processes waiting for it and set them back to `READY`.
         *   **Tasks:**
             1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, within `_isr_unlock_heap`:
                 *   After releasing the lock, loop through user processes.
                 *   For each process, if its state is `~PROC_STATE_WAIT_FOR_UNLOCK`, change it to `~PROC_STATE_READY`.
                 *   Set syscall return value to 0 (success) and `rti`.
+        *   **Summary:** In `_isr_unlock_heap`, after the lock is released, the ISR iterates through all user processes (PID 1 to `MAX_PROCESSES-1`). If a process is found in the `~PROC_STATE_WAIT_FOR_UNLOCK` state, its state is changed to `~PROC_STATE_READY`, making it eligible for scheduling again. The syscall returns 0 (success).
+    *   **Overall Summary:** The kernel now supports a `~PROC_STATE_WAIT_FOR_UNLOCK` state. The `_isr_lock_heap` syscall will place a process into this state if it attempts to lock an already busy heap (not owned by itself). The `_isr_unlock_heap` syscall will iterate through waiting processes and set them to `READY` upon unlock. The `scheduler_round_robin` has been updated to skip processes that are in the `~PROC_STATE_WAIT_FOR_UNLOCK` state.
 5.  **`stern_runtime` - Shared Access Routines:**
-    *   **TODO in this step:**
-        *   Implement a new routine: `@stacks_shared_var_write`. This routine will take a heap address and a value from the STACKS stack. It will use `~SYSCALL_LOCK_HEAP` and `~SYSCALL_UNLOCK_HEAP` to safely write the value to the shared variable at the given heap address.
+    *   **Status: IN PROGRESS**
+    *   **Part 5.1: Implement `@stacks_shared_var_write`**
+        *   **Status: COMPLETED**
+        *   **Goal:** Create a runtime routine to write a single value to a shared heap address, handling locking.
+        *   **Tasks:**
+            1.  Define `@stacks_shared_var_write` in `stern_runtime.asm`.
+            2.  Expects `heap_address` and `value` on STACKS stack.
+            3.  Loop: call `~SYSCALL_LOCK_HEAP`, check `~PTE_SYSCALL_RETVAL`. If success (0), write value, call `~SYSCALL_UNLOCK_HEAP`, return. If fail (1), loop (kernel handles `WAIT_FOR_UNLOCK`).
+        *   **Summary:** Implemented `@stacks_shared_var_write` in `stern_runtime.asm`. It pops `value` and `heap_address` from the STACKS stack. It then enters a loop, calling `~SYSCALL_LOCK_HEAP` and checking the return status in the process's PTE. If the lock is acquired (status 0), it performs the memory write, calls `~SYSCALL_UNLOCK_HEAP`, and returns. If the lock is busy (status 1), the kernel sets the process to `WAIT_FOR_UNLOCK`, and upon resumption, the routine retries the lock.
+    *   **Part 5.2: Implement `@stacks_shared_var_read`**
+        *   **Status: COMPLETED**
+        *   **Goal:** Create a runtime routine to read a single value from a shared heap address, handling locking.
+        *   **Tasks:**
+            1.  Define `@stacks_shared_var_read` in `stern_runtime.asm`.
+            2.  Expects `heap_address` on STACKS stack.
+            3.  Loop: call `~SYSCALL_LOCK_HEAP`, check `~PTE_SYSCALL_RETVAL`. If success (0), read value, call `~SYSCALL_UNLOCK_HEAP`, push value to stack, return. If fail (1), loop.
+        *   **Summary:** Implemented `@stacks_shared_var_read` in `stern_runtime.asm`. It pops `heap_address` from the STACKS stack. It uses the same locking loop as `@stacks_shared_var_write`. Once locked, it reads the value from the heap, calls `~SYSCALL_UNLOCK_HEAP`, pushes the read value onto the STACKS stack, and returns.
+    *   **Part 5.3: Define Heap Region Constants for Runtime & Helper for Address Check**
+        *   **Status: COMPLETED**
+        *   **Goal:** Make heap boundaries known to runtime and create a helper to check if an address is in the shared heap.
+        *   **Tasks:**
+            1.  Define `$SHARED_HEAP_START_ADDRESS` and `$SHARED_HEAP_END_ADDRESS` (or size) in `stern_runtime.asm`.
+            2.  Implement helper `@_is_shared_address` (input: address, output: status bit/register indicating if shared).
+        *   **Summary:** Defined `~$SHARED_HEAP_START_ADDRESS` (8192) and `~$SHARED_HEAP_END_ADDRESS` (11263) in `stern_runtime.asm`. Implemented `@_is_shared_address` which takes an address in register A and sets the CPU status bit to 1 if the address is within the shared heap, 0 otherwise.
+    *   **Part 5.4: Modify `@stacks_array_write` to be Heap-Aware**
+        *   **Goal:** Update `@stacks_array_write` to use locking for shared heap arrays.
+        *   **Tasks:**
+            1.  Call `@_is_shared_address`. If shared: loop for `~SYSCALL_LOCK_HEAP`, then write, then `~SYSCALL_UNLOCK_HEAP`. Else: original logic.
+    *   **Part 5.5: Modify `@stacks_array_read` to be Heap-Aware**
+        *   **Goal:** Update `@stacks_array_read` for shared heap arrays.
+        *   **Tasks:**
+            1.  Similar to 5.4: check, lock if shared, read, unlock if shared.
+    *   **Part 5.6: Modify `@stacks_array_append` to be Heap-Aware**
+        *   **Goal:** Update `@stacks_array_append` for shared heap arrays (critical: modifies metadata).
+        *   **Tasks:**
+            1.  Similar to 5.4: entire append operation (read/write metadata and data) within lock/unlock if shared.
+    *   **Part 5.7: Modify `@stacks_array_length` to be Heap-Aware**
+        *   **Goal:** Update `@stacks_array_length` for shared heap arrays.
+        *   **Tasks:**
+            1.  Similar to 5.4: check, lock if shared, read length, unlock if shared.
+    *   **Overall Goal:**
+        *   Implement new routines: `@stacks_shared_var_write` and `@stacks_shared_var_read`. These routines will take a heap address (and value for write) from the STACKS stack. They will use `~SYSCALL_LOCK_HEAP` and `~SYSCALL_UNLOCK_HEAP` to safely access the shared variable.
         *   Modify existing array manipulation routines (`@stacks_array_write`, `@stacks_array_read`, `@stacks_array_append`, `@stacks_array_length`) to become "heap-aware."
-            *   These routines will need to determine if the base address passed to them (from the STACKS stack) falls within the shared heap region.
-            *   If the address is in the shared heap, they must use `~SYSCALL_LOCK_HEAP` before accessing the array data/metadata and `~SYSCALL_UNLOCK_HEAP` afterwards.
-    *   **Summary:**
-        *   Updated `lexV3.py` to recognize `SHARED` and `VAR` keywords.
-        *   Updated `parseV3.py` to:
-            *   Parse `SHARED VAR varname` and `SHARED ARRAY arrayName size` declarations.
-            *   Correctly handle name collision checks for shared symbols against local symbols, functions, and connections.
-            *   Generate appropriate assembly using the `&` prefix for shared symbols when they are declared, assigned to (`AS`), or accessed (e.g., reading length or value).
-        *   Updated `emitV3.py` to include `emitSharedDataLine` for placing shared symbol definitions (`. &symbol size`) in a distinct section of the output assembly, separate from per-process code.
-            *   If the address is not in the shared heap (i.e., it's a local array), they should operate as they do currently, without attempting to lock the heap.
-        *   All routines interacting with the heap will need to handle the status returned by the lock/unlock syscalls (e.g., if `LOCK_HEAP` fails, the kernel will change process state, and the runtime routine will effectively block until the process is `READY` again and the operation can be re-attempted/completed by the kernel).
+            *   These routines will need to determine if the base address passed to them (from the STACKS stack) falls within the shared heap region (using the helper from Part 5.3).
+            *   If the address is in the shared heap, they must use the lock/operate/unlock pattern.
+            *   If the address is not in the shared heap (i.e., it's a local array), they should operate as they do currently.
+        *   All routines interacting with the heap will implement a loop to re-attempt `~SYSCALL_LOCK_HEAP` if it initially fails (returns 1). The kernel's action of setting the process to `WAIT_FOR_UNLOCK` and then back to `READY` (by another process unlocking) will allow the loop to eventually succeed.
 6.  **Integration and Testing:**

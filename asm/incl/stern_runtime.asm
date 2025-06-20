@@ -9,7 +9,10 @@
 # Native CPU instructions 'push R' and 'pop R' should be used by STACKS compiled code
 # or by these runtime routines.         
 
-
+; --- Shared Heap Constants ---
+equ ~$SHARED_HEAP_START_ADDRESS 8192
+equ ~$SHARED_HEAP_SIZE 3072
+equ ~$SHARED_HEAP_END_ADDRESS 11263 ; $SHARED_HEAP_START_ADDRESS + $SHARED_HEAP_SIZE - 1
 
 
 # --- Temporary variables for string operations (if any remain needed) ---
@@ -926,7 +929,134 @@ ret
     push L                      ; Restore return address
 ret
 
+;-------------------------------------------------------------------------------
+; @stacks_shared_var_write
+; Writes a value to a shared heap address, handling heap locking.
+; Expects on STACKS stack (top first): value, heap_address
+; Clobbers: A, B, K, M, I (internal usage for syscalls and memory access)
+;-------------------------------------------------------------------------------
+@stacks_shared_var_write
+    ; Loop to acquire the heap lock
+:_ssvw_retry_lock
+    int ~SYSCALL_LOCK_HEAP      ; Attempt to lock the heap
 
+    ; After the INT instruction, the process might have yielded if the lock was busy.
+    ; When it resumes, execution continues here.
+    ; The syscall's return value (0 for success, 1 for busy) is in PTE[current_pid].~PTE_SYSCALL_RETVAL.
+
+    ; Get current PID
+    ldm K $CURRENT_PROCESS_ID   ; K = current_pid
+
+    ; Calculate address of PTE[current_pid].syscall_retval
+    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
+    ld I K                      ; I = current_pid
+    muli I ~PTE_SIZE            ; I = current_pid * ~PTE_SIZE
+    add M I                     ; M = address of PTE for current_pid
+    addi M ~PTE_SYSCALL_RETVAL  ; M = address of PTE[current_pid].syscall_retval
+    ld I M                      ; I = direct address of the syscall_retval field
+    ldx A $mem_start            ; A = M[I] = syscall_retval
+
+    tst A 0                     ; Test if A is 0 (lock acquisition successful)
+    jmpf :_ssvw_retry_lock      ; If not 0 (i.e., 1, lock was busy), loop and retry.
+                                ; The kernel handles changing state to WAIT_FOR_UNLOCK and back to READY.
+
+    ; Lock acquired successfully (A was 0)
+
+    ; Pop value from STACKS stack into K
+    call @pop_A_from_stack      ; A = value (assuming @pop_A_from_stack pops into A)
+    ld K A                      ; K = value
+
+    ; Pop heap_address from STACKS stack into I
+    call @pop_A_from_stack      ; A = heap_address
+    ld I A                      ; I = heap_address (for stx M[I])
+
+    ; Write the value (K) to the heap address (M[I])
+    stx K $mem_start            ; Memory[I] = K
+
+    ; Unlock the heap
+    int ~SYSCALL_UNLOCK_HEAP    ; Release the heap lock
+    ; We assume unlock is successful if lock was held by this process.
+    ; The syscall will write its status to PTE_SYSCALL_RETVAL, but we don't check it here.
+
+    ret
+
+;-------------------------------------------------------------------------------
+; @stacks_shared_var_read
+; Reads a value from a shared heap address, handling heap locking.
+; Expects on STACKS stack (top first): heap_address
+; Pushes onto STACKS stack: value_read
+; Clobbers: A, B, K, M, I (internal usage for syscalls and memory access)
+;-------------------------------------------------------------------------------
+@stacks_shared_var_read
+    ; Loop to acquire the heap lock
+:_ssvr_retry_lock
+    int ~SYSCALL_LOCK_HEAP      ; Attempt to lock the heap
+
+    ; After the INT instruction, the process might have yielded if the lock was busy.
+    ; When it resumes, execution continues here.
+    ; The syscall's return value (0 for success, 1 for busy) is in PTE[current_pid].~PTE_SYSCALL_RETVAL.
+
+    ; Get current PID
+    ldm K $CURRENT_PROCESS_ID   ; K = current_pid
+
+    ; Calculate address of PTE[current_pid].syscall_retval
+    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
+    ld I K                      ; I = current_pid
+    muli I ~PTE_SIZE            ; I = current_pid * ~PTE_SIZE
+    add M I                     ; M = address of PTE for current_pid
+    addi M ~PTE_SYSCALL_RETVAL  ; M = address of PTE[current_pid].syscall_retval
+    ld I M                      ; I = direct address of the syscall_retval field
+    ldx A $mem_start            ; A = M[I] = syscall_retval
+
+    tst A 0                     ; Test if A is 0 (lock acquisition successful)
+    jmpf :_ssvr_retry_lock      ; If not 0 (i.e., 1, lock was busy), loop and retry.
+
+    ; Lock acquired successfully (A was 0)
+
+    ; Pop heap_address from STACKS stack into I
+    call @pop_A_from_stack      ; A = heap_address
+    ld I A                      ; I = heap_address (for ldx M[I])
+
+    ; Read the value from the heap address (M[I]) into K
+    ldx K $mem_start            ; K = Memory[I]
+
+    ; Unlock the heap
+    int ~SYSCALL_UNLOCK_HEAP    ; Release the heap lock
+    ; We assume unlock is successful. Status is in PTE_SYSCALL_RETVAL, not checked here.
+
+    ; Push the read value (K) onto the STACKS stack
+    ld A K                      ; Move value from K to A for push
+    call @push_A                ; Push A onto STACKS stack
+
+    ret
+
+;-------------------------------------------------------------------------------
+; @_is_shared_address
+; Checks if the address in register A falls within the shared heap region.
+; Input: A = address to check.
+; Output: CPU status bit is set to 1 (true) if A is a shared heap address,
+;         0 (false) otherwise.
+; Clobbers: K
+;-------------------------------------------------------------------------------
+@_is_shared_address
+    ; Check if A >= $SHARED_HEAP_START_ADDRESS
+    ldi K ~$SHARED_HEAP_START_ADDRESS
+    tstg K A                     ; Status = 1 if K (START_ADDRESS) > A.
+                                 ; This means A < START_ADDRESS.
+    jmpt :_is_shared_addr_false  ; If A < START_ADDRESS, it's not shared.
+
+    ; Check if A <= $SHARED_HEAP_END_ADDRESS
+    ldi K ~$SHARED_HEAP_END_ADDRESS
+    tstg A K                     ; Status = 1 if A > K (END_ADDRESS).
+    jmpt :_is_shared_addr_false  ; If A > END_ADDRESS, it's not shared.
+
+    ; If both checks passed, address A is within the shared heap.
+    tste A A                     ; Set status bit to 1 (true, A == A)
+    ret
+
+:_is_shared_addr_false
+    tstg A A                     ; Set status bit to 0 (false, A is not > A)
+    ret
 
 
 
