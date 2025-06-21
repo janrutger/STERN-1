@@ -213,22 +213,30 @@ write an plan for implementing a memory heap for the stern-1 project and the STA
             1.  Define `$SHARED_HEAP_START_ADDRESS` and `$SHARED_HEAP_END_ADDRESS` (or size) in `stern_runtime.asm`.
             2.  Implement helper `@_is_shared_address` (input: address, output: status bit/register indicating if shared).
         *   **Summary:** Defined `~$SHARED_HEAP_START_ADDRESS` (8192) and `~$SHARED_HEAP_END_ADDRESS` (11263) in `stern_runtime.asm`. Implemented `@_is_shared_address` which takes an address in register A and sets the CPU status bit to 1 if the address is within the shared heap, 0 otherwise.
-    *   **Part 5.4: Modify `@stacks_array_write` to be Heap-Aware**
+     *   **Part 5.4: Modify `@stacks_array_write` to be Heap-Aware**
+        *   **Status: COMPLETED**
         *   **Goal:** Update `@stacks_array_write` to use locking for shared heap arrays.
         *   **Tasks:**
             1.  Call `@_is_shared_address`. If shared: loop for `~SYSCALL_LOCK_HEAP`, then write, then `~SYSCALL_UNLOCK_HEAP`. Else: original logic.
+        *   **Summary:** Implemented the heap-aware logic for `@stacks_array_write`. A new internal helper, `@_array_write_logic`, was created to contain the core operation (bounds check, write, length update), separating it from concurrency control. The main `@stacks_array_write` routine now uses `@_is_shared_address` to check if the array's base address is in the shared heap. If it is, the operation is wrapped in a `LOCK_HEAP`/`UNLOCK_HEAP` syscall sequence to ensure atomicity between processes. If the array is local, it continues to use the `di`/`ei` instruction pair for atomicity. This dual approach ensures both correctness and efficiency.
     *   **Part 5.5: Modify `@stacks_array_read` to be Heap-Aware**
+        *   **Status: COMPLETED**
         *   **Goal:** Update `@stacks_array_read` for shared heap arrays.
         *   **Tasks:**
             1.  Similar to 5.4: check, lock if shared, read, unlock if shared.
+        *   **Summary:** Implemented heap-awareness for `@stacks_array_read`, mirroring the changes from Part 5.4. A new internal helper, `@_array_read_logic`, was created to handle the core bounds-checking and read operation. The main `@stacks_array_read` routine now uses `@_is_shared_address` to determine if the array is local or shared. It applies the appropriate atomicity mechanism (`di`/`ei` for local, `LOCK_HEAP`/`UNLOCK_HEAP` for shared) before calling the helper. This ensures safe concurrent reads from both local and shared arrays.
     *   **Part 5.6: Modify `@stacks_array_append` to be Heap-Aware**
+        *   **Status: COMPLETED**
         *   **Goal:** Update `@stacks_array_append` for shared heap arrays (critical: modifies metadata).
         *   **Tasks:**
             1.  Similar to 5.4: entire append operation (read/write metadata and data) within lock/unlock if shared.
+        *   **Summary:** Implemented heap-awareness for `@stacks_array_append`. A new helper, `@_array_append_logic`, was created to contain the critical multi-step logic of checking capacity, writing the new element, and updating the array's length. The main `@stacks_array_append` routine now uses this helper, wrapping the call in either `di`/`ei` for local arrays or the full `LOCK_HEAP`/`UNLOCK_HEAP` syscall sequence for shared arrays, ensuring this complex operation is fully atomic in both contexts.
     *   **Part 5.7: Modify `@stacks_array_length` to be Heap-Aware**
+        *   **Status: COMPLETED**
         *   **Goal:** Update `@stacks_array_length` for shared heap arrays.
         *   **Tasks:**
             1.  Similar to 5.4: check, lock if shared, read length, unlock if shared.
+        *   **Summary:** Implemented heap-awareness for `@stacks_array_length`. A new internal helper, `@_array_length_logic`, was created to encapsulate the simple read of the array's length. The main `@stacks_array_length` routine now uses `@_is_shared_address` to determine if the array is local or shared. It applies the appropriate atomicity mechanism (`di`/`ei` for local, `LOCK_HEAP`/`UNLOCK_HEAP` for shared) before calling the helper, ensuring safe and atomic retrieval of array lengths from both local and shared memory. This completes the modifications for all array-related runtime routines.
     *   **Overall Goal:**
         *   Implement new routines: `@stacks_shared_var_write` and `@stacks_shared_var_read`. These routines will take a heap address (and value for write) from the STACKS stack. They will use `~SYSCALL_LOCK_HEAP` and `~SYSCALL_UNLOCK_HEAP` to safely access the shared variable.
         *   Modify existing array manipulation routines (`@stacks_array_write`, `@stacks_array_read`, `@stacks_array_append`, `@stacks_array_length`) to become "heap-aware."

@@ -936,13 +936,13 @@ ret
 ; Clobbers: A, B, K, M, I (internal usage for syscalls and memory access)
 ;-------------------------------------------------------------------------------
 @stacks_shared_var_write
+    pop L                       ; Save return address
+    pop B                       ; B = heap_address (which is on top of the stack)
+    pop A                       ; A = value (which is below the address)
+
     ; Loop to acquire the heap lock
 :_ssvw_retry_lock
     int ~SYSCALL_LOCK_HEAP      ; Attempt to lock the heap
-
-    ; After the INT instruction, the process might have yielded if the lock was busy.
-    ; When it resumes, execution continues here.
-    ; The syscall's return value (0 for success, 1 for busy) is in PTE[current_pid].~PTE_SYSCALL_RETVAL.
 
     ; Get current PID
     ldm K $CURRENT_PROCESS_ID   ; K = current_pid
@@ -954,30 +954,21 @@ ret
     add M I                     ; M = address of PTE for current_pid
     addi M ~PTE_SYSCALL_RETVAL  ; M = address of PTE[current_pid].syscall_retval
     ld I M                      ; I = direct address of the syscall_retval field
-    ldx A $mem_start            ; A = M[I] = syscall_retval
+    ldx K $mem_start            ; K = M[I] = syscall_retval
 
-    tst A 0                     ; Test if A is 0 (lock acquisition successful)
+    tst K 0                     ; Test if K is 0 (lock acquisition successful)
     jmpf :_ssvw_retry_lock      ; If not 0 (i.e., 1, lock was busy), loop and retry.
-                                ; The kernel handles changing state to WAIT_FOR_UNLOCK and back to READY.
 
-    ; Lock acquired successfully (A was 0)
+    ; Lock acquired successfully
 
-    ; Pop value from STACKS stack into K
-    call @pop_A_from_stack      ; A = value (assuming @pop_A_from_stack pops into A)
-    ld K A                      ; K = value
-
-    ; Pop heap_address from STACKS stack into I
-    call @pop_A_from_stack      ; A = heap_address
-    ld I A                      ; I = heap_address (for stx M[I])
-
-    ; Write the value (K) to the heap address (M[I])
-    stx K $mem_start            ; Memory[I] = K
+    ; Write the value (A) to the heap address (B)
+    ld I B                      ; I = heap_address
+    stx A $mem_start            ; Memory[I] = A
 
     ; Unlock the heap
     int ~SYSCALL_UNLOCK_HEAP    ; Release the heap lock
-    ; We assume unlock is successful if lock was held by this process.
-    ; The syscall will write its status to PTE_SYSCALL_RETVAL, but we don't check it here.
 
+    push L                      ; Restore return address
     ret
 
 ;-------------------------------------------------------------------------------
@@ -988,13 +979,12 @@ ret
 ; Clobbers: A, B, K, M, I (internal usage for syscalls and memory access)
 ;-------------------------------------------------------------------------------
 @stacks_shared_var_read
+    pop L                       ; Save return address
+    pop B                       ; B = heap_address
+
     ; Loop to acquire the heap lock
 :_ssvr_retry_lock
     int ~SYSCALL_LOCK_HEAP      ; Attempt to lock the heap
-
-    ; After the INT instruction, the process might have yielded if the lock was busy.
-    ; When it resumes, execution continues here.
-    ; The syscall's return value (0 for success, 1 for busy) is in PTE[current_pid].~PTE_SYSCALL_RETVAL.
 
     ; Get current PID
     ldm K $CURRENT_PROCESS_ID   ; K = current_pid
@@ -1006,28 +996,24 @@ ret
     add M I                     ; M = address of PTE for current_pid
     addi M ~PTE_SYSCALL_RETVAL  ; M = address of PTE[current_pid].syscall_retval
     ld I M                      ; I = direct address of the syscall_retval field
-    ldx A $mem_start            ; A = M[I] = syscall_retval
+    ldx K $mem_start            ; K = M[I] = syscall_retval
 
-    tst A 0                     ; Test if A is 0 (lock acquisition successful)
+    tst K 0                     ; Test if K is 0 (lock acquisition successful)
     jmpf :_ssvr_retry_lock      ; If not 0 (i.e., 1, lock was busy), loop and retry.
 
-    ; Lock acquired successfully (A was 0)
+    ; Lock acquired successfully
 
-    ; Pop heap_address from STACKS stack into I
-    call @pop_A_from_stack      ; A = heap_address
-    ld I A                      ; I = heap_address (for ldx M[I])
-
-    ; Read the value from the heap address (M[I]) into K
-    ldx K $mem_start            ; K = Memory[I]
+    ; Read the value from the heap address (B) into A
+    ld I B                      ; I = heap_address
+    ldx A $mem_start            ; A = Memory[I]
 
     ; Unlock the heap
     int ~SYSCALL_UNLOCK_HEAP    ; Release the heap lock
-    ; We assume unlock is successful. Status is in PTE_SYSCALL_RETVAL, not checked here.
 
-    ; Push the read value (K) onto the STACKS stack
-    ld A K                      ; Move value from K to A for push
-    call @push_A                ; Push A onto STACKS stack
+    ; Push the read value (A) onto the STACKS stack
+    push A
 
+    push L                      ; Restore return address
     ret
 
 ;-------------------------------------------------------------------------------
@@ -1062,6 +1048,17 @@ ret
 
 # --- STACKS Array Operations ---
 
+@_array_length_logic
+    ; Internal helper. Assumes interrupts are already disabled or heap is locked.
+    ; Expects: C=base_address
+    ; Returns: B=length
+    ; Clobbers: I
+    ; Does NOT handle di/ei or lock/unlock.
+    sto C $_array_base_pntr_temp
+    ldi I 0
+    ldx B $_array_base_pntr_temp ; B = length
+    ret
+
 @stacks_array_length
     # Expects: base address of the array on top of the STACKS data stack.
     #          The parser is responsible for pushing the direct address of the
@@ -1078,26 +1075,89 @@ ret
     #                           (element_capacity + 2)
     #   array_base_address + 2 onwards: array data elements
     #
-    # Registers Used: A, B, I
+    # Registers Used: A, B, C, K, I, M
     # Temporary Vars Used: $_array_base_pntr_temp
 
     pop L ; Save return address
-    di    ; Disable interrupts to protect $_array_base_pntr_temp
+    pop C ; C gets array_base_address from stack
 
-    pop A       ; A gets array_base_address from stack
-    sto A $_array_base_pntr_temp    
-    # M[$_array_base_pntr_temp] = array_base_address
-    ldi I 0                         
-    # I = 0 (offset for length field)
-    ldx B $_array_base_pntr_temp    
-    # B = M[M[$_array_base_pntr_temp] + I] => B = M[array_base_address + 0] = length
+    ; Check if the address is in the shared heap.
+    ; Preserve C on the stack as @_is_shared_address clobbers registers.
+    push C ; save base_address
 
-    ei    ; Re-enable interrupts
+    ld A C ; Move base address to A for the check
+    call @_is_shared_address
+    ; Status bit is now set if shared. A is clobbered.
 
+    pop C ; restore base_address
+
+    jmpt :_sal_is_shared ; If status is true, it's a shared array
+
+; --- Local Array Path ---
+:_sal_is_local
+    di
+    call @_array_length_logic ; C is set up. Result in B.
+    ei
+    jmp :_sal_done
+
+; --- Shared Array Path ---
+:_sal_is_shared
+:_sal_retry_lock
+    int ~SYSCALL_LOCK_HEAP
+    ; Check syscall return value from PTE
+    ldm K $CURRENT_PROCESS_ID
+    ldm M $PROCESS_TABLE_BASE
+    ld I K
+    muli I ~PTE_SIZE
+    add M I
+    addi M ~PTE_SYSCALL_RETVAL
+    ld I M
+    ldx K $mem_start ; K = syscall_retval
+    tst K 0
+    jmpf :_sal_retry_lock ; If not 0, retry lock
+
+    ; --- Lock Acquired ---
+    di
+    call @_array_length_logic ; C is set up. Result in B.
+    ei
+    ; --- End of critical section ---
+
+    int ~SYSCALL_UNLOCK_HEAP
+
+:_sal_done
     push B ; Push the length onto the STACKS data stack
     push L ; Restore return address
-
 ret
+
+@_array_write_logic
+    ; Internal helper. Assumes interrupts are already disabled or heap is locked.
+    ; Expects: A=value, B=index, C=base_address
+    ; Clobbers: K, I, C (C is reused)
+    ; Does NOT handle di/ei or lock/unlock.
+    sto C $_array_base_pntr_temp
+    ; --- Bounds Check ---
+    ldi I 1
+    ldx K $_array_base_pntr_temp
+    subi K 2 ; K = element_capacity
+    tstg K B
+    jmpt :_awl_index_valid
+    call @fatal_error ; Index out of bounds
+:_awl_index_valid
+    ; --- Write Value ---
+    ldi I 2
+    add I B
+    stx A $_array_base_pntr_temp
+    ; --- Update Length ---
+    ldi I 0
+    ldx K $_array_base_pntr_temp ; K = current_length
+    ld C B ; C = index
+    addi C 1 ; C = new_potential_length
+    tstg C K
+    jmpf :_awl_length_no_update
+    stx C $_array_base_pntr_temp
+:_awl_length_no_update
+    ret
+
 
 @stacks_array_write
     # Expects on STACKS data stack (top to bottom):
@@ -1119,76 +1179,94 @@ ret
     #   array_base_address + 2 onwards: array data elements
     #
     # Registers Used: A (value), B (index), C (array_base_address, then new_potential_length),
-    #                 K (capacity, then current_length), I (offset for ldx/stx)
+    #                 K, I, M (for checks and logic)
     # Temporary Vars Used: $_array_base_pntr_temp
 
     pop L ; Save return address
-    di    ; Disable interrupts
-
     pop C ; C gets array_base_address from stack
     pop B ; B gets index from stack
     pop A ; A gets value from stack
 
-    sto C $_array_base_pntr_temp    
-        ; M[$_array_base_pntr_temp] = array_base_address (from C)
+    ; Check if the address is in the shared heap.
+    ; Preserve A, B, C on the stack as @_is_shared_address clobbers registers.
+    push A ; save value
+    push B ; save index
+    push C ; save base_address
 
-    ; --- Bounds Check ---
-    ; K will hold element_capacity. B holds index.
-    ; Valid indices are 0 to element_capacity-1.
-    ; Error if index (B) >= element_capacity (K).
-    ldi I 1                         
-        ; I = 1 (offset for total_allocated_words field)
-    ldx K $_array_base_pntr_temp    
-        ; K = M[M[$_array_base_pntr_temp] + 1] => K = total_allocated_words
-    subi K 2                        
-        ; K = total_allocated_words - 2 = element_capacity
-        ; K now holds element_capacity.
-    
-    ; Check if index (B) is less than element_capacity (K).
-    ; If B < K (i.e., K > B), then index is valid.
-    tstg K B                        
-    ; Set status if K > B (element_capacity > index)
-    jmpt :_array_write_index_valid  
-    ; If status is true (K > B), index is valid. Jump to write.
-    ; Else (K <= B, i.e., index >= element_capacity), then it's an error. Fall through.
-:_array_write_index_out_of_bounds
-    call @fatal_error             
-    ; Index out of bounds. @fatal_error halts execution.
+    ld A C ; Move base address to A for the check
+    call @_is_shared_address
+    ; Status bit is now set if shared. A is clobbered.
 
-:_array_write_index_valid
-    ; --- Write Value to Array ---
-    ; Target address: M[array_base_address + 2 + index]
-    ; M[$_array_base_pntr_temp] holds array_base_address.
-    ; B holds index. A holds value.
-    ldi I 2                         
-    ; I = 2 (base offset for data elements)
-    add I B                         
-    ; I = 2 + index (B)
-    stx A $_array_base_pntr_temp    
-    ; M[M[$_array_base_pntr_temp] + I] = value (A)
+    pop C ; restore base_address
+    pop B ; restore index
+    pop A ; restore value
 
-    ; --- Update Length ---
-    ; current_length is at M[array_base_address + 0]
-    ; new_potential_length = index + 1
-    ; if new_potential_length > current_length, update current_length.
-    ldi I 0                         
-    ; I = 0 (offset for length field)
-    ldx K $_array_base_pntr_temp    
-    ; K = M[M[$_array_base_pntr_temp] + 0] => K = current_length
-    ld C B                          
-    ; C = index (B)
-    addi C 1                        
-    ; C = index + 1 (this is the new potential length)
-    tstg C K                        
-    ; Set status if C > K (new_potential_length > current_length)
-    jmpf :_array_write_length_no_update 
-    ; If C is not > K, no length update needed.
-    stx C $_array_base_pntr_temp    
-    ; Store new length (C) into M[array_base_address + 0] (I is still 0)
-:_array_write_length_no_update
+    jmpt :_saw_is_shared ; If status is true, it's a shared array
+
+; --- Local Array Path ---
+:_saw_is_local
+    di    ; Disable interrupts for atomic operation on local array
+    call @_array_write_logic ; A, B, C are already set up
     ei    ; Re-enable interrupts
+    jmp :_saw_done
+
+; --- Shared Array Path ---
+:_saw_is_shared
+:_saw_retry_lock
+    int ~SYSCALL_LOCK_HEAP
+    ; Check syscall return value from PTE
+    ldm K $CURRENT_PROCESS_ID
+    ldm M $PROCESS_TABLE_BASE
+    ld I K
+    muli I ~PTE_SIZE
+    add M I
+    addi M ~PTE_SYSCALL_RETVAL
+    ld I M
+    ldx K $mem_start ; K = syscall_retval
+    tst K 0
+    jmpf :_saw_retry_lock ; If not 0, retry lock
+
+    ; --- Lock Acquired ---
+    di
+    call @_array_write_logic ; A, B, C are already set up
+    ei
+    ; --- End of critical section ---
+
+    int ~SYSCALL_UNLOCK_HEAP
+
+:_saw_done
     push L ; Restore return address
 ret
+
+
+
+
+@_array_append_logic
+    ; Internal helper. Assumes interrupts are already disabled or heap is locked.
+    ; Expects: A=value, C=base_address
+    ; Clobbers: K, L, I
+    ; Does NOT handle di/ei or lock/unlock.
+    sto C $_array_base_pntr_temp
+    ; --- Read current_length (K) and calculate element_capacity (L) ---
+    ldi I 0
+    ldx K $_array_base_pntr_temp ; K = current_length
+    ldi I 1
+    ldx L $_array_base_pntr_temp
+    subi L 2 ; L = element_capacity
+    ; --- Bounds Check: Is current_length (K) < element_capacity (L)? ---
+    tstg L K
+    jmpt :_aal_has_space
+    call @fatal_error ; Array full
+:_aal_has_space
+    ; --- Write Value to Array ---
+    ldi I 2
+    add I K ; I = 2 + current_length
+    stx A $_array_base_pntr_temp
+    ; --- Update Length ---
+    addi K 1 ; K = new_length
+    ldi I 0
+    stx K $_array_base_pntr_temp
+    ret
 
 @stacks_array_append
     # Expects on STACKS data stack (top to bottom):
@@ -1209,65 +1287,86 @@ ret
     #   array_base_address + 2 onwards: array data elements
     #
     # Registers Used: A (value), C (array_base_address),
-    #                 K (current_length, then new_length), L (for total_allocated_words/element_capacity),
-    #                 I (offset for ldx/stx), X (for preserving return address)
+    #                 K, I, M (for checks and logic), X (for return address)
     # Temporary Vars Used: $_array_base_pntr_temp
 
     pop X ; Save return address, using X since L is in use 
-    di    ; Disable interrupts
-
     pop C ; C gets array_base_address from stack
     pop A ; A gets value from stack
 
-    sto C $_array_base_pntr_temp
-    # M[$_array_base_pntr_temp] = array_base_address (from C)
+    ; Check if the address is in the shared heap.
+    ; Preserve A, C on the stack as @_is_shared_address clobbers registers.
+    push A ; save value
+    push C ; save base_address
 
-    # --- Read current_length (K) and calculate element_capacity (L) ---
-    ldi I 0
-    # I = 0 (offset for current_length field)
-    ldx K $_array_base_pntr_temp
-    # K = M[M[$_array_base_pntr_temp] + 0] => K = current_length
+    ld A C ; Move base address to A for the check
+    call @_is_shared_address
+    ; Status bit is now set if shared. A is clobbered.
 
-    ldi I 1
-    # I = 1 (offset for total_allocated_words field)
-    ldx L $_array_base_pntr_temp
-    # L = M[M[$_array_base_pntr_temp] + 1] => L = total_allocated_words
-    subi L 2
-    # L = total_allocated_words - 2 = element_capacity
+    pop C ; restore base_address
+    pop A ; restore value
 
-    # --- Bounds Check: Is current_length (K) < element_capacity (L)? ---
-    # If K < L (i.e., L > K), there is space.
-    tstg L K
-    # Set status if L > K (element_capacity > current_length)
-    jmpt :_array_append_has_space
-    # If status is true (L > K), there's space. Jump to append.
-    # Else (L <= K, i.e., current_length >= element_capacity), array is full. Fall through.
-:_array_append_full
-    call @fatal_error
-    # Array full. @fatal_error halts execution.
+    jmpt :_saa_is_shared ; If status is true, it's a shared array
 
-:_array_append_has_space
-    # --- Write Value to Array ---
-    # Target address: M[array_base_address + 2 + current_length]
-    # K holds current_length. A holds value.
-    ldi I 2
-    # I = 2 (base offset for data elements)
-    add I K
-    # I = 2 + current_length (K)
-    stx A $_array_base_pntr_temp
-    # M[M[$_array_base_pntr_temp] + I] = value (A)
+; --- Local Array Path ---
+:_saa_is_local
+    di
+    call @_array_append_logic ; A, C are already set up
+    ei
+    jmp :_saa_done
 
-    # --- Update Length ---
-    # Increment current_length (K) and store it back.
-    addi K 1
-    # K = new_length (current_length + 1)
-    ldi I 0
-    # I = 0 (offset for length field)
-    stx K $_array_base_pntr_temp
-    # Store new_length (K) into M[array_base_address + 0]
-    ei    ; Re-enable interrupts
+; --- Shared Array Path ---
+:_saa_is_shared
+:_saa_retry_lock
+    int ~SYSCALL_LOCK_HEAP
+    ; Check syscall return value from PTE
+    ldm K $CURRENT_PROCESS_ID
+    ldm M $PROCESS_TABLE_BASE
+    ld I K
+    muli I ~PTE_SIZE
+    add M I
+    addi M ~PTE_SYSCALL_RETVAL
+    ld I M
+    ldx K $mem_start ; K = syscall_retval
+    tst K 0
+    jmpf :_saa_retry_lock ; If not 0, retry lock
+
+    ; --- Lock Acquired ---
+    di
+    call @_array_append_logic ; A, C are already set up
+    ei
+    ; --- End of critical section ---
+
+    int ~SYSCALL_UNLOCK_HEAP
+
+:_saa_done
     push X ; Restore return address, using X since L is in use
 ret
+
+
+@_array_read_logic
+    ; Internal helper. Assumes interrupts are already disabled or heap is locked.
+    ; Expects: A=index, C=base_address
+    ; Returns: B=value_read
+    ; Clobbers: K, I
+    ; Does NOT handle di/ei or lock/unlock.
+    sto C $_array_base_pntr_temp
+    ; --- Bounds Check ---
+    ldi I 1
+    ldx K $_array_base_pntr_temp
+    subi K 2 ; K = element_capacity
+    tstg K A
+    jmpt :_arl_index_valid
+    call @fatal_error ; Index out of bounds
+:_arl_index_valid
+    ; --- Read Value ---
+    ldi I 2
+    add I A
+    ldx B $_array_base_pntr_temp ; B = value read
+    ret
+
+
+
 
 @stacks_array_read
     # Expects on STACKS data stack (top to bottom):
@@ -1287,52 +1386,59 @@ ret
     #   array_base_address + 2 onwards: array data elements
     #
     # Registers Used: A (index), B (value_read), C (array_base_address),
-    #                 K (element_capacity), I (offset for ldx/stx)
+    #                 K, I, M (for checks and logic)
     # Temporary Vars Used: $_array_base_pntr_temp
 
     pop L ; Save return address
-    di    ; Disable interrupts
-
     pop C ; C gets array_base_address from stack
     pop A ; A gets index from stack
 
-    sto C $_array_base_pntr_temp
-    # M[$_array_base_pntr_temp] = array_base_address (from C)
+    ; Check if the address is in the shared heap.
+    ; Preserve A, C on the stack as @_is_shared_address clobbers registers.
+    push A ; save index
+    push C ; save base_address
 
-    # --- Bounds Check ---
-    # K will hold element_capacity. A holds index.
-    # Valid indices are 0 to element_capacity-1.
-    # Error if index (A) >= element_capacity (K).
-    ldi I 1
-    # I = 1 (offset for total_allocated_words field)
-    ldx K $_array_base_pntr_temp
-    # K = M[M[$_array_base_pntr_temp] + 1] => K = total_allocated_words
-    subi K 2
-    # K = total_allocated_words - 2 = element_capacity
+    ld A C ; Move base address to A for the check
+    call @_is_shared_address
+    ; Status bit is now set if shared. A is clobbered.
 
-    tstg K A
-    # Set status if K > A (element_capacity > index). This means index is < capacity.
-    jmpt :_array_read_index_valid
-    # If status is true (K > A), index is valid. Jump to read.
-    # Else (K <= A, i.e., index >= element_capacity), it's an error. Fall through.
-:_array_read_index_out_of_bounds
-    call @fatal_error
-    # Index out of bounds. @fatal_error halts execution.
+    pop C ; restore base_address
+    pop A ; restore index
 
-:_array_read_index_valid
-    # --- Read Value from Array ---
-    # Target address: M[array_base_address + 2 + index]
-    # M[$_array_base_pntr_temp] holds array_base_address.
-    # A holds index. B will hold the value.
-    ldi I 2
-    # I = 2 (base offset for data elements)
-    add I A
-    # I = 2 + index (A)
-    ldx B $_array_base_pntr_temp
-    # B = M[M[$_array_base_pntr_temp] + I] (value_read)
+    jmpt :_sar_is_shared ; If status is true, it's a shared array
 
+; --- Local Array Path ---
+:_sar_is_local
+    di    ; Disable interrupts for atomic operation on local array
+    call @_array_read_logic ; A, C are already set up. Result in B.
     ei    ; Re-enable interrupts
+    jmp :_sar_done
 
+; --- Shared Array Path ---
+:_sar_is_shared
+:_sar_retry_lock
+    int ~SYSCALL_LOCK_HEAP
+    ; Check syscall return value from PTE
+    ldm K $CURRENT_PROCESS_ID
+    ldm M $PROCESS_TABLE_BASE
+    ld I K
+    muli I ~PTE_SIZE
+    add M I
+    addi M ~PTE_SYSCALL_RETVAL
+    ld I M
+    ldx K $mem_start ; K = syscall_retval
+    tst K 0
+    jmpf :_sar_retry_lock ; If not 0, retry lock
+
+    ; --- Lock Acquired ---
+    di
+    call @_array_read_logic ; A, C are set up. Result in B.
+    ei
+    ; --- End of critical section ---
+
+    int ~SYSCALL_UNLOCK_HEAP
+
+:_sar_done
     push B ; Push the read value (B) onto the STACKS data stack
     push L ; Restore return address
 ret
