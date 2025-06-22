@@ -53,7 +53,7 @@ def assembly_code():
         # assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
         # assembler.assemble("program0.asm", boot["start_prog"], "program0.bin", True) # Example if needed
         # assembler.assemble("program1.asm", boot["start_prog"], "program1.bin", True)
-        assembler.assemble("processes.asm", boot["start_prog"], "processes.bin", True)
+        assembler.assemble("test.asm", boot["start_prog"], "processes.bin", True)
         # assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
         print("Assembly complete.")
     except Exception as e:

@@ -7,7 +7,7 @@ import sys
 def main():
     print("STACKS RPN Compiler") # General name, can be adapted for STERN-1 later
 
-    source_file_path = "/home/janrutger/git/STERN-1/STACKS/src/processes.stacks" # Default input file
+    source_file_path = "/home/janrutger/git/STERN-1/STACKS/src/test.stacks" # Default input file
     output_file_path = "/home/janrutger/git/STERN-1/asm/out.asm"               # Default output file (consistent with Emitter's original hardcoding)
     output_directory = "/home/janrutger/git/STERN-1/asm" # Target directory for output
 

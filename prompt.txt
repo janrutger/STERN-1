@@ -1,40 +1,65 @@
+The STERN-1 project is a custom virtual machine/emulator with its own assembly language and a higher-level language called STACKS. 
+It features a multi-processing kernel (V3) managing processes with dedicated 1KB memory blocks for code, stack, and local variables. 
+Emulated hardware includes a screen, keyboard, virtual disk, serial I/O, plotter, RTC, and network interface. 
+The assembler supports standard instructions, directives, labels, and constants, distinguishing between local ($) and global/shared (&) symbols. 
+The STACKS language, compiled to assembly, supports basic data types, operators, control flow, and runtime interactions with the emulated hardware, and is multi-process compatible
+check the current state of networkNICrc.py, asm/incl/networkR3.asm, asm/incl/stern_runtime.asm, asm/incl/networkdispatcher.asm
 
+i like to make the current networkstack, networkNICrc.py, asm/incl/networkR3.asm and asm/incl/stern_runtime.asm, asm/incl/networkdispatcher.asm multiprocessing aware.
 
-Review the Stern-1 project, the new CPU supports multi processing capabilities and the new loader3.asm, kernel3.asm runs an multi processing kernel. Also the STACKS language is now multi processes compatible. Each proces has a memory block of 1024 wich includes (configurable) datastack at the top of the block, this area is also used for vars and arrays. The programcode starts at the beginning of the 1k block. The STACKS language is PROCESS aware and can be used as language to write programs running in those processes. see the processes.stacks example file. check STACKS/parseV3.py and STACKS/src/ example files for more details about the stacks-language. asm/include/stern_runtime.asm is the the runtime library and is included in the /kernel3.asm
+the current situation the networkNICrc.py is taking care of reliable sending of the messages and when a message is received, the receive interrupt place the message in the circular networkbuffer.
+the scheduled networkdispatcher reads the networkbuffer and start the correct network serivce, the echo service (service ID 1) will echo the message back to the sender. servie ID 0 is an general receiver service with place the message in 1 general buffer for the application (proces) to read.
 
-i found 3x1024 unused memory and i like to introduce an memoryheap where PROCESSES can store and share vars and arrays
-Herefore i like to build an static heap at top of the last process block (now its tunning 4 processes).
-In STACKS a shared/heap allocation is done by SHARED VAR varname, or SHARED ARRAY myArray 16. When two PROCESSES define the same shared symbol, they share the symbol
+oversee the current codebase, there are two options:
+1) enhanche the low-level networkstack so the protocol know about the proces, or
+2) the process ID of the receiver is encoded in the payload
 
-when reading/writing to an shared adress, the kernel will check if the heap is locked (an other proces is using the heap), if not it locks the heap, and is doing the  read/write operation, after the operation is done, the kernel will release the lock
+i prefer option 2, but it must be done in a Stern/STACKS way of thinking
 
-if the heap is locked when a process is requestion an read/write operation to the heap, the kernel changed the process status to WAIT_FOR_UNLOCK, and this proces will not be scheduled anymore. when the kernel unlocks the previous proces it checks if any proces is WAIT_FOR_UNLOCK, is  its finds one, it will set the proces stattus to READY, so it will be scheduled again.
+---
 
-the assembler is using the &-prefix for global symbols, so when in the STACKS language a SHARED symbol is defined, it will generate ". &myVar 1" instead of ". $myVar 1" (for unshared symbols). the assembler keeps track of the shared symbols globaly like the assembler does in 'kernel' mode for non-shared symbols. where the in process symbols are reset before an new .PROCESS starts, shared object must not be reset at that point. But the shared objects are reset when the restore flag of the assembler is true (so if you want to share symbols in PROCESSES, the processes must be defined in the same sourcefile)
+**Plan for Implementing Process-Aware Networking**
 
-While the kernel is resposible for the actually LOCK/UNLOCK and rescheduling, the stern_runtime must provide routines to hide the heavylifting from the assembler
+**1. Goal:**
+Enable processes to send network messages directly to other processes, both on the same machine and on different machines, by embedding the target Process ID (PID) into the message payload. This keeps the low-level transport protocol generic while adding application-level routing.
 
+**2. Protocol and Payload Convention:**
+*   **Service ID:** Service ID `0` will be repurposed as the dedicated "Process Routing Service". All messages intended for a specific process will use this service ID.
+*   **Payload Encoding:** The 16-bit data payload of a message sent with Service ID 0 will be encoded using a simple arithmetic scheme: `packed_value = (data_to_send * 10) + target_PID`.
+*   **Payload Unpacking:** The receiving dispatcher will use the `dmod` instruction with a divisor of 10 to unpack the payload. The quotient will be the original data, and the remainder will be the target PID.
+*   **Constraints:** This approach limits PIDs to the range 0-9, which is sufficient for the current STERN-1 kernel (4 user processes).
 
+**3. `networkdispatcher.asm` Modifications:**
+*   **Per-Process Inboxes:**
+    *   The single global buffer for service 0 (`$SERVICE0_DATA_BUFFER`) will be replaced by a set of ring buffers, one for each user process.
+    *   A memory block (`$PROC_INBOX_MEMORY_BLOCK`) will be allocated to hold all inboxes.
+    *   Pointer tables (`$PROC_INBOX_ADDR_TABLE`, `$PROC_INBOX_WPTR_TABLE`, `$PROC_INBOX_RPTR_TABLE`) will be created to manage the base address and read/write pointers for each process's inbox, indexed by PID.
+    *   An initialization routine, `@init_process_inboxes`, will be created for the kernel to call at startup to set up these tables.
+*   **New Service Router (`@service_handler_router`):**
+    *   The existing `@service_handler_0` will be replaced with `@service_handler_router`.
+    *   This new handler will be responsible for:
+        1.  Unpacking the target PID and data from the received payload.
+        2.  Validating the PID.
+        3.  Looking up the correct inbox for the target PID using the pointer tables.
+        4.  Writing the message (`source_address`, `data`) into the process's ring buffer. It will handle buffer-full conditions by overwriting the oldest message.
+*   **Service Jump Table Update:**
+    *   The entry for Service ID 0 in `$SERVICE_JUMP_TABLE` will be updated to point to `@service_handler_router`.
 
+**4. `stern_runtime.asm` Modifications (New APIs):**
+*   **`@read_process_message`:**
+    *   A new runtime routine for a process to read from its personal network inbox.
+    *   It will use the calling process's PID (obtained via a kernel syscall) to find the correct inbox, read the next available message (`source_address`, `data`).
+    *   It will push the `source_address`, `data`, and a status flag (0 for success, 1 for empty) onto the STACKS stack.
+    *   On STACKS stack (top to bottom): `status`, `data`, `src_addr` (if success).
+*   **`@stacks_process_write`:**
+    *   A new runtime routine (or a template for the STACKS compiler) for sending a message to a specific process.
+    *   It will take a destination NIC, destination PID, and data value as input.
+    *   It will pack the PID and data according to the `(data * 10) + PID` convention.
+    *   It will then call the existing `@send_data_packet_sub` with the appropriate arguments (destination NIC, packed data, service ID 0).
 
-The plan seems solid.
-
-**Next Implementation Phase: Assembler Support for Shared Memory**
-
-The immediate next step should be to update the assembler (`assembler1c.py`) to handle shared symbols and allocations. Key modifications:
-
-1.  **Shared Symbol Table & Pointer:**
-    *   Introduce `self.shared_symbols = {}` for `&symbol: address` mappings.
-    *   Introduce `self.NextSharedAddressPointer`, initialized to the start of the shared heap (e.g., `SHARED_HEAP_START_ADDRESS`, which needs to be defined based on the memory map after the last process block).
-2.  **Directive `.&`:**
-    *   In `parse_symbols`, add logic for `.& symbolName size`.
-    *   It should allocate `symbolName` (must start with `&`) in `self.shared_symbols` at `self.NextSharedAddressPointer` and increment the pointer by `size`.
-    *   These symbols should persist across `.PROCES` blocks and only be reset by `restore_state()`.
-3.  **Symbol Resolution:**
-    *   Update `get_adres` to resolve `&symbols` from `self.shared_symbols`.
-4.  **State Management:**
-    *   Integrate `self.shared_symbols` and `self.NextSharedAddressPointer` into `save_state()` and `restore_state()`.
-5.  **Initialization (`%`):**
-    *   Ensure `% &mySharedVar 123` works by allowing `get_adres` to resolve `&mySharedVar` as the target for the `%` directive.
-
-This will lay the groundwork for the STACKS compiler and runtime changes.
+**5. Required Changes Summary:**
+*   **`networkNICr2.py`:** No changes required. The NIC hardware emulation correctly treats the payload as an opaque value.
+*   **`asm/incl/networkR3.asm`:** No changes required. The reliable transport layer (`@send_data_packet_sub`, ISR logic) remains the same.
+*   **`asm/incl/networkdispatcher.asm`:** Major changes. Implement per-process inboxes and the new `@service_handler_router`.
+*   **`asm/incl/stern_runtime.asm`:** Add new API routines `@read_process_message` and `@stacks_process_write`.
+*   **`asm/kernel3.asm`:** A small change will be needed to call `@init_process_inboxes` during kernel initialization. A syscall to get the current PID (`~SYSCALL_GET_PID`) is also assumed to exist.

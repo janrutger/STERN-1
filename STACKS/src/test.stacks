@@ -1,10 +1,108 @@
-'printen en slapen' SHOW
-5 WAIT
-'printen..' SHOW
+#  testheap.stacks
+#  A comprehensive test for local and shared variables/arrays with heap locking.
+
+#  --- Shared Declarations ---
+#  These are declared outside any process block. The compiler will place them
+#  in a global/shared data section.
 
 
-0 PRINT
 
-10 42 % PRINT ; 10
+#  --- Process 1: The Controller ---
+#  This process starts the others and verifies the final state.
+PROCESS 1
+    SHARED VAR counter
+    SHARED ARRAY sharedArray 10
+    #  Initialize the shared counter to 0
+    0 AS counter
+    
+    'controller starting test processes... '  SHOW
+    counter PRINT
+    
+    2 STARTPROCESS
+    3 STARTPROCESS
+    4 STARTPROCESS
 
-42 10 % PRINT ; 2
+    300 WAIT
+    
+END
+
+
+
+
+
+#  --- Process 2: The Writer ---
+#  This process will repeatedly increment a shared counter and append it to a shared array.
+PROCESS 2
+    LABEL writerLoop
+    
+    #  Read, increment, and write back the shared counter
+    counter 1 + DUP AS counter
+    
+    #  Append the new counter value to the shared array
+    AS sharedArray
+    
+    #  Print what we did
+    'writer wrote: ' SHOW
+    counter PRINT
+    
+    #  Wait a bit to allow the reader to run
+    1 WAIT
+    1 WAIT 
+
+    #  Loop 5 times
+    counter 5 < GOTO writerLoop
+    
+    'writer finished.' SHOW
+END
+
+#  --- Process 3: The Reader ---
+#  This process will repeatedly read the shared counter and the array length.
+PROCESS 3
+    LABEL readerLoop
+    
+    'reader sees counter: ' SHOW
+    counter PRINT
+    
+    'reader sees array len: ' SHOW
+    sharedArray PRINT
+    
+    #  Wait a bit
+    1 WAIT
+    1 WAIT
+    
+    #  Loop until the writer is likely done
+    counter 5 < GOTO readerLoop
+    
+    'reader finished.' SHOW
+END
+
+#  --- Process 4: The Local Tester ---
+#  This process verifies that normal, non-shared variables and arrays still work correctly.
+PROCESS 4
+    0 AS localVar
+    ARRAY localArray 5
+    
+    'local tester starting.' SHOW
+    
+    #  Test local var
+    100 AS localVar
+    localVar 1 + AS localVar
+    'local var is: ' SHOW
+    localVar PRINT #  Should be 101
+    
+    #  Test local array
+    11 AS localArray
+    22 AS localArray
+    33 AS localArray
+    
+    'local array length is 3 : ' SHOW
+    localArray PRINT #  Should be 3
+    
+    'local array -1- is 22 : ' SHOW
+    1 [localArray] PRINT #  Should be 22
+    
+    'local tester finished.' SHOW
+END
+
+
+

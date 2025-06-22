@@ -16,13 +16,14 @@
 
 ; Words per Process Table Entry: State, CPUSlotID
 ; . $PTE_SIZE 1
-; % $PTE_SIZE 2
-equ ~PTE_SIZE 2
+; % $PTE_SIZE 2 ; Original size
+equ ~PTE_SIZE 3 ; Updated size for new field
 
 
 ; --- PTE Offsets (relative to start of a PTE) ---
 equ ~PTE_STATE 0
 equ ~PTE_CPU_SLOT_ID 1
+equ ~PTE_SYSCALL_RETVAL 2           ; New: For syscall return values (0=fail, 1=success)
 
 ; Stores the PID (0-4) of the currently executing process
 ; starts by default PID=0 (max total of 5 processes)
@@ -33,6 +34,7 @@ equ ~PTE_CPU_SLOT_ID 1
 equ ~PROC_STATE_FREE 0
 equ ~PROC_STATE_READY 1
 equ ~PROC_STATE_KERNEL_ACTIVE 3
+equ ~PROC_STATE_WAIT_FOR_UNLOCK 4 ; New: Process is waiting for the heap lock to be released
 
 ; --- Syscall Numbers ---
 ; Loader-defined syscalls (0-9 range typically for hardware/low-level)
@@ -47,15 +49,19 @@ equ ~SYSCALL_STOP_PROCESS 11        ; Input: PID in A. Sets target to FREE, rele
 equ ~SYSCALL_YIELD 19               ; New syscall for a process to voluntarily yield CPU time
 
 ; SIO Channel Management Syscalls
-equ ~SYSCALL_REQUEST_SIO_CHANNEL 12 ; Input: ChannelID in A. Output: Status in A. Claims SIO channel for caller.
-equ ~SYSCALL_RELEASE_SIO_CHANNEL 13 ; Input: ChannelID in A. Output: Status in A. Releases SIO channel if caller is owner.
-equ ~SYSCALL_WRITE_SIO_CHANNEL 14   ; Input: ChannelID in A, Data in B. Output: Status in A. Writes data if caller owns channel.
-equ ~SYSCALL_FORCE_RELEASE_SIO_CHANNEL 15 ; Input: ChannelID in A. Output: Status in A. Privileged release of SIO channel.
+equ ~SYSCALL_REQUEST_SIO_CHANNEL 12 ; Input: ChannelID in A. Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail)
+equ ~SYSCALL_RELEASE_SIO_CHANNEL 13 ; Input: ChannelID in A. Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail)
+equ ~SYSCALL_WRITE_SIO_CHANNEL 14   ; Input: ChannelID in A, Data in B. Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail, 2=write error)
+equ ~SYSCALL_FORCE_RELEASE_SIO_CHANNEL 15 ; Input: ChannelID in A. Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=invalid ID, 2=not privileged)
 
 ; Basic Output Syscalls (renumbered to avoid conflict)
 equ ~SYSCALL_PRINT_NUMBER 16        ; must be pointing to @print_to_BCD (printing.asm)
 equ ~SYSCALL_PRINT_CHAR 17          ; must be pointing to @print_char (printing.asm)
 equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.asm)
+
+; Heap Management Syscalls
+equ ~SYSCALL_LOCK_HEAP 20           ; Input: None. Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail/busy)
+equ ~SYSCALL_UNLOCK_HEAP 21         ; Input: None. Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail/not_owner)
 
 
 
@@ -66,6 +72,10 @@ equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.as
 % $SIO_OWNERSHIP_TABLE $SIO_TABLE   ; The pointer points to the table
 
 . $_initial_current_time_kernel_init 1 ; Temporary storage for initial time
+
+; --- Heap Lock Variables ---
+. $kernel_heap_lock_pid 1      ; Stores the PID of the process that locked the heap, or ~HEAP_LOCK_UNLOCKED
+equ ~HEAP_LOCK_UNLOCKED -1     ; Value indicating the heap is not locked
 
 
 @kernel_init
@@ -91,6 +101,7 @@ equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.as
     call @setup_syscall_vectors
     call @init_process_table
     call @init_sio_subsystem
+    call @_kernel_init_heap_lock      ; Initialize heap lock state
 
     # init the sheduler for now: Network Message Dispatcher
     # ldi M @network_message_dispatcher
@@ -223,8 +234,27 @@ INCLUDE networkdispatcher
     ld I M
     stx K $mem_start
 
+    ; --- Setup Heap Management Syscall ISRs ---
+    ldi K ~SYSCALL_LOCK_HEAP
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_lock_heap
+    ld I M
+    stx K $mem_start
+
+    ldi K ~SYSCALL_UNLOCK_HEAP
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_unlock_heap
+    ld I M
+    stx K $mem_start
+
     ret
 
+@_kernel_init_heap_lock
+    ldi A ~HEAP_LOCK_UNLOCKED
+    sto A $kernel_heap_lock_pid
+ret
 
 @init_process_table
     ; C is loop counter for PID
@@ -252,6 +282,12 @@ INCLUDE networkdispatcher
         addi I ~PTE_STATE
         stx M $mem_start 
 
+        ; Initialize syscall return value field for kernel (PID 0)
+        ldi M 0 ; Default to 0 (no error/success from a previous syscall)
+        ld I K ; K still base of PTE[0]
+        addi I ~PTE_SYSCALL_RETVAL
+        stx M $mem_start
+
         ; Kernel uses a pre-defined stack area, e.g. main stack or a specific kernel stack
 
         jmp :next_pte
@@ -263,6 +299,11 @@ INCLUDE networkdispatcher
     addi I ~PTE_STATE
     stx M $mem_start 
 
+    ; Initialize syscall return value field for user processes
+    ldi M 0 ; Default to 0
+    ld I K ; K still base of PTE[C]
+    addi I ~PTE_SYSCALL_RETVAL
+    stx M $mem_start
     # the CPU knows about the entry-point (PC) and stack-base (SP)
 
 :next_pte
@@ -349,16 +390,24 @@ ret
     ldx M $mem_start
     ; M = State of candidate process
 
+    ; Check if the candidate process is waiting for a heap unlock
+    tst M ~PROC_STATE_WAIT_FOR_UNLOCK
+    jmpt :_scheduler_skip_process ; If true, this process is waiting, skip it
+
+    ; Check if the candidate process is READY
     tst M ~PROC_STATE_READY
     jmpt :found_sched_process
+
+    ; Check if the candidate process is KERNEL_ACTIVE (kernel is always schedulable if it's its turn)
     tst M ~PROC_STATE_KERNEL_ACTIVE 
-    ; Kernel is always "ready"
     jmpt :found_sched_process
 
+:_scheduler_skip_process
+    ; This path is taken if the process is not READY, not KERNEL_ACTIVE,
+    ; or is explicitly in PROC_STATE_WAIT_FOR_UNLOCK.
     subi C 1 
     tst C 0
     jmpf :find_next_proc_loop 
-
     ; If loop finishes, no other READY process found, revert to old_pid
     ldm A $sched_old_pid
     ; Recalculate PTE address for old_pid if needed, or assume it's still valid
@@ -561,11 +610,11 @@ ret
 
 # SIO Request from here
 @_isr_request_sio_channel
-    ; Args: A = ChannelID
-    ; Returns: A = 0 for success (channel acquired), 1 for failure (invalid ID or channel busy)
+    ; Args: A = ChannelID (input)
+    ; Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail)
     ; Clobbers: K, M, I, C (internal usage)
 
-    ; Save ChannelID (from A) into C, as A will be used for return status.
+    ; Save ChannelID (from A) into C, as A will be used for return status value.
     ld C A
 
     ; 1. Validate ChannelID (C)
@@ -599,18 +648,16 @@ ret
     ld A C                              ; Move ChannelID from C to A for @open_channel
     call @open_channel                  ; Call the SIO hardware open routine
 
-    ldi A 0                             ; Set A = 0 (success)
-    jmp :_isr_req_sio_done
+    ldi A 0                             ; Set A = 0 (success status value)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 :_isr_req_sio_invalid_id_or_busy
-    ldi A 1                             ; Set A = 1 (failure: invalid ID or channel busy)
-
-:_isr_req_sio_done
-    rti
+    ldi A 1                             ; Set A = 1 (failure status value: invalid ID or channel busy)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 @_isr_release_sio_channel
-    ; Args: A = ChannelID
-    ; Returns: A = 0 for success (channel released), 1 for failure (invalid ID or not owner)
+    ; Args: A = ChannelID (input)
+    ; Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail)
     ; Clobbers: K, M, I, C (internal usage)
 
     ; Save ChannelID (from A) into C, as A will be used for return status.
@@ -645,18 +692,16 @@ ret
     ld A C                              ; Move ChannelID from C to A for @close_channel
     call @close_channel                 ; Call the SIO hardware close routine
 
-    ldi A 0                             ; Set A = 0 (success)
-    jmp :_isr_rel_sio_done
+    ldi A 0                             ; Set A = 0 (success status value)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 :_isr_rel_sio_fail
-    ldi A 1                             ; Set A = 1 (failure: invalid ID or not owner)
-
-:_isr_rel_sio_done
-    rti
+    ldi A 1                             ; Set A = 1 (failure status value: invalid ID or not owner)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 @_isr_write_sio_channel
-    ; Args: A = ChannelID, B = Data
-    ; Returns: A = 0 for success, 1 for failure (invalid ID, not owner), 2 for write error (channel specific)
+    ; Args: A = ChannelID (input), B = Data (input)
+    ; Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail, 2=write error)
     ; Clobbers: K, M, I, C (internal usage)
     ld C A ; C = ChannelID
 
@@ -681,21 +726,23 @@ ret
     ld A C              ; load A with ChannelID
     call @write_channel ; A holds the channelID, B holds the data to write
 
-
-    ldi A 0 ; Success (if @write_channel returns, it's considered a success at this level)
-    jmp :_isr_write_sio_done
+    ; Note: @write_channel might return status in A, but we overwrite it here.
+    ; If @write_channel needs to signal a *specific* write error (e.g., buffer full),
+    ; it would need to communicate that back to this ISR, perhaps via a register or global flag.
+    ; For now, we assume @write_channel succeeds if called.
+    ldi A 0 ; Set A = 0 (success status value)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 :_isr_write_sio_fail_invalid_id
-    ldi A 1 ; Failure: Invalid ChannelID
-    jmp :_isr_write_sio_done
+    ldi A 1 ; Set A = 1 (failure status value: Invalid ChannelID)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 :_isr_write_sio_fail_not_owner
-    ldi A 1 ; Failure: Not owner (can use same code as invalid ID for simplicity or a different one)
-:_isr_write_sio_done
-    rti
+    ldi A 1 ; Set A = 1 (failure status value: Not owner)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 @_isr_force_release_sio_channel
-    ; Args: A = ChannelID
-    ; Returns: A = 0 for success, 1 for invalid ID, 2 for not privileged
+    ; Args: A = ChannelID (input)
+    ; Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=invalid ID, 2=not privileged)
     ; Clobbers: K, M, I, C (internal usage)
     ld C A ; C = ChannelID
 
@@ -718,20 +765,20 @@ ret
     ld I C                              ; I = ChannelID_C (offset)
     stx M $SIO_OWNERSHIP_TABLE          ; M[$SIO_OWNERSHIP_TABLE + ChannelID_C] = 0
 
-    ldi A 0                             ; Set A = 0 (success)
-    jmp :_isr_force_rel_sio_done
+    ldi A 0                             ; Set A = 0 (success status value)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 :_isr_force_rel_sio_not_privileged
-    ldi A 2                             ; Set A = 2 (failure: not privileged)
-    jmp :_isr_force_rel_sio_done
+    ldi A 2                             ; Set A = 2 (failure status value: not privileged)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 :_isr_force_rel_sio_invalid_id
-    ldi A 1                             ; Set A = 1 (failure: invalid ID)
-
-:_isr_force_rel_sio_done
-    rti
+    ldi A 1                             ; Set A = 1 (failure status value: invalid ID)
+    jmp :_syscall_write_status_and_rti ; Write status to PCB and return
 
 @_isr_print_number
+    ; Args: A = number to print (input)
+    ; Output: None (or status via PCB if needed, but printing is usually fire-and-forget)
     ; Args: A = number to print
     call @print_to_BCD ; Assumes @print_to_BCD uses A and preserves other essential regs or syscall wrapper handles it.
     rti
@@ -739,6 +786,7 @@ ret
 @_isr_print_char
     ; Args: A = char to print
     call @print_char   ; Calls the routine from printing.asm that writes A to $VIDEO_MEM[$cursor_x, $cursor_y]
+    ; Output: None (or status via PCB if needed)
     inc X $cursor_x    ; Advance cursor_x after printing the character
     call @check_nl     ; Check if the new cursor position requires a newline (handles line wrap)
                        ; @check_nl itself might call @print_nl if necessary.
@@ -746,4 +794,125 @@ ret
 
 @_isr_print_nl
     call @print_nl
+    ; Output: None (or status via PCB if needed)
     rti
+
+;-------------------------------------------------------------------------------
+; System Call: Lock Heap
+; INT ~SYSCALL_LOCK_HEAP
+; Attempts to lock the heap for the current process.
+; Output: Status (0 for success, 1 for failure/busy) is written to
+;         M[$PROCESS_TABLE_BASE + ($CURRENT_PROCESS_ID * ~PTE_SIZE) + ~PTE_SYSCALL_RETVAL]
+; Registers Clobbered by ISR: A, K, M, I (internal usage)
+;-------------------------------------------------------------------------------
+@_isr_lock_heap
+    ldm K $CURRENT_PROCESS_ID    ; K = current process ID
+    ldm M $kernel_heap_lock_pid  ; M = current heap lock PID
+
+    tst M ~HEAP_LOCK_UNLOCKED    ; Is heap unlocked (M == ~HEAP_LOCK_UNLOCKED)?
+    jmpf :_lock_heap_is_locked   ; If not (status=0), heap is already locked by someone
+
+    ; Heap is unlocked, acquire lock
+    sto K $kernel_heap_lock_pid  ; Store current PID (K) as lock owner
+    ldi A 0                      ; Set return status to 0 (success)
+    ; Fall through to _syscall_write_status_and_rti
+
+:_lock_heap_is_locked
+    ; Heap was already locked.
+    ; Check if the current process (K) is ALREADY the owner (M) (re-entrant lock attempt)
+    tste M K                     ; Is M (current lock owner) == K (current process)?
+    jmpt :_lock_heap_owned_by_self ; If equal, it's a re-entrant lock attempt
+
+    ; Heap is locked by *another* process. Set current process to WAIT_FOR_UNLOCK state.
+    ; Get address of current process's PTE state field
+    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
+    ld I K                      ; I = current_pid (K)
+    muli I ~PTE_SIZE            ; I = current_pid * PTE_SIZE
+    add M I                     ; M = address of PTE for current_pid
+    addi M ~PTE_STATE           ; M = address of PTE[current_pid].state
+    ld I M                      ; I = direct address of the state field
+    ldi A ~PROC_STATE_WAIT_FOR_UNLOCK ; A = new state value
+    stx A $mem_start            ; M[I] = ~PROC_STATE_WAIT_FOR_UNLOCK
+
+    ; Set syscall return value for the waiting process (will be checked when it resumes)
+    ldi A 1 ; Set A = 1 (failure/busy status value)
+    jmp :_syscall_write_status_and_rti ; Common exit path
+
+:_lock_heap_owned_by_self
+    ; Heap was already locked BY THIS PROCESS. Treat as success.
+    ldi A 0                      ; Set return status to 0 (success for re-entrant)
+    ; Fall through to _syscall_write_status_and_rti
+
+;-------------------------------------------------------------------------------
+; Common Syscall Exit: Write Status to PCB and Return
+; Expects: A = status value (0, 1, or other small integer)
+; Clobbers: M, I (internal usage)
+;-------------------------------------------------------------------------------
+:_syscall_write_status_and_rti
+    ; K still holds current_pid (or was clobbered but that's fine if not used after this point for PID)
+    ; A holds the status (0 or 1)
+    ; Write status A to PCB[current_pid].~PTE_SYSCALL_RETVAL
+    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
+    ldm I $CURRENT_PROCESS_ID   ; I = current_pid (reload, as K might have been used)
+    muli I ~PTE_SIZE            ; I = current_pid * PTE_SIZE
+    add M I                     ; M = address of PTE for current_pid
+    addi M ~PTE_SYSCALL_RETVAL  ; M = address of PTE[current_pid].syscall_retval
+    ld I M                      ; I = direct address of the syscall_retval field
+    stx A $mem_start            ; M[I] = status_value_from_A
+    rti
+
+;-------------------------------------------------------------------------------
+; System Call: Unlock Heap
+; INT ~SYSCALL_UNLOCK_HEAP
+; Attempts to unlock the heap if the current process owns the lock.
+; Output: Status (0 for success, 1 for failure/not_owner) is written to
+;         M[$PROCESS_TABLE_BASE + ($CURRENT_PROCESS_ID * ~PTE_SIZE) + ~PTE_SYSCALL_RETVAL]
+; Registers Clobbered by ISR: A, K, M, I (internal usage)
+;-------------------------------------------------------------------------------
+@_isr_unlock_heap
+    ldm K $CURRENT_PROCESS_ID    ; K = current process ID
+    ldm M $kernel_heap_lock_pid  ; M = current heap lock PID
+    ldi A 1 ; Default return status to 1 (failure/not_owner)
+    tste M K                     ; Is heap locked by current process (M == K)?
+    jmpf :_syscall_write_status_and_rti ; If not, current process is not owner, A is still 1 (failure)
+
+    ; Current process owns the lock, release it
+    ldi M ~HEAP_LOCK_UNLOCKED    ; M = value to store for unlocking
+    sto M $kernel_heap_lock_pid  ; Unlock the heap
+
+    ; --- Wake up waiting processes ---
+    ; Iterate through user processes (PID 1 to MAX_PROCESSES-1)
+    ; K is currently current_pid of unlocker. We need a loop counter. Let's use B for pid_to_check.
+    ; C will hold MAX_PROCESSES. M will be used for PTE base and state value. I for address.
+    ldm C $MAX_PROCESSES        ; C = MAX_PROCESSES (e.g., 5)
+    ldi B 1                     ; B = current_pid_to_check (start from PID 1, PID 0 is kernel)
+
+:_unlock_heap_wake_loop
+    tste B C                    ; Is current_pid_to_check (B) == MAX_PROCESSES (C)?
+    jmpt :_unlock_heap_wake_done ; If equal, done iterating (PIDs are 0 to MAX_PROCESSES-1)
+
+    ; Calculate address of PTE[B].state
+    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
+    ld I B                      ; I = current_pid_to_check (B)
+    muli I ~PTE_SIZE            ; I = current_pid_to_check * PTE_SIZE
+    add M I                     ; M = address of PTE for current_pid_to_check
+    addi M ~PTE_STATE           ; M = address of PTE[B].state
+    ld I M                      ; I = direct address of the state field
+    ldx K $mem_start            ; K = M[I] = state of current_pid_to_check (B)
+
+    ; Check if state is WAIT_FOR_UNLOCK
+    tst K ~PROC_STATE_WAIT_FOR_UNLOCK
+    jmpf :_unlock_heap_next_wake_check ; If not equal, check next process
+
+    ; State is WAIT_FOR_UNLOCK, set to READY
+    ldi K ~PROC_STATE_READY     ; K = new state value
+    ; I still holds the address of PTE[B].state
+    stx K $mem_start            ; M[I] = ~PROC_STATE_READY
+
+:_unlock_heap_next_wake_check
+    addi B 1                    ; Increment current_pid_to_check
+    jmp :_unlock_heap_wake_loop
+
+:_unlock_heap_wake_done
+    ldi A 0                      ; Set return status to 0 (success)
+    jmp :_syscall_write_status_and_rti ; Jump to common status write & rti

@@ -1,4 +1,4 @@
-import enum
+import enum 
 import sys
 from typing import Optional
 
@@ -256,11 +256,15 @@ class TokenType(enum.Enum):
     CONNECTION = 131
     READ = 132
     WRITE = 133
-    PROCESS = 134      # New
+    
+    PROCESS = 134     
     # ENDPROCESS is not needed, END (112) will be used
-    STARTPROCESS = 135 # New
-    STOPPROCESS = 136  # New
-    MYPID = 137        # New (can be treated as a keyword for expressions)
+    STARTPROCESS = 135
+    STOPPROCESS = 136  
+    MYPID = 137       
+
+    SHARED = 138       # New
+    VAR = 139          # New
 
     PLUS = 201
     MINUS = 202
