@@ -1,247 +1,65 @@
-
-
 The STERN-1 project is a custom virtual machine/emulator with its own assembly language and a higher-level language called STACKS. 
 It features a multi-processing kernel (V3) managing processes with dedicated 1KB memory blocks for code, stack, and local variables. 
 Emulated hardware includes a screen, keyboard, virtual disk, serial I/O, plotter, RTC, and network interface. 
 The assembler supports standard instructions, directives, labels, and constants, distinguishing between local ($) and global/shared (&) symbols. 
 The STACKS language, compiled to assembly, supports basic data types, operators, control flow, and runtime interactions with the emulated hardware, and is multi-process compatible
+check the current state of networkNICrc.py, asm/incl/networkR3.asm, asm/incl/stern_runtime.asm, asm/incl/networkdispatcher.asm
 
-i found 3x1024 unused memory and i like to introduce an memoryheap where PROCESSES can store and share vars and arrays
-Herefore i like to build an static heap at top of the last process block (now its tunning 4 processes).
-In STACKS a shared/heap allocation is done by SHARED VAR varname, or SHARED ARRAY myArray 16. 
-When two PROCESSES define the same shared symbol, they share the symbol
+i like to make the current networkstack, networkNICrc.py, asm/incl/networkR3.asm and asm/incl/stern_runtime.asm, asm/incl/networkdispatcher.asm multiprocessing aware.
 
-when reading/writing to an shared adress, 
-- the kernel will check if the heap is locked (an other proces is using the heap), 
-- if not it locks the heap, and is doing the  read/write operation, 
-- after the operation is done, the kernel will release the lock
+the current situation the networkNICrc.py is taking care of reliable sending of the messages and when a message is received, the receive interrupt place the message in the circular networkbuffer.
+the scheduled networkdispatcher reads the networkbuffer and start the correct network serivce, the echo service (service ID 1) will echo the message back to the sender. servie ID 0 is an general receiver service with place the message in 1 general buffer for the application (proces) to read.
 
-if the heap is locked when a process is requestion an read/write operation to the heap, 
-- the kernel changed the process status to WAIT_FOR_UNLOCK, 
-- and this proces will not be scheduled anymore. 
-- when the kernel unlocks the previous proces it checks if any proces is WAIT_FOR_UNLOCK, 
-- if there   its finds one, it will set the proces stattus to READY, so it will be scheduled again.
+oversee the current codebase, there are two options:
+1) enhanche the low-level networkstack so the protocol know about the proces, or
+2) the process ID of the receiver is encoded in the payload
 
-the assembler is using the &-prefix for global symbols, 
-- so when in the STACKS language a SHARED symbol is defined, 
-- it will generate ". &myVar 1" instead of ". $myVar 1" (for unshared symbols). 
-- the assembler keeps track of the shared symbols globaly like the assembler does in 'kernel' mode for non-shared symbols. 
-- where the private symbols are reset before an new .PROCESS starts, shared object must not be reset at that point. 
-- But the shared objects are reset when the restore flag of the assembler is true 
-- (so if you want to share symbols in PROCESSES, the processes must be defined in the same sourcefile)
+i prefer option 2, but it must be done in a Stern/STACKS way of thinking
 
-While the kernel is resposible for the actually LOCK/UNLOCK and rescheduling, 
-the stern_runtime must provide routines to hide the heavylifting from the assembler
+---
 
+**Plan for Implementing Process-Aware Networking**
 
+**1. Goal:**
+Enable processes to send network messages directly to other processes, both on the same machine and on different machines, by embedding the target Process ID (PID) into the message payload. This keeps the low-level transport protocol generic while adding application-level routing.
 
-write an plan for implementing a memory heap for the stern-1 project and the STACKS languae
+**2. Protocol and Payload Convention:**
+*   **Service ID:** Service ID `0` will be repurposed as the dedicated "Process Routing Service". All messages intended for a specific process will use this service ID.
+*   **Payload Encoding:** The 16-bit data payload of a message sent with Service ID 0 will be encoded using a simple arithmetic scheme: `packed_value = (data_to_send * 10) + target_PID`.
+*   **Payload Unpacking:** The receiving dispatcher will use the `dmod` instruction with a divisor of 10 to unpack the payload. The quotient will be the original data, and the remainder will be the target PID.
+*   **Constraints:** This approach limits PIDs to the range 0-9, which is sufficient for the current STERN-1 kernel (4 user processes).
 
-**Plan for Implementing a Memory Heap in STERN-1**
+**3. `networkdispatcher.asm` Modifications:**
+*   **Per-Process Inboxes:**
+    *   The single global buffer for service 0 (`$SERVICE0_DATA_BUFFER`) will be replaced by a set of ring buffers, one for each user process.
+    *   A memory block (`$PROC_INBOX_MEMORY_BLOCK`) will be allocated to hold all inboxes.
+    *   Pointer tables (`$PROC_INBOX_ADDR_TABLE`, `$PROC_INBOX_WPTR_TABLE`, `$PROC_INBOX_RPTR_TABLE`) will be created to manage the base address and read/write pointers for each process's inbox, indexed by PID.
+    *   An initialization routine, `@init_process_inboxes`, will be created for the kernel to call at startup to set up these tables.
+*   **New Service Router (`@service_handler_router`):**
+    *   The existing `@service_handler_0` will be replaced with `@service_handler_router`.
+    *   This new handler will be responsible for:
+        1.  Unpacking the target PID and data from the received payload.
+        2.  Validating the PID.
+        3.  Looking up the correct inbox for the target PID using the pointer tables.
+        4.  Writing the message (`source_address`, `data`) into the process's ring buffer. It will handle buffer-full conditions by overwriting the oldest message.
+*   **Service Jump Table Update:**
+    *   The entry for Service ID 0 in `$SERVICE_JUMP_TABLE` will be updated to point to `@service_handler_router`.
 
-**1. Heap Memory Region Definition:**
+**4. `stern_runtime.asm` Modifications (New APIs):**
+*   **`@read_process_message`:**
+    *   A new runtime routine for a process to read from its personal network inbox.
+    *   It will use the calling process's PID (obtained via a kernel syscall) to find the correct inbox, read the next available message (`source_address`, `data`).
+    *   It will push the `source_address`, `data`, and a status flag (0 for success, 1 for empty) onto the STACKS stack.
+    *   On STACKS stack (top to bottom): `status`, `data`, `src_addr` (if success).
+*   **`@stacks_process_write`:**
+    *   A new runtime routine (or a template for the STACKS compiler) for sending a message to a specific process.
+    *   It will take a destination NIC, destination PID, and data value as input.
+    *   It will pack the PID and data according to the `(data * 10) + PID` convention.
+    *   It will then call the existing `@send_data_packet_sub` with the appropriate arguments (destination NIC, packed data, service ID 0).
 
-*   **Location:** The static heap will be located at the top of the last process block. Given that there are currently 4 processes, and each process has a 1KB block for code, 1KB for stack, and 1KB for local variables, the heap will start after these 4 * 3KB = 12KB of process memory.
-*   **Size:** The prompt mentions "3x1024 unused memory". This will be the initial size of the heap (3KB).
-*   **Kernel Awareness:** The kernel needs to know the start address and size of this heap region.
-
-**2. Kernel Modifications (Kernel V3):**
-
-*   **Heap Lock Management:**
-    *   Introduce a global kernel variable (e.g., `heap_lock_status`, `heap_locked_by_pid`).
-    *   **`LOCK_HEAP` Syscall/Internal Function:**
-        *   Checks if the heap is already locked.
-        *   If not locked, marks it as locked by the current Process ID (PID) and returns success.
-        *   If locked, returns a failure or a specific status indicating it's locked.
-    *   **`UNLOCK_HEAP` Syscall/Internal Function:**
-        *   Checks if the current PID is the one that locked the heap.
-        *   If yes, unlocks the heap.
-        *   Crucially, after unlocking, it must check for any processes in the `WAIT_FOR_UNLOCK` state.
-        *   If such processes exist, pick one (e.g., FIFO basis), change its status to `READY`, and potentially reschedule immediately or let the scheduler pick it up.
-*   **Process State Management:**
-    *   Introduce a new process state: `WAIT_FOR_UNLOCK`.
-    *   The scheduler must be modified to skip processes in the `WAIT_FOR_UNLOCK` state.
-*   **Shared Memory Access Handling (within Syscalls for read/write):**
-    *   When a process attempts to read/write to an address within the shared heap region (identified by the `&` prefix, which the assembler/runtime will translate to an absolute heap address):
-        1.  Attempt to `LOCK_HEAP`.
-        2.  If `LOCK_HEAP` succeeds:
-            *   Perform the read/write operation.
-            *   Call `UNLOCK_HEAP`.
-            *   Return the result/status to the process.
-        3.  If `LOCK_HEAP` fails (because it's already locked by another process):
-            *   Change the current process's status to `WAIT_FOR_UNLOCK`.
-            *   The process will yield, and the scheduler will pick another `READY` process. The kernel will *not* immediately retry the operation for this process; it will wait until `UNLOCK_HEAP` makes it `READY` again.
-*   **Shared Symbol Management (Kernel's Role):**
-    *   The kernel itself doesn't directly manage STACKS/assembly symbol names. Its primary role is managing the memory region and access control (locking). The translation of `&myVar` to a specific heap address is handled by the assembler and runtime.
-
-**3. Assembler Modifications:**
-
-*   **Symbol Table Extension:**
-    *   Maintain a separate global symbol table for shared symbols (those prefixed with `&`).
-    *   This table will store the symbol name and its allocated offset within the heap.
-*   **`&` Prefix Handling:**
-    *   When an instruction operand or a `. ` directive uses `&symbol`:
-        *   If `symbol` is new, allocate space for it in the shared heap region (incrementing a global heap pointer/offset) and store it in the shared symbol table.
-        *   Resolve `&symbol` to its absolute memory address (Heap Base + Offset).
-*   **`.PROCESS` Directive Behavior:**
-    *   The private symbol table (for `$symbols`) should be reset when a new `.PROCESS` directive is encountered (as it currently does).
-    *   The **shared symbol table** (for `&symbols`) and the heap pointer/offset **must not** be reset when a new `.PROCESS` directive is encountered *within the same source file compilation*. This allows processes defined in the same file to share symbols.
-*   **`restore` Flag Behavior:**
-    *   When the assembler's `restore` flag is true (typically at the start of a new, independent compilation session), the shared symbol table and the heap pointer/offset **must be reset**. This ensures a clean slate for new programs and prevents symbol clashes between unrelated compilations.
-*   **Directive for Shared Data:**
-    *   The `. &myVar 1` syntax is good. The assembler will interpret this as:
-        *   `&myVar`: A shared symbol.
-        *   `1`: The size (in words/bytes, depending on assembler convention) to allocate for this shared variable in the heap.
-
-**4. STACKS Language Compiler Modifications:**
-
-*   **`SHARED VAR varname`:**
-    *   When encountered, the compiler should generate assembly like:
-        ```assembly
-        . &varname 1 ; Assuming 1 word/unit for a VAR
-        ```
-*   **`SHARED ARRAY arrayName size`:**
-    *   When encountered, the compiler should generate assembly like:
-        ```assembly
-        . &arrayName size
-        ```
-*   **Symbol Resolution:**
-    *   When `varname` or `arrayName` (that was declared `SHARED`) is used in STACKS expressions, the compiler must ensure that the generated assembly references it using the `&` prefix (e.g., `LOAD A, &varname`).
-
-**5. `stern_runtime` Modifications:**
-
-*   **Purpose:** To provide higher-level routines that STACKS-compiled assembly (and potentially hand-written assembly) can call to interact with shared variables/arrays, abstracting the locking/unlocking and syscalls.
-*   **`RUNTIME_SHARED_WRITE (address_in_heap, value)`:**
-    *   Internally, this routine will:
-        1.  Make a syscall to the kernel to request a write to the `address_in_heap`.
-        2.  The kernel handles the locking:
-            *   If heap is free: lock, write, unlock, return.
-            *   If heap is busy: set process to `WAIT_FOR_UNLOCK`, current runtime call effectively blocks until process becomes `READY` again and the kernel re-attempts/completes the write.
-*   **`RUNTIME_SHARED_READ (address_in_heap)`:**
-    *   Internally, this routine will:
-        1.  Make a syscall to the kernel to request a read from the `address_in_heap`.
-        2.  The kernel handles the locking similarly to the write operation.
-        3.  Returns the read value.
-*   **Address Calculation:**
-    *   The STACKS compiler, when generating code that uses these runtime functions, will be responsible for passing the correct absolute heap address of the shared variable (which it gets from the assembler's `&symbol` resolution).
-
-**Implementation Steps & Order:**
-
-1.  **Kernel - Heap Region & Basic Lock:**
-    *   **Status: COMPLETED**
-    *   **Summary:**
-    *   **Conceptual Heap Region:** Define the heap memory region to start at address `8192` (after 4 user process blocks of 1KB each, assuming kernel processes also use similar blocks or are accounted for before this) and have a size of `3072` bytes (ending at `11263`).
-    *   **Kernel Lock Variables:** Implement a kernel global variable `$kernel_heap_lock_pid` to store the PID of the locking process, and `~HEAP_LOCK_UNLOCKED` for the unlocked state.
-    *   **Syscalls for Locking:** Create `~SYSCALL_LOCK_HEAP` and `~SYSCALL_UNLOCK_HEAP`.
-        *   `_isr_lock_heap`: Attempts to acquire the lock. Allows re-entrant calls from the current lock owner.
-        *   `_isr_unlock_heap`: Releases the lock if held by the calling process.
-    *   **Status Return via PCB:** Syscall success/failure (0 for success, non-zero for failure/busy/not_owner) is returned by writing to a new `~PTE_SYSCALL_RETVAL` field in the calling process's Process Table Entry (PTE). `~PTE_SIZE` is updated accordingly.
-    *   **Initialization:**
-        *   `@_kernel_init_heap_lock`: Initializes `$kernel_heap_lock_pid` to `~HEAP_LOCK_UNLOCKED` during kernel startup.
-        *   `@init_process_table`: Initializes `~PTE_SYSCALL_RETVAL` for all processes.
-        *   `@setup_syscall_vectors`: Sets up IVT entries for the new syscalls.
-    *   *This step does not yet include changing process states to `WAIT_FOR_UNLOCK` or modifying the scheduler for heap contention.*
-2.  **Assembler - Shared Symbol Table & `&` Prefix:**
-    *   **Status: COMPLETED**
-    *   **Summary:**
-        *   Defined heap constants (`DEFAULT_SHARED_HEAP_START_ADDRESS`, `DEFAULT_SHARED_HEAP_SIZE`).
-        *   Added assembler attributes: `shared_symbols` (dictionary for `&symbol` -> heap address) and `NextSharedVarPointer` (tracks next free heap address).
-        *   Modified `parse_symbols` to handle `. &symbol size` directives, allocating space in the heap region and performing necessary checks (redefinition, overflow).
-        *   Updated `get_adres` and `get_value` to correctly resolve `&`-prefixed symbols to their absolute heap addresses.
-        *   Modified `generate_binary` to allow the `% &target_symbol ...` directive for initializing shared memory locations.
-        *   Updated `save_state` and `restore_state` to include `shared_symbols` and `NextSharedVarPointer`, ensuring correct behavior with the `restore=True` flag for isolating or persisting shared symbol definitions across assembly calls.
-        *   Ensured that `shared_symbols` and `NextSharedVarPointer` are *not* reset upon encountering a `.PROCES` directive within the same assembly file, allowing processes defined in that file to share these symbols.
-3.  **STACKS Compiler - `SHARED` Keyword:**
-    *   **Status: COMPLETED**
-    *   **Summary:**
-        *   Updated `lexV3.py` to recognize `SHARED` and `VAR` keywords.
-        *   Updated `parseV3.py` to:
-            *   Parse `SHARED VAR varname` and `SHARED ARRAY arrayName size` declarations.
-            *   Correctly handle name collision checks for shared symbols against local symbols, functions, and connections.
-            *   Generate appropriate assembly using the `&` prefix for shared symbols when they are declared, assigned to (`AS`), or accessed (e.g., reading length or value).
-        *   Updated `emitV3.py` to include `emitSharedDataLine` for placing shared symbol definitions (`. &symbol size`) in a distinct section of the output assembly, separate from per-process code.
-4.  **Kernel - Process States & Scheduler for Heap:**
-    *   **Status: COMPLETED**
-    *   **Part 4.1: Define New Process State and Modify Scheduler to Skip It**
-        *   **Status: COMPLETED**
-        *   **Goal:** Introduce the `~PROC_STATE_WAIT_FOR_UNLOCK` state and ensure the scheduler ignores processes in this state.
-        *   **Tasks:**
-            1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, define the new process state: `equ ~PROC_STATE_WAIT_FOR_UNLOCK 4`
-            2.  Modify `scheduler_round_robin` in `/home/janrutger/git/STERN-1/asm/kernel3.asm` to skip processes if their state is `~PROC_STATE_WAIT_FOR_UNLOCK`.
-        *   **Summary:** Defined `~PROC_STATE_WAIT_FOR_UNLOCK` (value 4). Modified `scheduler_round_robin` to check the state of a candidate process; if it's `~PROC_STATE_WAIT_FOR_UNLOCK`, the scheduler skips it and continues to the next process.
-    *   **Part 4.2: Modify `_isr_lock_heap` to Set Waiting State**
-        *   **Status: COMPLETED**
-        *   **Goal:** When a process tries to lock an already locked heap (and it's not the owner), change its state to `~PROC_STATE_WAIT_FOR_UNLOCK`.
-        *   **Tasks:**
-            1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, within `_isr_lock_heap`:
-                *   If the heap is locked by another process, get the current process's PTE state field address.
-                *   Set the process state to `~PROC_STATE_WAIT_FOR_UNLOCK`.
-                *   Set syscall return value to 1 (failure/busy) and `rti`.
-        *   **Summary:** In `_isr_lock_heap`, if the heap is locked by a different process, the current process's state in its PTE is updated to `~PROC_STATE_WAIT_FOR_UNLOCK`. The syscall returns 1 (busy/failure) to the process (via `~PTE_SYSCALL_RETVAL`). Re-entrant locks by the same owner are still treated as success.
-    *   **Part 4.3: Modify `_isr_unlock_heap` to Wake Up Waiting Processes**
-        *   **Status: COMPLETED**
-        *   **Goal:** When the heap is unlocked, find any processes waiting for it and set them back to `READY`.
-        *   **Tasks:**
-            1.  In `/home/janrutger/git/STERN-1/asm/kernel3.asm`, within `_isr_unlock_heap`:
-                *   After releasing the lock, loop through user processes.
-                *   For each process, if its state is `~PROC_STATE_WAIT_FOR_UNLOCK`, change it to `~PROC_STATE_READY`.
-                *   Set syscall return value to 0 (success) and `rti`.
-        *   **Summary:** In `_isr_unlock_heap`, after the lock is released, the ISR iterates through all user processes (PID 1 to `MAX_PROCESSES-1`). If a process is found in the `~PROC_STATE_WAIT_FOR_UNLOCK` state, its state is changed to `~PROC_STATE_READY`, making it eligible for scheduling again. The syscall returns 0 (success).
-    *   **Overall Summary:** The kernel now supports a `~PROC_STATE_WAIT_FOR_UNLOCK` state. The `_isr_lock_heap` syscall will place a process into this state if it attempts to lock an already busy heap (not owned by itself). The `_isr_unlock_heap` syscall will iterate through waiting processes and set them to `READY` upon unlock. The `scheduler_round_robin` has been updated to skip processes that are in the `~PROC_STATE_WAIT_FOR_UNLOCK` state.
-5.  **`stern_runtime` - Shared Access Routines:**
-    *   **Status: IN PROGRESS**
-    *   **Part 5.1: Implement `@stacks_shared_var_write`**
-        *   **Status: COMPLETED**
-        *   **Goal:** Create a runtime routine to write a single value to a shared heap address, handling locking.
-        *   **Tasks:**
-            1.  Define `@stacks_shared_var_write` in `stern_runtime.asm`.
-            2.  Expects `heap_address` and `value` on STACKS stack.
-            3.  Loop: call `~SYSCALL_LOCK_HEAP`, check `~PTE_SYSCALL_RETVAL`. If success (0), write value, call `~SYSCALL_UNLOCK_HEAP`, return. If fail (1), loop (kernel handles `WAIT_FOR_UNLOCK`).
-        *   **Summary:** Implemented `@stacks_shared_var_write` in `stern_runtime.asm`. It pops `value` and `heap_address` from the STACKS stack. It then enters a loop, calling `~SYSCALL_LOCK_HEAP` and checking the return status in the process's PTE. If the lock is acquired (status 0), it performs the memory write, calls `~SYSCALL_UNLOCK_HEAP`, and returns. If the lock is busy (status 1), the kernel sets the process to `WAIT_FOR_UNLOCK`, and upon resumption, the routine retries the lock.
-    *   **Part 5.2: Implement `@stacks_shared_var_read`**
-        *   **Status: COMPLETED**
-        *   **Goal:** Create a runtime routine to read a single value from a shared heap address, handling locking.
-        *   **Tasks:**
-            1.  Define `@stacks_shared_var_read` in `stern_runtime.asm`.
-            2.  Expects `heap_address` on STACKS stack.
-            3.  Loop: call `~SYSCALL_LOCK_HEAP`, check `~PTE_SYSCALL_RETVAL`. If success (0), read value, call `~SYSCALL_UNLOCK_HEAP`, push value to stack, return. If fail (1), loop.
-        *   **Summary:** Implemented `@stacks_shared_var_read` in `stern_runtime.asm`. It pops `heap_address` from the STACKS stack. It uses the same locking loop as `@stacks_shared_var_write`. Once locked, it reads the value from the heap, calls `~SYSCALL_UNLOCK_HEAP`, pushes the read value onto the STACKS stack, and returns.
-    *   **Part 5.3: Define Heap Region Constants for Runtime & Helper for Address Check**
-        *   **Status: COMPLETED**
-        *   **Goal:** Make heap boundaries known to runtime and create a helper to check if an address is in the shared heap.
-        *   **Tasks:**
-            1.  Define `$SHARED_HEAP_START_ADDRESS` and `$SHARED_HEAP_END_ADDRESS` (or size) in `stern_runtime.asm`.
-            2.  Implement helper `@_is_shared_address` (input: address, output: status bit/register indicating if shared).
-        *   **Summary:** Defined `~$SHARED_HEAP_START_ADDRESS` (8192) and `~$SHARED_HEAP_END_ADDRESS` (11263) in `stern_runtime.asm`. Implemented `@_is_shared_address` which takes an address in register A and sets the CPU status bit to 1 if the address is within the shared heap, 0 otherwise.
-     *   **Part 5.4: Modify `@stacks_array_write` to be Heap-Aware**
-        *   **Status: COMPLETED**
-        *   **Goal:** Update `@stacks_array_write` to use locking for shared heap arrays.
-        *   **Tasks:**
-            1.  Call `@_is_shared_address`. If shared: loop for `~SYSCALL_LOCK_HEAP`, then write, then `~SYSCALL_UNLOCK_HEAP`. Else: original logic.
-        *   **Summary:** Implemented the heap-aware logic for `@stacks_array_write`. A new internal helper, `@_array_write_logic`, was created to contain the core operation (bounds check, write, length update), separating it from concurrency control. The main `@stacks_array_write` routine now uses `@_is_shared_address` to check if the array's base address is in the shared heap. If it is, the operation is wrapped in a `LOCK_HEAP`/`UNLOCK_HEAP` syscall sequence to ensure atomicity between processes. If the array is local, it continues to use the `di`/`ei` instruction pair for atomicity. This dual approach ensures both correctness and efficiency.
-    *   **Part 5.5: Modify `@stacks_array_read` to be Heap-Aware**
-        *   **Status: COMPLETED**
-        *   **Goal:** Update `@stacks_array_read` for shared heap arrays.
-        *   **Tasks:**
-            1.  Similar to 5.4: check, lock if shared, read, unlock if shared.
-        *   **Summary:** Implemented heap-awareness for `@stacks_array_read`, mirroring the changes from Part 5.4. A new internal helper, `@_array_read_logic`, was created to handle the core bounds-checking and read operation. The main `@stacks_array_read` routine now uses `@_is_shared_address` to determine if the array is local or shared. It applies the appropriate atomicity mechanism (`di`/`ei` for local, `LOCK_HEAP`/`UNLOCK_HEAP` for shared) before calling the helper. This ensures safe concurrent reads from both local and shared arrays.
-    *   **Part 5.6: Modify `@stacks_array_append` to be Heap-Aware**
-        *   **Status: COMPLETED**
-        *   **Goal:** Update `@stacks_array_append` for shared heap arrays (critical: modifies metadata).
-        *   **Tasks:**
-            1.  Similar to 5.4: entire append operation (read/write metadata and data) within lock/unlock if shared.
-        *   **Summary:** Implemented heap-awareness for `@stacks_array_append`. A new helper, `@_array_append_logic`, was created to contain the critical multi-step logic of checking capacity, writing the new element, and updating the array's length. The main `@stacks_array_append` routine now uses this helper, wrapping the call in either `di`/`ei` for local arrays or the full `LOCK_HEAP`/`UNLOCK_HEAP` syscall sequence for shared arrays, ensuring this complex operation is fully atomic in both contexts.
-    *   **Part 5.7: Modify `@stacks_array_length` to be Heap-Aware**
-        *   **Status: COMPLETED**
-        *   **Goal:** Update `@stacks_array_length` for shared heap arrays.
-        *   **Tasks:**
-            1.  Similar to 5.4: check, lock if shared, read length, unlock if shared.
-        *   **Summary:** Implemented heap-awareness for `@stacks_array_length`. A new internal helper, `@_array_length_logic`, was created to encapsulate the simple read of the array's length. The main `@stacks_array_length` routine now uses `@_is_shared_address` to determine if the array is local or shared. It applies the appropriate atomicity mechanism (`di`/`ei` for local, `LOCK_HEAP`/`UNLOCK_HEAP` for shared) before calling the helper, ensuring safe and atomic retrieval of array lengths from both local and shared memory. This completes the modifications for all array-related runtime routines.
-    *   **Overall Goal:**
-        *   Implement new routines: `@stacks_shared_var_write` and `@stacks_shared_var_read`. These routines will take a heap address (and value for write) from the STACKS stack. They will use `~SYSCALL_LOCK_HEAP` and `~SYSCALL_UNLOCK_HEAP` to safely access the shared variable.
-        *   Modify existing array manipulation routines (`@stacks_array_write`, `@stacks_array_read`, `@stacks_array_append`, `@stacks_array_length`) to become "heap-aware."
-            *   These routines will need to determine if the base address passed to them (from the STACKS stack) falls within the shared heap region (using the helper from Part 5.3).
-            *   If the address is in the shared heap, they must use the lock/operate/unlock pattern.
-            *   If the address is not in the shared heap (i.e., it's a local array), they should operate as they do currently.
-        *   All routines interacting with the heap will implement a loop to re-attempt `~SYSCALL_LOCK_HEAP` if it initially fails (returns 1). The kernel's action of setting the process to `WAIT_FOR_UNLOCK` and then back to `READY` (by another process unlocking) will allow the loop to eventually succeed.
-6.  **Integration and Testing:**
+**5. Required Changes Summary:**
+*   **`networkNICr2.py`:** No changes required. The NIC hardware emulation correctly treats the payload as an opaque value.
+*   **`asm/incl/networkR3.asm`:** No changes required. The reliable transport layer (`@send_data_packet_sub`, ISR logic) remains the same.
+*   **`asm/incl/networkdispatcher.asm`:** Major changes. Implement per-process inboxes and the new `@service_handler_router`.
+*   **`asm/incl/stern_runtime.asm`:** Add new API routines `@read_process_message` and `@stacks_process_write`.
+*   **`asm/kernel3.asm`:** A small change will be needed to call `@init_process_inboxes` during kernel initialization. A syscall to get the current PID (`~SYSCALL_GET_PID`) is also assumed to exist.

@@ -167,6 +167,9 @@ int ~SYSCALL_PRINT_NL
 ldi A 1
 push A
 call @stacks_sleep
+ldi A 1
+push A
+call @stacks_sleep
 ldm A &counter
 push A
 ldi A 5
@@ -328,6 +331,12 @@ call @stacks_array_length
 pop A
 int ~SYSCALL_PRINT_NUMBER
 int ~SYSCALL_PRINT_NL
+ldi A 1
+push A
+call @stacks_sleep
+ldi A 1
+push A
+call @stacks_sleep
 ldm A &counter
 push A
 ldi A 5

@@ -47,7 +47,8 @@ PROCESS 2
     
     #  Wait a bit to allow the reader to run
     1 WAIT
-    
+    1 WAIT 
+
     #  Loop 5 times
     counter 5 < GOTO writerLoop
     
@@ -66,7 +67,8 @@ PROCESS 3
     sharedArray PRINT
     
     #  Wait a bit
-    #1 WAIT
+    1 WAIT
+    1 WAIT
     
     #  Loop until the writer is likely done
     counter 5 < GOTO readerLoop
