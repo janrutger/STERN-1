@@ -3,63 +3,177 @@ It features a multi-processing kernel (V3) managing processes with dedicated 1KB
 Emulated hardware includes a screen, keyboard, virtual disk, serial I/O, plotter, RTC, and network interface. 
 The assembler supports standard instructions, directives, labels, and constants, distinguishing between local ($) and global/shared (&) symbols. 
 The STACKS language, compiled to assembly, supports basic data types, operators, control flow, and runtime interactions with the emulated hardware, and is multi-process compatible
-check the current state of networkNICrc.py, asm/incl/networkR3.asm, asm/incl/stern_runtime.asm, asm/incl/networkdispatcher.asm
+the network stack, from the previous verson, is working in the single-proces system and i like to make the current networkstack, networkNICrc.py, asm/incl/networkR3.asm and asm/incl/stern_runtime.asm, asm/incl/networkdispatcher.asm multiprocessing aware.
 
-i like to make the current networkstack, networkNICrc.py, asm/incl/networkR3.asm and asm/incl/stern_runtime.asm, asm/incl/networkdispatcher.asm multiprocessing aware.
 
-the current situation the networkNICrc.py is taking care of reliable sending of the messages and when a message is received, the receive interrupt place the message in the circular networkbuffer.
-the scheduled networkdispatcher reads the networkbuffer and start the correct network serivce, the echo service (service ID 1) will echo the message back to the sender. servie ID 0 is an general receiver service with place the message in 1 general buffer for the application (proces) to read.
+as the ****CHANGE LOG shows i already did a lot of work to make the networkstack multi processing aware from the application side 
+but the ****ERROR LOG showing an priciple error on the lower level hardware/driver level
 
-oversee the current codebase, there are two options:
-1) enhanche the low-level networkstack so the protocol know about the proces, or
-2) the process ID of the receiver is encoded in the payload
 
-i prefer option 2, but it must be done in a Stern/STACKS way of thinking
+test Scenario:
+host A is sending a message to the echo service on host A
+host A returns the message to service_id 0 (by convention) and here you need the PID to route to
+Herefore must host A pack the final receiver PID (on host A) in the payload
+The echo service does not need to unpack, because its just reponse to the sender on serivce_id 0 (by default)
 
----
 
-**Plan for Implementing Process-Aware Networking**
+i like to implement 'The Architectural Plan'
+Decouple the ISR from the Dispatcher: The Network Interface Card (NIC) receive ISR (@read_nic_isr) should do the absolute minimum: read the packet from the hardware, place it in the shared circular buffer, and set a flag to notify the kernel that there's work to do. It should be extremely fast and non-blocking.
+Create a Kernel-Level Task: The kernel's main loop (which runs as PID 0) will be responsible for checking this new flag.
+Dispatch from the Kernel Context: When the kernel loop sees the flag is set, it will call the @network_message_dispatcher. This means the dispatcher and any service it calls (like the echo service) will run safely within the kernel's context, with interrupts enabled.
+This change makes your network stack robust and truly "context-aware" by executing tasks in the appropriate context, which will also likely resolve the Invalid instruction 99 errors that stem from instability within the interrupt handler.
 
-**1. Goal:**
-Enable processes to send network messages directly to other processes, both on the same machine and on different machines, by embedding the target Process ID (PID) into the message payload. This keeps the low-level transport protocol generic while adding application-level routing.
+To make sure, your assembly skills are high, reexamen cpuNG.py assembler1c.py and STACKS/parseV3.py and the assemblycode as examples.
+And check the current state of networkNICr2.py, asm/incl/networkR3.asm, asm/incl/stern_runtime.asm, asm/incl/networkdispatcher.asm to make sure we on the same level
 
-**2. Protocol and Payload Convention:**
-*   **Service ID:** Service ID `0` will be repurposed as the dedicated "Process Routing Service". All messages intended for a specific process will use this service ID.
-*   **Payload Encoding:** The 16-bit data payload of a message sent with Service ID 0 will be encoded using a simple arithmetic scheme: `packed_value = (data_to_send * 10) + target_PID`.
-*   **Payload Unpacking:** The receiving dispatcher will use the `dmod` instruction with a divisor of 10 to unpack the payload. The quotient will be the original data, and the remainder will be the target PID.
-*   **Constraints:** This approach limits PIDs to the range 0-9, which is sufficient for the current STERN-1 kernel (4 user processes).
+herefore i like to start an new networkdriver file asm/incl/networkR4.asm file (the current one @networkR3.asm) and implement the new hadeling in this file
 
-**3. `networkdispatcher.asm` Modifications:**
-*   **Per-Process Inboxes:**
-    *   The single global buffer for service 0 (`$SERVICE0_DATA_BUFFER`) will be replaced by a set of ring buffers, one for each user process.
-    *   A memory block (`$PROC_INBOX_MEMORY_BLOCK`) will be allocated to hold all inboxes.
-    *   Pointer tables (`$PROC_INBOX_ADDR_TABLE`, `$PROC_INBOX_WPTR_TABLE`, `$PROC_INBOX_RPTR_TABLE`) will be created to manage the base address and read/write pointers for each process's inbox, indexed by PID.
-    *   An initialization routine, `@init_process_inboxes`, will be created for the kernel to call at startup to set up these tables.
-*   **New Service Router (`@service_handler_router`):**
-    *   The existing `@service_handler_0` will be replaced with `@service_handler_router`.
-    *   This new handler will be responsible for:
-        1.  Unpacking the target PID and data from the received payload.
-        2.  Validating the PID.
-        3.  Looking up the correct inbox for the target PID using the pointer tables.
-        4.  Writing the message (`source_address`, `data`) into the process's ring buffer. It will handle buffer-full conditions by overwriting the oldest message.
-*   **Service Jump Table Update:**
-    *   The entry for Service ID 0 in `$SERVICE_JUMP_TABLE` will be updated to point to `@service_handler_router`.
+what is the next best step?
 
-**4. `stern_runtime.asm` Modifications (New APIs):**
-*   **`@read_process_message`:**
-    *   A new runtime routine for a process to read from its personal network inbox.
-    *   It will use the calling process's PID (obtained via a kernel syscall) to find the correct inbox, read the next available message (`source_address`, `data`).
-    *   It will push the `source_address`, `data`, and a status flag (0 for success, 1 for empty) onto the STACKS stack.
-    *   On STACKS stack (top to bottom): `status`, `data`, `src_addr` (if success).
-*   **`@stacks_process_write`:**
-    *   A new runtime routine (or a template for the STACKS compiler) for sending a message to a specific process.
-    *   It will take a destination NIC, destination PID, and data value as input.
-    *   It will pack the PID and data according to the `(data * 10) + PID` convention.
-    *   It will then call the existing `@send_data_packet_sub` with the appropriate arguments (destination NIC, packed data, service ID 0).
 
-**5. Required Changes Summary:**
-*   **`networkNICr2.py`:** No changes required. The NIC hardware emulation correctly treats the payload as an opaque value.
-*   **`asm/incl/networkR3.asm`:** No changes required. The reliable transport layer (`@send_data_packet_sub`, ISR logic) remains the same.
-*   **`asm/incl/networkdispatcher.asm`:** Major changes. Implement per-process inboxes and the new `@service_handler_router`.
-*   **`asm/incl/stern_runtime.asm`:** Add new API routines `@read_process_message` and `@stacks_process_write`.
-*   **`asm/kernel3.asm`:** A small change will be needed to call `@init_process_inboxes` during kernel initialization. A syscall to get the current PID (`~SYSCALL_GET_PID`) is also assumed to exist.
+****CHANGE LOG
+
+*** networkHub.py
+    *   No changes.
+
+*** networkNICr2.py
+    *   No changes.
+
+*** asm/loader3.asm
+    RTC interrupt = 8, NIC receive interrupt = 9
+    *   No changes.
+
+*** asm/kernel3.asm
+    call the @network_message_dispatcher every RTC interrupt, just before the round robin scheduler
+    *   No changes
+
+*** asm/incl/networkR3.asm
+    low level 'driver' routines to communicate to the virtual nic
+*   * **Status: unkown**
+
+
+*** asm/incl/networkdispatcher.asm
+**  @network_message_dispatcher
+*   * No changes.
+
+** @service_handler_0
+    *   **Status: COMPLETED**
+    *   must keep track of input buffer per proces, total 5, 5 readpointer, 5 writepointers and buffer full handeling
+    *   must decode the payload dmod(data, 10)
+    *   adds the actual value in the correct input buffer
+
+** @service_handler_echo
+*   * No changes.
+
+** @read_service0_data
+    *   **Status: COMPLETED**
+    * must know the calling PID, eg PID in regA when calling
+    * reads the correct inputbuffer
+    * returns the value (like as in the current situation, just (only) the value)
+
+
+*** asm/incl/stern_runtime.asm
+**  @stacks_network_write
+*   * **Status: COMPLETED**
+*   * Now receives the `reply_pid` in register `K` (from `parseV3.py`).
+*   * Encodes the payload: `(value * 10) + reply_pid` before calling the low-level send routine.
+
+**  @readService0
+    *   **Status: COMPLETED**
+*   * The routine is now aware that the calling process's PID is passed in register `A` (by `parseV3.py`).
+
+
+*** STACKS/parseV3.py
+*   * **Status: COMPLETED**
+*   * The parser is now multi-process aware for network connections.
+*   * **`CONNECTION WRITE`:** The syntax is updated to `ident CONNECTION WRITE <dest_addr> <dest_service> <reply_pid>`. The parser generates an assembly stub that loads `<reply_pid>` into register `K` before calling `@stacks_network_write`.
+*   * **`CONNECTION READ`:** When a `READ` connection is used, the parser generates code to call `@get_mypid` at runtime. The PID of the calling process is placed in register `A` before the user-defined service routine is called, making the service aware of the caller.
+
+**** NOTES
+
+|	ident CONNECTION READ ident nl			# ident = pointer to network service
+|	ident CONNECTION WRITE INTEGER INTEGER INTEGER nl # <dst-adres> <network_service> <PID>
+
+EXAMPLE of buffer management
+. $SERVICE0_DATA_BUFFER_P0 16
+. $SERVICE0_DATA_BUFFER_P1 16
+. $SERVICE0_DATA_BUFFER_P2 16
+. $SERVICE0_DATA_BUFFER_P3 16
+. $SERVICE0_DATA_BUFFER_P4 16
+
+% $. $SERVICE0_DATA_BUFFER_JUMP . $SERVICE0_DATA_BUFFER_P0 $SERVICE0_DATA_BUFFER_P1 $SERVICE0_DATA_BUFFER_P2 $SERVICE0_DATA_BUFFER_P3 $SERVICE0_DATA_BUFFER_P4
+
+. $SERVICE0_WRITE_PNTRS_ADRES 1
+. $SERVICE0_READ_PNTRS_ADRES 1
+. $SERVICE0_WRITE_PNTRS 5 ; ~MAX_PROCESSES
+. $SERVICE0_READ_PNTRS 5  ; ~MAX_PROCESSES
+
+% $SERVICE0_WRITE_PNTRS_ADRES $SERVICE0_WRITE_PNTRS
+% $SERVICE0_READ_PNTRS_ADRES $SERVICE0_READ_PNTRS
+
+
+% $SERVICE0_WRITE_PNTRS 0 0 0 0 0
+% $SERVICE0_READ_PNTRS  0 0 0 0 0
+
+use of Index register and ldx, stox and callx behavior
+all instructions has format 'Instruction Register Adres' like ldx M $mem_start, it adds I to value at $mem_start (=0), and loads the value of that adres in M
+
+
+****ERROR LOGS
+
+
+NIC 0: Sent NEW DATA packet 0 to 0 for service 1
+NIC 0: Received DATA packet 0 from 0 for service 1
+NIC 0: Sent CPU-initiated ACK for packet 0 to 0
+NIC 0: Received ACK for sent packet 0 from 0.
+NIC 0: Sent NEW DATA packet 1 to 0 for service 1
+NIC 0: Received DATA packet 1 from 0 for service 1
+NIC 0: Sent CPU-initiated NACK for packet 0 to 0
+CPU: Invalid instruction 99 99 None
+NIC 0: Received NORESEND from 0, receiver expects packet 0.
+
+
+for now i turnd off the @network_message_dispatcher, so i can focus on the low-level message delivery, this is the error trace
+
+NIC 0: Sent NEW DATA packet 0 to 0 for service 1
+NIC 0: Received DATA packet 0 from 0 for service 1
+NIC 0: Sent CPU-initiated ACK for packet 0 to 0
+CPU: Invalid instruction 99 99 None
+NIC 0: Received ACK for sent packet 0 from 0.
+
+And the last try
+
+NIC 0: Received DATA packet 0 from 0 for service 1
+DEBUG CPU: Loaded context for ID 1: PC=1165, SP=5119
+NIC 0: Sent CPU-initiated ACK for packet 0 to 0
+HUB received message: To 0 From 0 Payload (1, 0, 0)
+DEBUG CPU: Loaded context for ID 3: PC=6144, SP=7167
+CPU: Invalid instruction 99 99 None
+NIC 0: Received ACK for sent packet 0 from 0.
+
+
+
+
+
+[ignore]
+it looks like it does not return correctly when sending an ACK
+Since updating the packetnumber comes after the sending of the ACK, this will explain why the packetnumber is still 0
+
+when calling interrupt 9, the message reveive isr, the CPU saves all registers. but on witch stack is the ISR running on? when the isr ends rti, the cpu will restore the registers incl SP.
+since the sending routine 22 AS zender does not correcly returns, this return adres should be TOS after the RTI, but looks like it is not
+
+debugging of the raw /asm/network_test0.asm file i found
+
+the @~conn_zender_write_0 stub routines returns in the right order
+but directly after when interrupts are enabled again, i see an context switch
+when the receive interrupt arrives it is running in a different context
+
+i think the network API must use global adresses instead of registers to pass arguments
+
+The Architectural Plan
+Decouple the ISR from the Dispatcher: The Network Interface Card (NIC) receive ISR (@read_nic_isr) should do the absolute minimum: read the packet from the hardware, place it in the shared circular buffer, and set a flag to notify the kernel that there's work to do. It should be extremely fast and non-blocking.
+Create a Kernel-Level Task: The kernel's main loop (which runs as PID 0) will be responsible for checking this new flag.
+Dispatch from the Kernel Context: When the kernel loop sees the flag is set, it will call the @network_message_dispatcher. This means the dispatcher and any service it calls (like the echo service) will run safely within the kernel's context, with interrupts enabled.
+This change makes your network stack robust and truly "context-aware" by executing tasks in the appropriate context, which will also likely resolve the Invalid instruction 99 errors that stem from instability within the interrupt handler.
+
+[\ignore]

@@ -1,0 +1,10 @@
+PROCESS 1
+
+
+
+{1 1 ==} DO
+'stern 1 waiter ' SHOW
+END
+
+END
+

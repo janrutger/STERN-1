@@ -1,0 +1,62 @@
+PROCESS 1 32
+    0 TIMER SET
+    SHARED ARRAY workingList 128
+    SHARED VAR klaar
+    0 AS klaar
+
+    2 STARTPROCESS
+
+    {klaar 0 ==} DO
+       1 WAIT
+    END
+
+    0 TIMER PRINT
+
+END
+
+
+
+PROCESS 2 128
+    2 AS start
+    128 start + AS max
+
+    {start max < } DO
+        start AS workingList    # add to the array
+        start 1 + AS start
+        '.' SHOW
+    END
+
+
+
+    0 AS index
+    {index workingList != } DO
+    
+        index 1 + AS nextIndex
+        index [workingList] 0 != DO
+            {nextIndex workingList !=} DO
+                nextIndex [workingList] 0 != DO
+                    nextIndex [workingList] index [workingList] % 0 == DO
+                        0 nextIndex AS [workingList]                     
+                    END   
+                END 
+                nextIndex 1 + AS nextIndex         
+            END
+        END
+        index PRINT
+        index 1 + AS index
+    END
+
+
+    0 AS counter
+    {counter workingList <} DO
+        counter [workingList] 0 !=  DO
+            counter [workingList] PRINT
+        END
+        counter 1 + AS counter
+    END
+
+    1 AS klaar
+    # 1 WAIT
+
+END
+

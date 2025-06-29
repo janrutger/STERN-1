@@ -51,9 +51,9 @@ def assembly_code():
         # Assemble ROMs specified in configs
         # assembler.assemble("ChaosGame3.asm", boot["start_prog"], "ChaosGame3.bin", True)
         # assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
-        # assembler.assemble("program0.asm", boot["start_prog"], "program0.bin", True) # Example if needed
-        # assembler.assemble("program1.asm", boot["start_prog"], "program1.bin", True)
-        assembler.assemble("test.asm", boot["start_prog"], "processes.bin", True)
+        # assembler.assemble("network_test0.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
+        # assembler.assemble("network_test1.asm", boot["start_prog"], "processes1.bin", True)
+        assembler.assemble("prime.asm", boot["start_prog"], "processes0.bin", True)
         # assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
         print("Assembly complete.")
     except Exception as e:
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0",
         "window_title": "STERN-1 (Instance 1)",
         "kernel_start_adres": boot["start_kernel"], # Use boot config for kernel start
-        "start_rom": "processes.bin",
+        "start_rom": "processes0.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[0],
         # Add other specific settings if needed
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0", # Use a separate disk dir for instance 2
         "window_title": "STERN-1 (Instance 2)",
         "kernel_start_adres": boot["start_kernel"], # Use boot config for kernel start
-        "start_rom": "processes.bin",
+        "start_rom": "processes1.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[1],
         # Add other specific settings if needed
@@ -132,7 +132,7 @@ if __name__ == "__main__":
             print(f"[Hub Process] Error: {e}")
 
     hub_process = None
-    if num_instances > 1 and max_connections > 0: # Only start hub if it's configured to be used
+    if num_instances > 0 and max_connections > 0: # Only start hub if it's configured to be used
         print("Creating and starting Network Hub process...")
         hub_process = multiprocessing.Process(target=run_hub_process, args=(send_queue, receive_queues, max_connections))
         hub_process.start()

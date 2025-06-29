@@ -1,18 +1,33 @@
-# This version is updated for STERN-1 multiprocessing:
-# - Uses the native CPU stack for STACKS data operations (native push/pop).
-# - Uses kernel syscalls for SIO and basic printing.
+# STACKS Runtime library
+#
+# Implements an "Empty Ascending Stack" for STACKS operations.
+# - $sr_stack_ptr: Base address of the STACKS runtime's data stack memory area.
+# - $sr_stack_idx: A memory variable storing the index of the NEXT FREE SLOT on the STACKS runtime data stack.
+#                     Initialized to 0. Stack grows upwards.
+#
+# Assumed behavior of specific STERN-1 instructions:
+# inc I <addr>:
+#   1. I = M[addr] (Register I gets current value from memory)
+#   2. M[addr] = M[addr] + 1 (Value in memory is incremented)
+#
+# dec I <addr>:
+#   1. I = M[addr] (Register I gets current value from memory)
+#   2. I = I - 1   (Register I is decremented)
+#   3. M[addr] = I (Decremented value from I is stored back to memory)
 
-# --- STACKS Runtime Data Stack ---
-# The STACKS runtime now uses the native CPU stack of the current process.
-# The global variables $sr_stack_mem, $sr_stack_ptr, and $sr_stack_idx,
-# and custom routines @push_A, @pop_A, @push_B, @pop_B are no longer used.
-# Native CPU instructions 'push R' and 'pop R' should be used by STACKS compiled code
-# or by these runtime routines.         
+# --- STACKS Runtime Data Stack Definition ---
+; Memory area for the STACKS runtime data stack (e.g., 64 words)
+; Pointer to the base address of $sr_stack_mem
+; Index for the next free slot in $sr_stack_mem
+; Initialize $sr_stack_ptr to point to $sr_stack_mem
+; Initialize $sr_stack_idx to 0 (empty stack)
+. $sr_stack_mem 64          
+. $sr_stack_ptr 1           
+. $sr_stack_idx 1           
+% $sr_stack_ptr $sr_stack_mem 
+% $sr_stack_idx 0            
 
-; --- Shared Heap Constants ---
-equ ~$SHARED_HEAP_START_ADDRESS 8192
-equ ~$SHARED_HEAP_SIZE 3072
-equ ~$SHARED_HEAP_END_ADDRESS 11263 ; $SHARED_HEAP_START_ADDRESS + $SHARED_HEAP_SIZE - 1
+
 
 
 # --- Temporary variables for string operations (if any remain needed) ---
@@ -47,7 +62,7 @@ equ ~MAX_TIMER_IDX 7
 
 
 #################################
-@stern_runtime_init
+@stacks_runtime_init
     # when the lib must be initalized
 
     # Initialize timer epochs.
@@ -56,110 +71,97 @@ equ ~MAX_TIMER_IDX 7
 ret
 
 #################################
-@get_mypid
-    pop L
-    ldm A $CURRENT_PROCESS_ID
-    push A
-    push L
+@push_A
+    inc I $sr_stack_idx     
+    ; I_reg = M[$sr_stack_idx], then M[$sr_stack_idx]++
+    stx A $sr_stack_ptr     
+    ; M[M[$sr_stack_ptr] + I_reg] = A_reg
 ret
 
-;@push_A
-;    push A
-;ret
+@push_B
+    inc I $sr_stack_idx     
+    ; I_reg = M[$sr_stack_idx], then M[$sr_stack_idx]++
+    stx B $sr_stack_ptr     
+    ; M[M[$sr_stack_ptr] + I_reg] = B_reg
+ret
 
-;@push_B
-;    push B
-;ret
 
+@pop_A
+    dec I $sr_stack_idx     
+    ; temp = M[$sr_stack_idx]-1, I_reg = temp, M[$sr_stack_idx] = temp
+    ldx A $sr_stack_ptr     
+    ; A_reg = M[M[$sr_stack_ptr] + I_reg]
+ret
 
-;@pop_A
-;    pop A
-;ret
-
-;@pop_B
-;    pop B
-;ret
+@pop_B
+    dec I $sr_stack_idx     
+    ; temp = M[$sr_stack_idx]-1, I_reg = temp, M[$sr_stack_idx] = temp
+    ldx B $sr_stack_ptr     
+    ; B_reg = M[M[$sr_stack_ptr] + I_reg]
+ret
 
 #################################
 @dup 
-    pop L
-    pop A
-    push A
-    push A
-    push L
+    call @pop_A
+    call @push_A
+    call @push_A
 ret
 
 @swap
-    pop L
-    pop A
-    pop B
-    push A
-    push B
-    push L
+    call @pop_A
+    call @pop_B
+    call @push_A
+    call @push_B
 ret
 
 @drop
-    pop L
-    pop A ; Value popped into A is discarded
-    push L
+    call @pop_A
 ret
 
 @over
     # ( x1 x2 -- x1 x2 x1 )
     # Duplicates the second item on the stack to the top.
-    pop L
-    pop A  ; x2
-    pop B  ; x1
-    push B ; x1
-    push A ; x2
-    push B ; x1
-    push L
+    call @pop_A  
+    call @pop_B  
+    call @push_B 
+    call @push_A 
+    call @push_B 
 ret
 
 #################################
 @plus
-    pop L
-    pop B
-    pop A
+    call @pop_B
+    call @pop_A
     add A B
-    push A
-    push L
+    call @push_A
 ret
 
 @minus
-    pop L
-    pop B
-    pop A
+    call @pop_B
+    call @pop_A
     sub A B
-    push A
-    push L
+    call @push_A
 ret
 
 @multiply
-    pop L
-    pop B
-    pop A
+    call @pop_B
+    call @pop_A
     mul A B
-    push A
-    push L
+    call @push_A
 ret
 
 @divide
-    pop L
-    pop B
-    pop A
+    call @pop_B
+    call @pop_A
     div A B
-    push A
-    push L
+    call @push_A
 ret
 
 @mod
-    pop L
-    pop B
-    pop A
+    call @pop_B
+    call @pop_A
     dmod A B
-    push B ; dmod A B stores remainder in B
-    push L
+    call @push_B
 ret
 
 @stacks_gcd
@@ -168,81 +170,78 @@ ret
     # and pushes the result back onto the STACKS data stack.
     # Assumes non-negative inputs for simplicity.
     # GCD(x, 0) = |x|, GCD(0, y) = |y|, GCD(0,0) = 0 (conventionally).
-    pop L
-    pop B ; B gets the second operand (num2)
-    pop A ; A gets the first operand (num1)
+    call @pop_B
+    # B gets the second operand (num2)
+    call @pop_A
+    # A gets the first operand (num1)
 
     # Handle cases where one or both operands are zero.
-    tst B 0                 ; Is B zero?
-    jmpt :_gcd_A_is_result  ; If B is 0, GCD is A.
-    tst A 0                 ; Is A zero?
-    jmpt :_gcd_B_is_result  ; If A is 0, GCD is B.
+    tst B 0
+    # Is B zero?
+    jmpt :_gcd_A_is_result
+    # If B is 0, GCD is A.
+    tst A 0
+    # Is A zero?
+    jmpt :_gcd_B_is_result
+    # If A is 0, GCD is B.
 
 :_gcd_loop
-    tste A B                ; Is A equal to B?
-    jmpt :_gcd_A_is_result  ; If A == B, then GCD is A (or B).
+    tste A B
+    # Is A equal to B?
+    jmpt :_gcd_A_is_result
+    # If A == B, then GCD is A (or B).
 
-    tstg A B                ; Is A > B?
-    jmpt :_gcd_A_greater_B  ; If A > B, jump to subtract B from A.
-                            ; Else (A < B, since A != B), so B = B - A.
+    tstg A B
+    # Is A > B?
+    jmpt :_gcd_A_greater_B
+    # If A > B, jump to subtract B from A.
+    # Else (A < B, since A != B), so B = B - A.
     sub B A
     jmp :_gcd_loop
 :_gcd_A_greater_B
-    sub A B                 ; A > B, so A = A - B
+    # A > B, so A = A - B.
+    sub A B
     jmp :_gcd_loop
 
 :_gcd_B_is_result
-    ld A B                  ; Result was B, move to A for pushing.
+    ld A B
+    # Result was B, move to A for pushing.
 :_gcd_A_is_result
-    push A                  ; Push the result (which is in A).
-    push L
+    call @push_A
+    # Push the result (which is in A).
 ret
-    
 
 # --- SIO Channel Control ---
-# These STACKS runtime routines now use kernel syscalls for SIO management.
+# These STACKS runtime routines will call the SIO handling routines
+# (e.g., @open_channel, @close_channel) which are provided by the
+# STERN-1 kernel (from serialIO.asm).
 
 @sio_channel_on
     # Pops channel number from the STACKS stack.
-    # Calls SYSCALL_REQUEST_SIO_CHANNEL.
-    pop L
-    pop A  ; A = channel_id
-    int ~SYSCALL_REQUEST_SIO_CHANNEL ; Kernel handles request, returns status in A
-    ; TODO: After a return of an SYSCALL A does not holds the exitstatus (namymore)
-    ; push A ; Push status onto STACKS stack (assuming syscall returns status in A)
-    push L
+    # Calls @open_channel, which expects the channel number in register A.
+    call @pop_A
+    # A now holds the channel number.
+    call @open_channel
 ret
 
 @sio_channel_off
     # Pops channel number from the STACKS stack.
-    # Calls SYSCALL_RELEASE_SIO_CHANNEL.
-    pop L
-    pop A  ; A = channel_id
-    int ~SYSCALL_RELEASE_SIO_CHANNEL ; Kernel handles release, returns status in A
-    ; TODO: After a return of an SYSCALL A does not holds the exitstatus (namymore)
-    ; push A ; Push status onto STACKS stack (assuming syscall returns status in A)
-    push L
+    # Calls @close_channel, which expects the channel number in register A.
+    call @pop_A
+    # A now holds the channel number.
+    call @close_channel
 ret
 
 # --- Timer Operations ---
 
 @stacks_sleep
-    pop L
-    pop B ; B = sleep_duration
+    call @pop_B
     ldm A $CURRENT_TIME
     add B A
     :sleep_loop
-        ; Check if the target time has been reached or passed
         ldm A $CURRENT_TIME
-        tstg A B            ; Sets status bit if A (current_time) > B (target_time)
-        jmpt :_sleep_done   ; If current_time > target_time, sleep is finished
-
-        ; Not yet time to wake up, so yield to other processes
-        int ~SYSCALL_YIELD
-
-        jmp :sleep_loop ; Continue checking
-    :_sleep_done
-    push L
+        tstg A B
+        jmpf :sleep_loop
 ret
 
 @stacks_timer_init
@@ -273,14 +272,16 @@ ret
 
 @_validate_and_get_timer_address
     # Pops timer instance from stack into A.
-    # MODIFIED: Expects timer instance in register A. Does NOT pop from stack.
     # Validates if 0 <= A <= ~MAX_TIMER_IDX.
     # If valid, Register I is set to the timer instance value (for indexed access),
     # and Register A contains the timer instance.
     # If invalid, calls @fatal_error and does not return.
     # Clobbers: K
-    # A (input) now has the timer instance.
 
+    call @pop_A
+    # A now has the timer instance.
+
+    # Check if A > ~MAX_TIMER_IDX
     ldi K ~MAX_TIMER_IDX
     tstg A K
     # If A > K (e.g. A=8, K=7), status is TRUE (invalid)
@@ -303,11 +304,9 @@ ret
     # Expects: timer_instance on top of stack.
     # Pops timer_instance.
     # If valid (0-~MAX_TIMER_IDX), stores $CURRENT_TIME into $TIMER_EPOCHS[instance].
-    # If invalid, @fatal_error is called.
-    pop L
-    pop A ; Pop timer_instance into A
+    # If invalid, @fatal_error is called by @_validate_and_get_timer_address.
     call @_validate_and_get_timer_address
-    # If @_validate_and_get_timer_address returns, A is valid and I is set.
+    # If @_validate_and_get_timer_address returns, the index is valid.
     # No need to check status flag here.
 
     # Instance is valid, I_reg is set to instance, A_reg holds instance.
@@ -318,7 +317,6 @@ ret
 :_timer_set_end
     # This label is no longer strictly needed if there's only one path to ret,
     # but kept for clarity or future conditional logic if any.
-    push L
 ret
 
 @stacks_timer_get
@@ -326,19 +324,18 @@ ret
     # Pops timer_instance.
     # If valid, calculates elapsed time ($CURRENT_TIME - epoch) and pushes it.
     # If invalid, calls @fatal_error.
-    pop L
-    pop A ; Pop timer_instance into A
+    # The @fatal_error call is now handled by @_validate_and_get_timer_address.
     call @_validate_and_get_timer_address
-    # If @_validate_and_get_timer_address returns, A is valid and I is set.
+    # If @_validate_and_get_timer_address returns, the index is valid.
 
     # Instance is valid, I_reg is set to instance, A_reg holds instance.
     ldx K $TIMER_EPOCHS
     # K_reg = stored epoch M[$TIMER_EPOCHS + I_reg].
     ldm A $CURRENT_TIME
     # A_reg = current time.
-    sub A K ; A_reg = current_time - epoch.
-    push A  ; Push elapsed time
-    push L
+    sub A K
+    # A_reg = current_time - epoch.
+    call @push_A
 ret
 
 @stacks_timer_print
@@ -346,10 +343,10 @@ ret
     # Pops timer_instance.
     # If valid, prints "Timer [N]: [elapsed_time]\n".
     # Assumes @print_char does not advance cursor; @print_to_BCD does.
-    # If invalid, @fatal_error is called.
-    pop L
-    pop A ; Pop timer_instance into A
+    # If invalid, @fatal_error is called by @_validate_and_get_timer_address.
     call @_validate_and_get_timer_address
+    # A_reg holds the timer instance if valid.
+    # If @_validate_and_get_timer_address returns, the index is valid.
 
 
     # Instance is valid. I_reg is set to instance, A_reg holds instance.
@@ -368,132 +365,117 @@ ret
 
     # Print "timer "
     ldi A \t
-    int ~SYSCALL_PRINT_CHAR
+    call @print_char
+    inc X $cursor_x
     ldi A \i
-    int ~SYSCALL_PRINT_CHAR
+    call @print_char
+    inc X $cursor_x
     ldi A \m
-    int ~SYSCALL_PRINT_CHAR
+    call @print_char
+    inc X $cursor_x
     ldi A \e
-    int ~SYSCALL_PRINT_CHAR
+    call @print_char
+    inc X $cursor_x
     ldi A \r
-    int ~SYSCALL_PRINT_CHAR
+    call @print_char
+    inc X $cursor_x
     ldi A \space
-    int ~SYSCALL_PRINT_CHAR
+    call @print_char
+    inc X $cursor_x
 
     # Print timer instance number (from $_timer_instance_temp)
     ldm A $_timer_instance_temp
-    int ~SYSCALL_PRINT_NUMBER ; Syscall handles BCD conversion and printing
+    call @print_to_BCD
+    # Assumes @print_to_BCD handles its own cursor advancement.
 
     # Print ": "
     ldi A \:
-    int ~SYSCALL_PRINT_CHAR
+    call @print_char
+    inc X $cursor_x
     ldi A \space
-    int ~SYSCALL_PRINT_CHAR
+    call @print_char
+    inc X $cursor_x
 
     # Print elapsed time (which is in B_reg)
     ld A B
     # Move elapsed time to A_reg for @print_to_BCD.
-    int ~SYSCALL_PRINT_NUMBER
+    call @print_to_BCD
 
     # Print newline
-    int ~SYSCALL_PRINT_NL
+    call @print_nl
     jmp :_timer_print_end 
     # Successfully printed, go to the end.
 
 :_timer_print_end
-    push L
 ret
 
 #################################
 @print
-    pop L
-    pop A                           ; Number to print
-    int ~SYSCALL_PRINT_NUMBER
-    int ~SYSCALL_PRINT_NL
-    push L
+    call @pop_A
+    call @print_to_BCD
+    call @print_nl
+
 ret
 
-equ ~channel_id 0
-@plot 
-    ; Plot always use channel_id 0 
-    ; Expects: data on stack (top).
-    pop L
-    pop B ; B = data
-    ldi A ~channel_id
-    int ~SYSCALL_WRITE_SIO_CHANNEL  ; Kernel handles write, returns status in A
-    ; push A                          ; Push status onto STACKS stack
-    push L
+equ ~plotter 0
+@plot
+    call @pop_B
+    ldi A ~plotter
+    call @write_channel
 ret
 
 
 #################################
 @eq
-    pop L
-    pop B
-    pop A
+    call @pop_B
+    call @pop_A
     tste A B
-    jmpf :eq_is_false
-        ; stet TRUE = 0 in stacks
-        ldi A 0
-        push A
-    jmp :eq_end
-    :eq_is_false
-        ldi A 1
-        push A
-    :eq_end
-    push L
+    call @set_true_false
 ret
 
 @ne
-    pop L
-    pop B
-    pop A
+    call @pop_B
+    call @pop_A
     tste A B
     jmpf :ne_true
         ; set FALSE
         ldi A 1
-        push A ; was call @push_A
+        call @push_A
     jmp :ne_end
     :ne_true
         ldi A 0
-        push A ; was call @push_A
+        call @push_A
 :ne_end
-    push L
 ret
 
 
 @gt 
-    pop L
-    pop B
-    pop A
+    call @pop_B
+    call @pop_A
     tstg A B
-    jmpf :gt_is_false
-        ldi A 0
-        push A
-    jmp :gt_end
-    :gt_is_false
-        ldi A 1
-        push A
-    :gt_end
-    push L
+    call @set_true_false
 ret
 
 @lt
-    pop L
-    pop A       ; order of pop matters for LT: ( x y -- x<y ) -> pop y, pop x
-    pop B
+    call @pop_A
+    call @pop_B
     tstg A B
-    jmpf :lt_is_false
-        ldi A 0
-        push A
-    jmp :lt_end
-    :lt_is_false
-        ldi A 1
-        push A
-    :lt_end
-    push L
+    call @set_true_false
 ret
 
+@set_true_false
+    # Helper for comparison ops, assumes comparison instruction just ran.
+    # Pushes 0 onto the stack if the preceding comparison was TRUE.
+    # Pushes 1 (non-zero) onto the stack if the preceding comparison was FALSE.
+    jmpf :set_false
+        ldi A 0
+        call @push_A
+    jmp :set_end
+    :set_false
+        ldi A 1
+        call @push_A
+:set_end    
+ret
 
 #################################
 
@@ -541,8 +523,7 @@ ret
 
 
 @stacks_input
-pop L
-# call @prompt_stacks
+call @prompt_stacks
 :_input_start_over
 # This label is a loop point to re-prompt the user if the input is completely invalid.
     
@@ -552,7 +533,7 @@ pop L
     # After this call, M[$stacks_buffer_indx] holds the count of characters
     # entered, including the terminating \Return character.
     call @stacks_read_input
-    int ~SYSCALL_PRINT_NL
+    call @print_nl
 
     # Initialize parsing variables for the new input line.
     sto Z $_input_read_offset
@@ -670,7 +651,7 @@ pop L
     jmpt :_input_finalize
     # Yes, a valid number part was found and ended by this non-digit. Finalize.
     
-    # call @prompt_stacks_err
+    call @prompt_stacks_err
     jmp :_input_start_over
     # No, the sequence is invalid (e.g., "-abc", "abc"). Restart the input process.
 
@@ -684,16 +665,17 @@ pop L
     jmpt :_found_valid_digits
     
     # No valid digits were found. Restart the input process.
-    # call @prompt_stacks_err
+    call @prompt_stacks_err
     jmp :_input_start_over
 
     :_found_valid_digits
     # Apply the determined sign to the parsed number.
     ldm A $_parsed_number
     ldm K $_number_sign
-    mul A K         ; A = parsed_number * sign.
-    push A          ; Push the final integer result onto the STACKS data stack.
-push L
+    mul A K
+    # A = parsed_number * sign.
+    call @push_A
+    # Push the final integer result onto the STACKS data stack.
 ret
 
 
@@ -704,10 +686,8 @@ ret
 # 2. Reads a line of raw characters using @stacks_read_input (into $stacks_buffer).
 # 3. Pushes the characters from $stacks_buffer onto the data stack in correct order:
 #    char1, char2, ..., charN, null_terminator (0) (top to bottom on stack).
-    
-    pop L ; Save return address
 
-    #  call @prompt_stacks
+    call @prompt_stacks
 :_rawin_start_over
     # Loop point for re-prompting if input is empty.
     call @cursor_on
@@ -717,7 +697,8 @@ ret
     # $stacks_buffer is now filled with user input.
     # M[$stacks_buffer_indx] contains the length, including the trailing \Return.
     
-    int ~SYSCALL_PRINT_NL   ; Print a newline after the user presses Enter.
+    call @print_nl
+    # Print a newline after the user presses Enter.
 
 
     # --- Calculate the length of the actual string content ---
@@ -734,7 +715,7 @@ ret
     tst K 0
     jmpf :_rawin_len_ok
         # Content length is 0, input was empty. Re-prompt.
-        # call @prompt_stacks_err 
+        call @prompt_stacks_err 
         jmp :_rawin_start_over
 
 :_rawin_len_ok
@@ -743,7 +724,7 @@ ret
     # --- Push string onto data stack ---
     # Push null terminator first (will be deepest element of string on stack)
     ldi A 0
-    push A 
+    call @push_A
 
     # Loop K times to push characters from $stacks_buffer in reverse order.
     # K currently holds the length. We need to access buffer indices from K-1 down to 0.
@@ -762,16 +743,19 @@ ret
         # Store K into memory to safely load into I
         # (assuming $_input_read_offset can be reused here)
 
-    ldm I $_input_read_offset   ; I = index of char to read from buffer
+    ldm I $_input_read_offset 
+        # I = index of char to read from buffer
 
-    ldx A $stacks_buffer_pntr   ; A = M[M[$stacks_buffer_pntr] + I] (get char from $stacks_buffer).
-    push A                      ; Push the character
+    ldx A $stacks_buffer_pntr
+    # A = M[M[$stacks_buffer_pntr] + I] (get char from $stacks_buffer).
+    call @push_A 
+        # Push the character
 
-    ldm K $_input_read_offset   ; K still holds current index, which is also remaining count before this iteration
+    ldm K $_input_read_offset 
+        # K still holds current index, which is also remaining count before this iteration
     jmp :_rawin_push_char_loop
 
 :_rawin_push_done
-push L  ;restore return address
 ret
 
 #################################
@@ -798,27 +782,18 @@ equ ~STACKS_BUFFER_MAX_DATA 15
         tst A \Return
         jmpt :end_input
 
-        ; Backspace handling
         tst A \BackSpace
         jmpf :store_in_buffer
             ldm X $cursor_x
-            tst X 0                     ; Is cursor at column 0?
-            jmpt :read_input            ; If so, can't backspace further
+            tst X 0
+            jmpt :read_input
 
-            dec I $stacks_buffer_indx   ; Decrement buffer index
+            dec X $cursor_x
+            dec I $stacks_buffer_indx
 
-            ; Screen erase logic (similar to processes3.asm shell)
-            ; Remember After a SYSCALLs return, interrupts are enabled
-            ;di ; Disable interrupts during cursor manipulation potentially
-            ldm K $cursor_x
-            subi K 1
-            sto K $cursor_x             ; Move global cursor_x left
-            ldi A \space                ; Character to print for erasing
-            int ~SYSCALL_PRINT_CHAR     ; Prints space, syscall advances $cursor_x
-            ldm K $cursor_x
-            subi K 1
-            sto K $cursor_x             ; Move global $cursor_x back to where the space was
-            ;ei                          ; Re-enable interrupts
+            ldi A \space              
+            call @print_char          
+            ;dec X $cursor_x 
 
         jmp :read_input
 
@@ -831,7 +806,9 @@ equ ~STACKS_BUFFER_MAX_DATA 15
             jmpt :read_input
 
             stx A $stacks_buffer_pntr
-            int ~SYSCALL_PRINT_CHAR ; Echo char, syscall handles cursor advancement
+            call @print_char
+
+            inc X $cursor_x
         jmp :read_input
 
 
@@ -860,10 +837,9 @@ ret
 # Consumes the string from the stack.
 # Expects @print_char to print the character in register A.
 # Expects @print_nl to print a newline.
-    pop L ; Save return address
 :_sshow_loop
     # Get character from data stack (A = char)
-    pop A             
+    call @pop_A             
 
     tst A 0
     # Is character in A the null terminator (0)?
@@ -871,8 +847,9 @@ ret
     # Yes, end of string
 
     # Print character in A
-    int ~SYSCALL_PRINT_CHAR ; Syscall prints char and handles cursor     
-
+    # Advance cursor (assuming @print_char doesn't)
+    call @print_char        
+    inc X $cursor_x         
     jmp :_sshow_loop
 
 :_sshow_done
@@ -881,9 +858,7 @@ ret
     # call @print_nl
     # Or just ensure cursor is advanced if not done by print_char:
     # inc X $cursor_x (already done in loop, maybe one final one if needed)
-    push L ; Restore return address
 ret
-    
     
 @stacks_hash_from_stack
 # Pops a null-terminated string from the data stack.
@@ -892,176 +867,35 @@ ret
 # Consumes the string from the stack.
 # Uses: $_hash_accumulator
     # Initialize hash accumulator (assuming Z is 0)
-    pop L ; Save return address
     sto Z $_hash_accumulator  
 
 :_shfs_loop
     # Get character (A = char)
     # Null terminator? Yes, finalize hash
-    pop A          
+    call @pop_A             
     tst A 0                 
     jmpt :_shfs_finalize    
 
     # Simple hash: hash = (hash * 31) + char_code
     # This is just an example; choose a suitable algorithm.
     ldm K $_hash_accumulator
-    muli K 31                 ; K = hash * 31
-    add K A                   ; K = (hash * 31) + char_code
-    sto K $_hash_accumulator  ; Store updated hash
+    muli K 31               
+        # K = hash * 31
+    add K A                 
+        # K = (hash * 31) + char_code
+    sto K $_hash_accumulator  
+        # Store updated hash
 
     jmp :_shfs_loop
 
 :_shfs_finalize
-    ldm A $_hash_accumulator    ; Load final hash into A
-    ; --- Add modulo operation to keep hash in a desired range ---
-    ldi K 1000000000000000 ; Modulo for up to 15 digits (10^15)
-                           ; Note: This immediate value is too large for LDI's typical operand.
-                           ; This needs to be handled by loading it in parts or from memory.
-    ; For now, let's assume a smaller, representable modulo for demonstration, e.g., 10^9
-    ; ldi K 1000000000 ; Example: 1,000,000,000 (fits in a 32-bit-like range if LDI supports it)
-    ; If K needs to be larger, it must be loaded from a memory variable:
-    ; ldm K $HASH_MODULO_VALUE ; where . $HASH_MODULO_VALUE 1 and % $HASH_MODULO_VALUE 1000000000000000
-    dmod A K      ; A = A / K (quotient), K = A % K (remainder)
-    ;ld A K        ; Load the remainder (the actual hash value) into A
-    ; --- End modulo operation ---
-    ;push A
-    push K                      ; Push final (modulo-adjusted) hash onto the data stack
-    push L                      ; Restore return address
+    ldm A $_hash_accumulator 
+        # Load final hash into A
+    call @push_A             
+        # Push it onto the data stack
 ret
 
-;-------------------------------------------------------------------------------
-; @stacks_shared_var_write
-; Writes a value to a shared heap address, handling heap locking.
-; Expects on STACKS stack (top first): value, heap_address
-; Clobbers: A, B, K, M, I (internal usage for syscalls and memory access)
-;-------------------------------------------------------------------------------
-@stacks_shared_var_write
-    pop L                       ; Save return address
-    pop B                       ; B = heap_address (which is on top of the stack)
-    pop A                       ; A = value (which is below the address)
-
-    ; Loop to acquire the heap lock
-:_ssvw_retry_lock
-    int ~SYSCALL_LOCK_HEAP      ; Attempt to lock the heap
-
-    ; Get current PID
-    ldm K $CURRENT_PROCESS_ID   ; K = current_pid
-
-    ; Calculate address of PTE[current_pid].syscall_retval
-    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
-    ld I K                      ; I = current_pid
-    muli I ~PTE_SIZE            ; I = current_pid * ~PTE_SIZE
-    add M I                     ; M = address of PTE for current_pid
-    addi M ~PTE_SYSCALL_RETVAL  ; M = address of PTE[current_pid].syscall_retval
-    ld I M                      ; I = direct address of the syscall_retval field
-    ldx K $mem_start            ; K = M[I] = syscall_retval
-
-    tst K 0                     ; Test if K is 0 (lock acquisition successful)
-    jmpt :_ssvw_lock_acquired   ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
-    jmp :_ssvw_retry_lock       ; And try again
-
-    ; Lock acquired successfully
-:_ssvw_lock_acquired
-    ; Write the value (A) to the heap address (B)
-    ld I B                      ; I = heap_address
-    stx A $mem_start            ; Memory[I] = A
-
-    ; Unlock the heap
-    int ~SYSCALL_UNLOCK_HEAP    ; Release the heap lock
-
-    push L                      ; Restore return address
-    ret
-
-;-------------------------------------------------------------------------------
-; @stacks_shared_var_read
-; Reads a value from a shared heap address, handling heap locking.
-; Expects on STACKS stack (top first): heap_address
-; Pushes onto STACKS stack: value_read
-; Clobbers: A, B, K, M, I (internal usage for syscalls and memory access)
-;-------------------------------------------------------------------------------
-@stacks_shared_var_read
-    pop L                       ; Save return address
-    pop B                       ; B = heap_address
-
-    ; Loop to acquire the heap lock
-:_ssvr_retry_lock
-    int ~SYSCALL_LOCK_HEAP      ; Attempt to lock the heap
-
-    ; Get current PID
-    ldm K $CURRENT_PROCESS_ID   ; K = current_pid
-
-    ; Calculate address of PTE[current_pid].syscall_retval
-    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
-    ld I K                      ; I = current_pid
-    muli I ~PTE_SIZE            ; I = current_pid * ~PTE_SIZE
-    add M I                     ; M = address of PTE for current_pid
-    addi M ~PTE_SYSCALL_RETVAL  ; M = address of PTE[current_pid].syscall_retval
-    ld I M                      ; I = direct address of the syscall_retval field
-    ldx K $mem_start            ; K = M[I] = syscall_retval
-
-    tst K 0                     ; Test if K is 0 (lock acquisition successful)
-    jmpt :_ssvr_lock_acquired   ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
-    jmp :_ssvr_retry_lock       ; And try again
-
-    ; Lock acquired successfully
-:_ssvr_lock_acquired
-    ; Read the value from the heap address (B) into A
-    ld I B                      ; I = heap_address
-    ldx A $mem_start            ; A = Memory[I]
-
-    ; Unlock the heap
-    int ~SYSCALL_UNLOCK_HEAP    ; Release the heap lock
-
-    ; Push the read value (A) onto the STACKS stack
-    push A
-
-    push L                      ; Restore return address
-    ret
-
-;-------------------------------------------------------------------------------
-; @_is_shared_address
-; Checks if the address in register A falls within the shared heap region.
-; Input: A = address to check.
-; Output: CPU status bit is set to 1 (true) if A is a shared heap address,
-;         0 (false) otherwise.
-; Clobbers: K
-;-------------------------------------------------------------------------------
-@_is_shared_address
-    ; Check if A >= $SHARED_HEAP_START_ADDRESS
-    ldi K ~$SHARED_HEAP_START_ADDRESS
-    tstg K A                     ; Status = 1 if K (START_ADDRESS) > A.
-                                 ; This means A < START_ADDRESS.
-    jmpt :_is_shared_addr_false  ; If A < START_ADDRESS, it's not shared.
-
-    ; Check if A <= $SHARED_HEAP_END_ADDRESS
-    ldi K ~$SHARED_HEAP_END_ADDRESS
-    tstg A K                     ; Status = 1 if A > K (END_ADDRESS).
-    jmpt :_is_shared_addr_false  ; If A > END_ADDRESS, it's not shared.
-
-    ; If both checks passed, address A is within the shared heap.
-    tste A A                     ; Set status bit to 1 (true, A == A)
-    ret
-
-:_is_shared_addr_false
-    tstg A A                     ; Set status bit to 0 (false, A is not > A)
-    ret
-
-
-
 # --- STACKS Array Operations ---
-
-@_array_length_logic
-    ; Internal helper. Assumes interrupts are already disabled or heap is locked.
-    ; Expects: C=base_address
-    ; Returns: B=length
-    ; Clobbers: I
-    ; Does NOT handle di/ei or lock/unlock.
-    sto C $_array_base_pntr_temp
-    ldi I 0
-    ldx B $_array_base_pntr_temp ; B = length
-    ret
 
 @stacks_array_length
     # Expects: base address of the array on top of the STACKS data stack.
@@ -1079,92 +913,20 @@ ret
     #                           (element_capacity + 2)
     #   array_base_address + 2 onwards: array data elements
     #
-    # Registers Used: A, B, C, K, I, M
+    # Registers Used: A, B, I
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    pop L ; Save return address
-    pop C ; C gets array_base_address from stack
-
-    ; Check if the address is in the shared heap.
-    ; Preserve C on the stack as @_is_shared_address clobbers registers.
-    push C ; save base_address
-
-    ld A C ; Move base address to A for the check
-    call @_is_shared_address
-    ; Status bit is now set if shared. A is clobbered.
-
-    pop C ; restore base_address
-
-    jmpt :_sal_is_shared ; If status is true, it's a shared array
-
-; --- Local Array Path ---
-:_sal_is_local
-    di
-    call @_array_length_logic ; C is set up. Result in B.
-    ei
-    jmp :_sal_done
-
-; --- Shared Array Path ---
-:_sal_is_shared
-:_sal_retry_lock
-    int ~SYSCALL_LOCK_HEAP
-    ; Check syscall return value from PTE
-    ldm K $CURRENT_PROCESS_ID
-    ldm M $PROCESS_TABLE_BASE
-    ld I K
-    muli I ~PTE_SIZE
-    add M I
-    addi M ~PTE_SYSCALL_RETVAL
-    ld I M
-    ldx K $mem_start ; K = syscall_retval
-    tst K 0
-    jmpt :_sal_lock_acquired    ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
-    jmp :_sal_retry_lock        ; And try again
-
-    ; --- Lock Acquired ---
-    :_sal_lock_acquired
-    di
-    call @_array_length_logic ; C is set up. Result in B.
-    ;ei
-    ; --- End of critical section ---
-
-    int ~SYSCALL_UNLOCK_HEAP
-
-:_sal_done
-    push B ; Push the length onto the STACKS data stack
-    push L ; Restore return address
+    call @pop_A                     
+    # A gets array_base_address from stack
+    sto A $_array_base_pntr_temp    
+    # M[$_array_base_pntr_temp] = array_base_address
+    ldi I 0                         
+    # I = 0 (offset for length field)
+    ldx B $_array_base_pntr_temp    
+    # B = M[M[$_array_base_pntr_temp] + I] => B = M[array_base_address + 0] = length
+    call @push_B                     
+    # Push the length onto the STACKS data stack
 ret
-
-@_array_write_logic
-    ; Internal helper. Assumes interrupts are already disabled or heap is locked.
-    ; Expects: A=value, B=index, C=base_address
-    ; Clobbers: K, I, C (C is reused)
-    ; Does NOT handle di/ei or lock/unlock.
-    sto C $_array_base_pntr_temp
-    ; --- Bounds Check ---
-    ldi I 1
-    ldx K $_array_base_pntr_temp
-    subi K 2 ; K = element_capacity
-    tstg K B
-    jmpt :_awl_index_valid
-    call @fatal_error ; Index out of bounds
-:_awl_index_valid
-    ; --- Write Value ---
-    ldi I 2
-    add I B
-    stx A $_array_base_pntr_temp
-    ; --- Update Length ---
-    ldi I 0
-    ldx K $_array_base_pntr_temp ; K = current_length
-    ld C B ; C = index
-    addi C 1 ; C = new_potential_length
-    tstg C K
-    jmpf :_awl_length_no_update
-    stx C $_array_base_pntr_temp
-:_awl_length_no_update
-    ret
-
 
 @stacks_array_write
     # Expects on STACKS data stack (top to bottom):
@@ -1186,97 +948,76 @@ ret
     #   array_base_address + 2 onwards: array data elements
     #
     # Registers Used: A (value), B (index), C (array_base_address, then new_potential_length),
-    #                 K, I, M (for checks and logic)
+    #                 K (capacity, then current_length), I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    pop L ; Save return address
-    pop C ; C gets array_base_address from stack
-    pop B ; B gets index from stack
-    pop A ; A gets value from stack
+    ;call @pop_C                     
+        ; C gets array_base_address from stack
+    call @pop_A
+    ld C A
+    call @pop_B                     
+        ; B gets index from stack
+    call @pop_A                    
+        ; A gets value from stack
 
-    ; Check if the address is in the shared heap.
-    ; Preserve A, B, C on the stack as @_is_shared_address clobbers registers.
-    push A ; save value
-    push B ; save index
-    push C ; save base_address
+    sto C $_array_base_pntr_temp    
+        ; M[$_array_base_pntr_temp] = array_base_address (from C)
 
-    ld A C ; Move base address to A for the check
-    call @_is_shared_address
-    ; Status bit is now set if shared. A is clobbered.
+    ; --- Bounds Check ---
+    ; K will hold element_capacity. B holds index.
+    ; Valid indices are 0 to element_capacity-1.
+    ; Error if index (B) >= element_capacity (K).
+    ldi I 1                         
+        ; I = 1 (offset for total_allocated_words field)
+    ldx K $_array_base_pntr_temp    
+        ; K = M[M[$_array_base_pntr_temp] + 1] => K = total_allocated_words
+    subi K 2                        
+        ; K = total_allocated_words - 2 = element_capacity
+        ; K now holds element_capacity.
+    
+    ; Check if index (B) is less than element_capacity (K).
+    ; If B < K (i.e., K > B), then index is valid.
+    tstg K B                        
+    ; Set status if K > B (element_capacity > index)
+    jmpt :_array_write_index_valid  
+    ; If status is true (K > B), index is valid. Jump to write.
+    ; Else (K <= B, i.e., index >= element_capacity), then it's an error. Fall through.
+:_array_write_index_out_of_bounds
+    call @fatal_error             
+    ; Index out of bounds. @fatal_error halts execution.
 
-    pop C ; restore base_address
-    pop B ; restore index
-    pop A ; restore value
-
-    jmpt :_saw_is_shared ; If status is true, it's a shared array
-
-; --- Local Array Path ---
-:_saw_is_local
-    di    ; Disable interrupts for atomic operation on local array
-    call @_array_write_logic ; A, B, C are already set up
-    ei    ; Re-enable interrupts
-    jmp :_saw_done
-
-; --- Shared Array Path ---
-:_saw_is_shared
-:_saw_retry_lock
-    int ~SYSCALL_LOCK_HEAP
-    ; Check syscall return value from PTE
-    ldm K $CURRENT_PROCESS_ID
-    ldm M $PROCESS_TABLE_BASE
-    ld I K
-    muli I ~PTE_SIZE
-    add M I
-    addi M ~PTE_SYSCALL_RETVAL
-    ld I M
-    ldx K $mem_start ; K = syscall_retval
-    tst K 0
-    jmpt :_saw_lock_acquired    ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
-    jmp :_saw_retry_lock        ; And try again
-
-    ; --- Lock Acquired ---
-    :_saw_lock_acquired
-    di
-    call @_array_write_logic ; A, B, C are already set up
-    ;ei
-    ; --- End of critical section ---
-
-    int ~SYSCALL_UNLOCK_HEAP
-
-:_saw_done
-    push L ; Restore return address
-ret
-
-
-
-
-@_array_append_logic
-    ; Internal helper. Assumes interrupts are already disabled or heap is locked.
-    ; Expects: A=value, C=base_address
-    ; Clobbers: K, L, I
-    ; Does NOT handle di/ei or lock/unlock.
-    sto C $_array_base_pntr_temp
-    ; --- Read current_length (K) and calculate element_capacity (L) ---
-    ldi I 0
-    ldx K $_array_base_pntr_temp ; K = current_length
-    ldi I 1
-    ldx L $_array_base_pntr_temp
-    subi L 2 ; L = element_capacity
-    ; --- Bounds Check: Is current_length (K) < element_capacity (L)? ---
-    tstg L K
-    jmpt :_aal_has_space
-    call @fatal_error ; Array full
-:_aal_has_space
+:_array_write_index_valid
     ; --- Write Value to Array ---
-    ldi I 2
-    add I K ; I = 2 + current_length
-    stx A $_array_base_pntr_temp
+    ; Target address: M[array_base_address + 2 + index]
+    ; M[$_array_base_pntr_temp] holds array_base_address.
+    ; B holds index. A holds value.
+    ldi I 2                         
+    ; I = 2 (base offset for data elements)
+    add I B                         
+    ; I = 2 + index (B)
+    stx A $_array_base_pntr_temp    
+    ; M[M[$_array_base_pntr_temp] + I] = value (A)
+
     ; --- Update Length ---
-    addi K 1 ; K = new_length
-    ldi I 0
-    stx K $_array_base_pntr_temp
-    ret
+    ; current_length is at M[array_base_address + 0]
+    ; new_potential_length = index + 1
+    ; if new_potential_length > current_length, update current_length.
+    ldi I 0                         
+    ; I = 0 (offset for length field)
+    ldx K $_array_base_pntr_temp    
+    ; K = M[M[$_array_base_pntr_temp] + 0] => K = current_length
+    ld C B                          
+    ; C = index (B)
+    addi C 1                        
+    ; C = index + 1 (this is the new potential length)
+    tstg C K                        
+    ; Set status if C > K (new_potential_length > current_length)
+    jmpf :_array_write_length_no_update 
+    ; If C is not > K, no length update needed.
+    stx C $_array_base_pntr_temp    
+    ; Store new length (C) into M[array_base_address + 0] (I is still 0)
+:_array_write_length_no_update
+ret
 
 @stacks_array_append
     # Expects on STACKS data stack (top to bottom):
@@ -1297,89 +1038,64 @@ ret
     #   array_base_address + 2 onwards: array data elements
     #
     # Registers Used: A (value), C (array_base_address),
-    #                 K, I, M (for checks and logic), X (for return address)
+    #                 K (current_length, then new_length), L (element_capacity),
+    #                 I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    pop X ; Save return address, using X since L is in use 
-    pop C ; C gets array_base_address from stack
-    pop A ; A gets value from stack
+    ;call @pop_C
+    call @pop_A
+    ld C A
+    # C gets array_base_address from stack
+    call @pop_A
+    # A gets value from stack
 
-    ; Check if the address is in the shared heap.
-    ; Preserve A, C on the stack as @_is_shared_address clobbers registers.
-    push A ; save value
-    push C ; save base_address
-
-    ld A C ; Move base address to A for the check
-    call @_is_shared_address
-    ; Status bit is now set if shared. A is clobbered.
-
-    pop C ; restore base_address
-    pop A ; restore value
-
-    jmpt :_saa_is_shared ; If status is true, it's a shared array
-
-; --- Local Array Path ---
-:_saa_is_local
-    di
-    call @_array_append_logic ; A, C are already set up
-    ei
-    jmp :_saa_done
-
-; --- Shared Array Path ---
-:_saa_is_shared
-:_saa_retry_lock
-    int ~SYSCALL_LOCK_HEAP
-    ; Check syscall return value from PTE
-    ldm K $CURRENT_PROCESS_ID
-    ldm M $PROCESS_TABLE_BASE
-    ld I K
-    muli I ~PTE_SIZE
-    add M I
-    addi M ~PTE_SYSCALL_RETVAL
-    ld I M
-    ldx K $mem_start ; K = syscall_retval
-    tst K 0
-    jmpt :_saa_lock_acquired    ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
-    jmp :_saa_retry_lock        ; And try again
-
-    ; --- Lock Acquired ---
-    :_saa_lock_acquired
-    di
-    call @_array_append_logic ; A, C are already set up
-    ;ei
-    ; --- End of critical section ---
-
-    int ~SYSCALL_UNLOCK_HEAP
-
-:_saa_done
-    push X ; Restore return address, using X since L is in use
-ret
-
-
-@_array_read_logic
-    ; Internal helper. Assumes interrupts are already disabled or heap is locked.
-    ; Expects: A=index, C=base_address
-    ; Returns: B=value_read
-    ; Clobbers: K, I
-    ; Does NOT handle di/ei or lock/unlock.
     sto C $_array_base_pntr_temp
-    ; --- Bounds Check ---
-    ldi I 1
+    # M[$_array_base_pntr_temp] = array_base_address (from C)
+
+    # --- Read current_length (K) and calculate element_capacity (L) ---
+    ldi I 0
+    # I = 0 (offset for current_length field)
     ldx K $_array_base_pntr_temp
-    subi K 2 ; K = element_capacity
-    tstg K A
-    jmpt :_arl_index_valid
-    call @fatal_error ; Index out of bounds
-:_arl_index_valid
-    ; --- Read Value ---
+    # K = M[M[$_array_base_pntr_temp] + 0] => K = current_length
+
+    ldi I 1
+    # I = 1 (offset for total_allocated_words field)
+    ldx L $_array_base_pntr_temp
+    # L = M[M[$_array_base_pntr_temp] + 1] => L = total_allocated_words
+    subi L 2
+    # L = total_allocated_words - 2 = element_capacity
+
+    # --- Bounds Check: Is current_length (K) < element_capacity (L)? ---
+    # If K < L (i.e., L > K), there is space.
+    tstg L K
+    # Set status if L > K (element_capacity > current_length)
+    jmpt :_array_append_has_space
+    # If status is true (L > K), there's space. Jump to append.
+    # Else (L <= K, i.e., current_length >= element_capacity), array is full. Fall through.
+:_array_append_full
+    call @fatal_error
+    # Array full. @fatal_error halts execution.
+
+:_array_append_has_space
+    # --- Write Value to Array ---
+    # Target address: M[array_base_address + 2 + current_length]
+    # K holds current_length. A holds value.
     ldi I 2
-    add I A
-    ldx B $_array_base_pntr_temp ; B = value read
-    ret
+    # I = 2 (base offset for data elements)
+    add I K
+    # I = 2 + current_length (K)
+    stx A $_array_base_pntr_temp
+    # M[M[$_array_base_pntr_temp] + I] = value (A)
 
-
-
+    # --- Update Length ---
+    # Increment current_length (K) and store it back.
+    addi K 1
+    # K = new_length (current_length + 1)
+    ldi I 0
+    # I = 0 (offset for length field)
+    stx K $_array_base_pntr_temp
+    # Store new_length (K) into M[array_base_address + 0]
+ret
 
 @stacks_array_read
     # Expects on STACKS data stack (top to bottom):
@@ -1399,64 +1115,53 @@ ret
     #   array_base_address + 2 onwards: array data elements
     #
     # Registers Used: A (index), B (value_read), C (array_base_address),
-    #                 K, I, M (for checks and logic)
+    #                 K (element_capacity), I (offset for ldx/stx)
     # Temporary Vars Used: $_array_base_pntr_temp
 
-    pop L ; Save return address
-    pop C ; C gets array_base_address from stack
-    pop A ; A gets index from stack
+    ;call @pop_C
+    call @pop_A
+    ld C A
+    # C gets array_base_address from stack
+    call @pop_A
+    # A gets index from stack
 
-    ; Check if the address is in the shared heap.
-    ; Preserve A, C on the stack as @_is_shared_address clobbers registers.
-    push A ; save index
-    push C ; save base_address
+    sto C $_array_base_pntr_temp
+    # M[$_array_base_pntr_temp] = array_base_address (from C)
 
-    ld A C ; Move base address to A for the check
-    call @_is_shared_address
-    ; Status bit is now set if shared. A is clobbered.
+    # --- Bounds Check ---
+    # K will hold element_capacity. A holds index.
+    # Valid indices are 0 to element_capacity-1.
+    # Error if index (A) >= element_capacity (K).
+    ldi I 1
+    # I = 1 (offset for total_allocated_words field)
+    ldx K $_array_base_pntr_temp
+    # K = M[M[$_array_base_pntr_temp] + 1] => K = total_allocated_words
+    subi K 2
+    # K = total_allocated_words - 2 = element_capacity
 
-    pop C ; restore base_address
-    pop A ; restore index
+    tstg K A
+    # Set status if K > A (element_capacity > index). This means index is < capacity.
+    jmpt :_array_read_index_valid
+    # If status is true (K > A), index is valid. Jump to read.
+    # Else (K <= A, i.e., index >= element_capacity), it's an error. Fall through.
+:_array_read_index_out_of_bounds
+    call @fatal_error
+    # Index out of bounds. @fatal_error halts execution.
 
-    jmpt :_sar_is_shared ; If status is true, it's a shared array
+:_array_read_index_valid
+    # --- Read Value from Array ---
+    # Target address: M[array_base_address + 2 + index]
+    # M[$_array_base_pntr_temp] holds array_base_address.
+    # A holds index. B will hold the value.
+    ldi I 2
+    # I = 2 (base offset for data elements)
+    add I A
+    # I = 2 + index (A)
+    ldx B $_array_base_pntr_temp
+    # B = M[M[$_array_base_pntr_temp] + I] (value_read)
 
-; --- Local Array Path ---
-:_sar_is_local
-    di    ; Disable interrupts for atomic operation on local array
-    call @_array_read_logic ; A, C are already set up. Result in B.
-    ei    ; Re-enable interrupts
-    jmp :_sar_done
-
-; --- Shared Array Path ---
-:_sar_is_shared
-:_sar_retry_lock
-    int ~SYSCALL_LOCK_HEAP
-    ; Check syscall return value from PTE
-    ldm K $CURRENT_PROCESS_ID
-    ldm M $PROCESS_TABLE_BASE
-    ld I K
-    muli I ~PTE_SIZE
-    add M I
-    addi M ~PTE_SYSCALL_RETVAL
-    ld I M
-    ldx K $mem_start ; K = syscall_retval
-    tst K 0
-    jmpt :_sar_lock_acquired    ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
-    jmp :_sar_retry_lock        ; And try again
-
-    ; --- Lock Acquired ---
-    :_sar_lock_acquired
-    di
-    call @_array_read_logic ; A, C are set up. Result in B.
-    ;ei
-    ; --- End of critical section ---
-
-    int ~SYSCALL_UNLOCK_HEAP
-
-:_sar_done
-    push B ; Push the read value (B) onto the STACKS data stack
-    push L ; Restore return address
+    call @push_B
+    # Push the read value (B) onto the STACKS data stack
 ret
 
 ; ==============================================================================
@@ -1466,21 +1171,18 @@ ret
 @stacks_network_write
     ; Called by parser-generated stubs for STACKS 'CONNECTION WRITE'.
     ; STACKS language construct: ident CONNECTION WRITE dst-addr serviceID
-    ; The calling stub (from parseV3.py) will have set up registers as follows:
+    ; The calling stub (from parseV2.py) will have set up registers as follows:
     ;   - Register A: dst-addr (destination NIC ID)
     ;   - Register B: Value to send (popped from STACKS stack)
-    ;   - Register C: service_id_out
-    ;   - Register K: reply_pid (the PID of the process on the sender host expecting the reply)
-
-    ; Encode the payload: (value * 10) + reply_pid
-    ; Value is in B, reply_pid is in K. Result should go back into B.
-    muli B 10   ; B = B * 10
-    add B K     ; B = B + K (encoded payload)
+    ;   - Loaded serviceID into Register C.
+    ; This routine then calls the low-level @send_data_packet_sub.
 
     ; @send_data_packet_sub (from networkdispatcher.asm) expects:
     ;   A: dst_addr
     ;   B: data_to_send
     ;   C: service_id_out
+    ;
+    ; Registers A, B, and C are already in the correct order as expected
 
     ; from networkdispatcher.asm
     call @send_data_packet_sub 
@@ -1492,12 +1194,9 @@ ret
     ; STACKS language construct: ident CONNECTION READ @user_service_routine
     ; This helper is intended to be called by the @user_service_routine.
     ; It reads from the network service 0 buffer using @read_service0_data.
-    ; It expects the calling process's PID in Register A.
     ; It then pushes two items onto the STACKS stack:
     ;   1. The value read (or a dummy value like 0 if no data).
     ;   2. A status code: 0 for success, 1 for failure (no data).
-
-    pop L ; Save the original return address from the stack
 
     ; from networkdispatcher.asm
     call @read_service0_data 
@@ -1511,21 +1210,23 @@ ret
 
     ; --- Failure Case (Buffer Empty) ---
     ; CPU status bit was 0, indicating @read_service0_data found no data.
-    ; No dummy data value needed when no data available, just return status.
+    ; ldi A 0         ; Push 0 as a dummy value for the data part
+    ; call @push_A    ; Assumes @push_A is a STACKS runtime routine to push Reg A onto STACKS stack
+    ; No dummy value neeeded when no data availible, just return status
     ; Push 1 as the status_code (failure/no data)
     ldi A 1         
-    push A
+    call @push_A
     jmp :_srs0bps_done
 
 :_srs0bps_data_read_success
     ; --- Success Case (Data Read) ---
     ; CPU status bit was 1, data from @read_service0_data is in Register A.
     ; Register A already contains the data byte.
-    push A ; Push the actual data byte onto STACKS stack   
+    ; Push the actual data byte onto STACKS stack
+    call @push_A   
     ; Push 0 as the status_code (success) 
     ldi A 0         
-    push A
+    call @push_A
 
 :_srs0bps_done
-    push L ; Restore the original return address to the stack
 ret

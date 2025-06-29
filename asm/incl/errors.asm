@@ -1,5 +1,5 @@
-@fatal_error_old
-    ldi X 5
+@fatal_error
+    ldi X 60
     ldi Y 30
     ld I Y 
     muli I 64
@@ -9,7 +9,7 @@
 halt
 
 
-@fatal_error
+@fatal_error_new
     ldi X 56
     ldi Y 25
     ldi C \f 

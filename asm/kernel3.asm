@@ -347,7 +347,7 @@ ret
     ; --- Call the network message dispatcher ---
     ; This routine should be non-blocking and execute quickly,
     ; aligning with the design to run service routines from the scheduler.
-    call @network_message_dispatcher
+    ;call @network_message_dispatcher
 
     ldm A $CURRENT_PROCESS_ID
     sto A $sched_old_pid
@@ -825,14 +825,14 @@ ret
 
     ; Heap is locked by *another* process. Set current process to WAIT_FOR_UNLOCK state.
     ; Get address of current process's PTE state field
-    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
-    ld I K                      ; I = current_pid (K)
-    muli I ~PTE_SIZE            ; I = current_pid * PTE_SIZE
-    add M I                     ; M = address of PTE for current_pid
-    addi M ~PTE_STATE           ; M = address of PTE[current_pid].state
-    ld I M                      ; I = direct address of the state field
-    ldi A ~PROC_STATE_WAIT_FOR_UNLOCK ; A = new state value
-    stx A $mem_start            ; M[I] = ~PROC_STATE_WAIT_FOR_UNLOCK
+    ; ldm M $PROCESS_TABLE_BASE   ; M = base of process table
+    ; ld I K                      ; I = current_pid (K)
+    ; muli I ~PTE_SIZE            ; I = current_pid * PTE_SIZE
+    ; add M I                     ; M = address of PTE for current_pid
+    ; addi M ~PTE_STATE           ; M = address of PTE[current_pid].state
+    ; ld I M                      ; I = direct address of the state field
+    ; ldi A ~PROC_STATE_WAIT_FOR_UNLOCK ; A = new state value
+    ; stx A $mem_start            ; M[I] = ~PROC_STATE_WAIT_FOR_UNLOCK
 
     ; Set syscall return value for the waiting process (will be checked when it resumes)
     ldi A 1 ; Set A = 1 (failure/busy status value)
@@ -880,39 +880,41 @@ ret
     ldi M ~HEAP_LOCK_UNLOCKED    ; M = value to store for unlocking
     sto M $kernel_heap_lock_pid  ; Unlock the heap
 
+    jmp :_syscall_write_status_and_rti ; Jump to common status write & rti
+
     ; --- Wake up waiting processes ---
     ; Iterate through user processes (PID 1 to MAX_PROCESSES-1)
     ; K is currently current_pid of unlocker. We need a loop counter. Let's use B for pid_to_check.
     ; C will hold MAX_PROCESSES. M will be used for PTE base and state value. I for address.
-    ldm C $MAX_PROCESSES        ; C = MAX_PROCESSES (e.g., 5)
-    ldi B 1                     ; B = current_pid_to_check (start from PID 1, PID 0 is kernel)
+;    ldm C $MAX_PROCESSES        ; C = MAX_PROCESSES (e.g., 5)
+;    ldi B 1                     ; B = current_pid_to_check (start from PID 1, PID 0 is kernel)
 
-:_unlock_heap_wake_loop
-    tste B C                    ; Is current_pid_to_check (B) == MAX_PROCESSES (C)?
-    jmpt :_unlock_heap_wake_done ; If equal, done iterating (PIDs are 0 to MAX_PROCESSES-1)
-
-    ; Calculate address of PTE[B].state
-    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
-    ld I B                      ; I = current_pid_to_check (B)
-    muli I ~PTE_SIZE            ; I = current_pid_to_check * PTE_SIZE
-    add M I                     ; M = address of PTE for current_pid_to_check
-    addi M ~PTE_STATE           ; M = address of PTE[B].state
-    ld I M                      ; I = direct address of the state field
-    ldx K $mem_start            ; K = M[I] = state of current_pid_to_check (B)
+; :_unlock_heap_wake_loop
+;    tste B C                    ; Is current_pid_to_check (B) == MAX_PROCESSES (C)?
+;    jmpt :_unlock_heap_wake_done ; If equal, done iterating (PIDs are 0 to MAX_PROCESSES-1)
+;
+;    ; Calculate address of PTE[B].state
+;    ldm M $PROCESS_TABLE_BASE   ; M = base of process table
+;    ld I B                      ; I = current_pid_to_check (B)
+;    muli I ~PTE_SIZE            ; I = current_pid_to_check * PTE_SIZE
+;    add M I                     ; M = address of PTE for current_pid_to_check
+;    addi M ~PTE_STATE           ; M = address of PTE[B].state
+;    ld I M                      ; I = direct address of the state field
+;    ldx K $mem_start            ; K = M[I] = state of current_pid_to_check (B)
 
     ; Check if state is WAIT_FOR_UNLOCK
-    tst K ~PROC_STATE_WAIT_FOR_UNLOCK
-    jmpf :_unlock_heap_next_wake_check ; If not equal, check next process
+;    tst K ~PROC_STATE_WAIT_FOR_UNLOCK
+;    jmpf :_unlock_heap_next_wake_check ; If not equal, check next process
 
     ; State is WAIT_FOR_UNLOCK, set to READY
-    ldi K ~PROC_STATE_READY     ; K = new state value
+;    ldi K ~PROC_STATE_READY     ; K = new state value
     ; I still holds the address of PTE[B].state
-    stx K $mem_start            ; M[I] = ~PROC_STATE_READY
+;    stx K $mem_start            ; M[I] = ~PROC_STATE_READY
 
-:_unlock_heap_next_wake_check
-    addi B 1                    ; Increment current_pid_to_check
-    jmp :_unlock_heap_wake_loop
+; :_unlock_heap_next_wake_check
+;    addi B 1                    ; Increment current_pid_to_check
+;    jmp :_unlock_heap_wake_loop
 
-:_unlock_heap_wake_done
-    ldi A 0                      ; Set return status to 0 (success)
-    jmp :_syscall_write_status_and_rti ; Jump to common status write & rti
+;:_unlock_heap_wake_done
+;    ldi A 0                      ; Set return status to 0 (success)
+;    jmp :_syscall_write_status_and_rti ; Jump to common status write & rti

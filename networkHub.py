@@ -37,7 +37,8 @@ class NetworkHub:
                 payload = message[2]
 
                 if 0 <= destination_id < self.max_connection:
-                    # print(f"HUB received message: To {destination_id} From {source_id} Payload {payload}") # Verbose
+                    #time.sleep(3)
+                    print(f"HUB received message: To {destination_id} From {source_id} Payload {payload}") # Verbose
                     self.output_queues[destination_id].put((source_id, payload))
                 else:
                     # print warning and continue

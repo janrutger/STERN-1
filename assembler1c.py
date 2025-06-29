@@ -360,27 +360,27 @@ class Assembler:
                             # Check global symbols (which includes kernel $vars)
                             if symbol_name in self.symbols:
                                 self._error(orig_line_num, current_line_content_for_error, f"Kernel variable symbol '{symbol_name}' already defined (at address {self.symbols[symbol_name]}).")
-                        if symbol_name in self.symbols: # Check global symbols
-                            self._error(orig_line_num, current_line_content_for_error, f"Symbol '{symbol_name}' already defined globally (at address {self.symbols[symbol_name]}).")
-                        self.symbols[symbol_name] = self.NextVarPointer
-                        self.NextVarPointer += size
-                    elif self.current_mode == 'process':
-                        proc_vars_and_labels = self.process_file_labels[self.current_kernel_pid]
-                        if symbol_name in proc_vars_and_labels or symbol_name in current_pass_labels_in_scope: # Check process-local scope
-                            self._error(orig_line_num, current_line_content_for_error, f"Symbol '{symbol_name}' already defined in process {self.current_kernel_pid}.")
-                        
-                        var_addr = self.current_process_var_next_free_addr
-                        proc_vars_and_labels[symbol_name] = var_addr # Store var in process-specific dict
-                        current_pass_labels_in_scope[symbol_name] = var_addr
-                        self.current_process_var_next_free_addr += size
-                        if self.current_process_var_next_free_addr > self.current_process_initial_sp_val:
-                            self._error(orig_line_num, current_line_content_for_error,
-                                        f"Variable '{symbol_name}' allocation in process {self.current_kernel_pid} "
-                                        f"(ends at {self.current_process_var_next_free_addr -1}) "
-                                        f"exceeds 1KB block limit (top of block is {self.current_process_initial_sp_val -1}). Reduce variable sizes or stack size.")
-                    else: # Should not happen
-                        self._error(orig_line_num, current_line_content_for_error, f"Variable symbol '{symbol_name}' defined with '.' must start with '$' (for local/kernel) or '&' (for shared).")
- 
+                            if symbol_name in self.symbols: # Check global symbols
+                                self._error(orig_line_num, current_line_content_for_error, f"Symbol '{symbol_name}' already defined globally (at address {self.symbols[symbol_name]}).")
+                            self.symbols[symbol_name] = self.NextVarPointer
+                            self.NextVarPointer += size
+                        elif self.current_mode == 'process':
+                            proc_vars_and_labels = self.process_file_labels[self.current_kernel_pid]
+                            if symbol_name in proc_vars_and_labels or symbol_name in current_pass_labels_in_scope: # Check process-local scope
+                                self._error(orig_line_num, current_line_content_for_error, f"Symbol '{symbol_name}' already defined in process {self.current_kernel_pid}.")
+                            
+                            var_addr = self.current_process_var_next_free_addr
+                            proc_vars_and_labels[symbol_name] = var_addr # Store var in process-specific dict
+                            current_pass_labels_in_scope[symbol_name] = var_addr
+                            self.current_process_var_next_free_addr += size
+                            if self.current_process_var_next_free_addr > self.current_process_initial_sp_val:
+                                self._error(orig_line_num, current_line_content_for_error,
+                                            f"Variable '{symbol_name}' allocation in process {self.current_kernel_pid} "
+                                            f"(ends at {self.current_process_var_next_free_addr -1}) "
+                                            f"exceeds 1KB block limit (top of block is {self.current_process_initial_sp_val -1}). Reduce variable sizes or stack size.")
+                        else: # Should not happen
+                            self._error(orig_line_num, current_line_content_for_error, f"Variable symbol '{symbol_name}' defined with '.' must start with '$' (for local/kernel) or '&' (for shared).")
+    
                 elif directive.startswith("%"):
                     continue # PC doesn't advance
                 elif directive_upper == "INCLUDE":
@@ -776,7 +776,7 @@ if __name__ == "__main__":
         assembler.assemble("kernel3.asm", kernel_start, "kernel.bin")
 
         program_start = 4096
-        assembler.assemble("test.asm", program_start, "temp_processes.bin", restore=True)
+        assembler.assemble("network_test0.asm", program_start, "temp_processes.bin", restore=True)
 
         # Example: Assemble a test program, but restore state afterwards
         # print("\nAssembling a temporary program with state restoration...")
