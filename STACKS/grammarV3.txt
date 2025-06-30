@@ -28,6 +28,7 @@ statement  ::=  "LABEL" ident nl
 
 			|   (expression | st) ( "PRINT" nl           # Corrected
 								| "PLOT" nl
+								| "DRAW" nl
 								| "WAIT"  nl           # Corrected
 								| "AS" (ident | '['ident']') nl # Assign to var or array element
 								| "DO"   nl {statement} nl "END" nl
@@ -41,7 +42,7 @@ word       ::=	('+'|'-'|'*'|'/'|'%'|'=='|'!='|'>'|'<'|'GCD'|'!'|'DUP'|'SWAP'|'OV
 
 # ident is a general identifier token. Its meaning (variable, function, label, array)
 # is determined by the parser based on context.
-ident      ::=  [a-zA-Z][a-zA-Z0-9]*
+ident      ::=  [a-z][a-z0-9]*
 
 st         ::=	('.'|'..')
 nl         ::= '\n'+

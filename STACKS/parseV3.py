@@ -530,9 +530,19 @@ class Parser:
                 self.nextToken() # Consume PRINT
                 self.nl()
             elif self.checkToken(TokenType.PLOT): # PLOT is now active
-                self.emitter.emitLine("call @plot") # Call the runtime routine
+                #self.emitter.emitLine("call @plot") # Call the runtime routine
+                self.emitter.emitLine("pop B")      # get Y value
+                self.emitter.emitLine("int ~SYSCALL_PLOT_Y_POINT")
                 self._print_trace("PLOT operation: Emitted call @plot.")
                 self.nextToken() # Consume PLOT
+                self.nl()
+            elif self.checkToken(TokenType.DRAW):
+                # self.emitter.emitLine("call @draw") # Call the new runtime routine
+                self.emitter.emitLine("pop B")      # get Y value
+                self.emitter.emitLine("pop A")      # get X value
+                self.emitter.emitLine("int ~SYSCALL_DRAW_XY_POINT")
+                self._print_trace("DRAW operation: Emitted call @draw.")
+                self.nextToken() # Consume DRAW
                 self.nl()
             elif self.checkToken(TokenType.WAIT):
                 self.emitter.emitLine("call @stacks_sleep")

@@ -58,6 +58,10 @@ equ ~SYSCALL_FORCE_RELEASE_SIO_CHANNEL 15 ; Input: ChannelID in A. Output: Writt
 equ ~SYSCALL_PRINT_NUMBER 16        ; must be pointing to @print_to_BCD (printing.asm)
 equ ~SYSCALL_PRINT_CHAR 17          ; must be pointing to @print_char (printing.asm)
 equ ~SYSCALL_PRINT_NL 18            ; must be pointing to @print_nl (printing.asm)
+equ ~SYSCALL_DRAW_XY_POINT 22       ; must me pointing to @draw_xy_point (printing.asm)
+equ ~SYSCALL_PLOT_Y_POINT 23        ; must me pointing to @plot_y_point (printing.asm)
+
+
 
 ; Heap Management Syscalls
 equ ~SYSCALL_LOCK_HEAP 20           ; Input: None. Output: Written to PCB[pid].~PTE_SYSCALL_RETVAL (0=success, 1=fail/busy)
@@ -233,6 +237,22 @@ INCLUDE networkdispatcher
     ldi K @_isr_print_nl
     ld I M
     stx K $mem_start
+
+    ldi K ~SYSCALL_DRAW_XY_POINT
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_draw_xy_point
+    ld I M
+    stx K $mem_start
+
+    ldi K ~SYSCALL_PLOT_Y_POINT
+    ldm M $INT_VECTORS
+    add M K
+    ldi K @_isr_plot_y_point
+    ld I M
+    stx K $mem_start
+
+
 
     ; --- Setup Heap Management Syscall ISRs ---
     ldi K ~SYSCALL_LOCK_HEAP
@@ -796,6 +816,20 @@ ret
     call @print_nl
     ; Output: None (or status via PCB if needed)
     rti
+
+@_isr_draw_xy_point
+    # A = X, B = Y
+    call @draw_xy_point ; From printing.asm
+    ; Output: None (or status via PCB if needed)
+    rti
+
+@_isr_plot_y_point
+    # B = Y value
+    call @plot_y_point
+    ; Output: None (or status via PCB if needed)
+    rti
+
+
 
 ;-------------------------------------------------------------------------------
 ; System Call: Lock Heap

@@ -106,6 +106,28 @@ ret
     int 1
 ret
 
+# SYSCALL ~SYSCALL_DRAW_XY_POINT
+@draw_xy_point
+    # expects X value in A 
+    # expects Y value in B 
+    ld K B      ; save B
+    ld B A      ; load X to send
+    ldi A 1     ; set channelnumber
+    call @write_channel
+    ld B K      ; restore B (Y-value)
+    call @write_channel
+ret
+
+# SYSCALL ~SYSCALL_PLOT_Y_POINT
+@plot_y_point
+    # Plot always use channel ID 0
+    ldi A 0
+    # expects value in B 
+    call @write_channel
+ret
+
+
+
 
 @print_to_BCD
     sto Z $BCDstring_index ; Initialize BCD string index/count to 0 (assuming Z holds 0)

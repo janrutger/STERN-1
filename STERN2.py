@@ -53,7 +53,7 @@ def assembly_code():
         # assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
         # assembler.assemble("network_test0.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
         # assembler.assemble("network_test1.asm", boot["start_prog"], "processes1.bin", True)
-        assembler.assemble("prime.asm", boot["start_prog"], "processes0.bin", True)
+        assembler.assemble("test.asm", boot["start_prog"], "processes0.bin", True)
         # assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
         print("Assembly complete.")
     except Exception as e:
@@ -132,7 +132,7 @@ if __name__ == "__main__":
             print(f"[Hub Process] Error: {e}")
 
     hub_process = None
-    if num_instances > 0 and max_connections > 0: # Only start hub if it's configured to be used
+    if num_instances > 1 and max_connections > 0: # Only start hub if it's configured to be used
         print("Creating and starting Network Hub process...")
         hub_process = multiprocessing.Process(target=run_hub_process, args=(send_queue, receive_queues, max_connections))
         hub_process.start()

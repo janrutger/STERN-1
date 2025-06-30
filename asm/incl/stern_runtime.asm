@@ -413,17 +413,30 @@ ret
     push L
 ret
 
-equ ~channel_id 0
-@plot 
-    ; Plot always use channel_id 0 
-    ; Expects: data on stack (top).
-    pop L
-    pop B ; B = data
-    ldi A ~channel_id
-    int ~SYSCALL_WRITE_SIO_CHANNEL  ; Kernel handles write, returns status in A
-    ; push A                          ; Push status onto STACKS stack
-    push L
-ret
+#equ ~channel_id 0
+#@plot 
+#    ; Plot always use channel_id 0 
+#    ; Expects: data on stack (top).
+#    pop L
+#    pop B ; B = data
+#    ldi A ~channel_id
+#    int ~SYSCALL_WRITE_SIO_CHANNEL  ; Kernel handles write, returns status in A
+#    ; push A                          ; Push status onto STACKS stack
+#    push L
+#ret
+
+#################################
+#@draw
+#    ; Expects: y, then x on stack (top to bottom: y, x)
+#    ; Sends x, then y to SIO channel 1 for the XY Plotter.
+#    pop L   ; Save return address
+#    pop B   ; B = y
+#    pop A   ; A = x
+#nop
+#    int ~SYSCALL_DRAW_XY_POINT
+#
+#    push L  ; Restore return address
+#ret
 
 
 #################################

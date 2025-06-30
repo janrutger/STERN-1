@@ -1,15 +1,5 @@
-.PROCES 1 64
+.PROCES 1 32
 :~proc_entry_1 ; Default entry point for process 1
-ldi A 0
-push A
-ldi A &ready2
-push A
-call @stacks_shared_var_write
-ldi A 0
-push A
-ldi A &ready3
-push A
-call @stacks_shared_var_write
 ldi A 2
 push A
 pop A
@@ -20,134 +10,15 @@ push A
 pop A
 int ~SYSCALL_START_PROCESS
 push A
-:lus
-ldm A &ready2
-push A
-ldi A 0
-push A
-call @eq
-pop A
-tste A Z
-jmpf :_0_do_end
+:loop
 ldi A 1
 push A
 call @stacks_sleep
-jmp :lus
-:_0_do_end
-ldm A &ready3
-push A
-ldi A 0
-push A
-call @eq
-pop A
-tste A Z
-jmpf :_1_do_end
-ldi A 1
-push A
-call @stacks_sleep
-jmp :lus
-:_1_do_end
+jmp :loop
 ldi A 1 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
 .PROCES 2 64
 :~proc_entry_2 ; Default entry point for process 2
-ldi A 0
-push A
-call @sio_channel_on
-ldi A 1
-push A
-call @stacks_timer_set
-ldi A 1
-push A
-pop B
-int ~SYSCALL_PLOT_Y_POINT
-ldi A 1
-push A
-pop B
-int ~SYSCALL_PLOT_Y_POINT
-ldi A 1
-push A
-. $previous 1
-pop A
-sto A $previous
-ldi A 2
-push A
-. $next 1
-pop A
-sto A $next
-:_2_while_condition
-ldm A $next
-push A
-ldi A 700
-push A
-call @ne
-pop A
-tste A Z
-jmpf :_2_while_end
-ldm A $previous
-push A
-ldm A $next
-push A
-call @stacks_gcd
-. $cfactor 1
-pop A
-sto A $cfactor
-ldi A 1
-push A
-ldm A $cfactor
-push A
-call @eq
-pop A
-tste A Z
-jmpf :_3_do_end
-ldm A $previous
-push A
-ldm A $next
-push A
-ldi A 1
-push A
-call @plus
-call @plus
-. $r 1
-pop A
-sto A $r
-jmp :nextnumber
-:_3_do_end
-ldm A $previous
-push A
-ldm A $cfactor
-push A
-call @divide
-pop A
-sto A $r
-:nextnumber
-ldm A $r
-push A
-pop B
-int ~SYSCALL_PLOT_Y_POINT
-ldm A $r
-push A
-pop A
-sto A $previous
-ldm A $next
-push A
-ldi A 1
-push A
-call @plus
-pop A
-sto A $next
-jmp :_2_while_condition
-:_2_while_end
-ldi A 1
-push A
-call @stacks_timer_print
-ldi A 300
-push A
-call @stacks_sleep
-ldi A 2 ; PID of the current process ending
-int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
-.PROCES 3 64
-:~proc_entry_3 ; Default entry point for process 3
 ldi A 0
 push A
 call @stacks_timer_set
@@ -204,7 +75,7 @@ sto A $step
 ldi A 1
 push A
 call @sio_channel_on
-:_4_while_condition
+:_0_while_condition
 ldm A $step
 push A
 ldm A $steps
@@ -212,7 +83,7 @@ push A
 call @lt
 pop A
 tste A Z
-jmpf :_4_while_end
+jmpf :_0_while_end
 call @rand
 ldi A 3
 push A
@@ -227,7 +98,7 @@ push A
 call @eq
 pop A
 tste A Z
-jmpf :_5_do_end
+jmpf :_1_do_end
 call @~SelectVertexA
 ; --- String Literal 'a' pushed to stack ---
 ldi A 0
@@ -236,7 +107,7 @@ ldi A \a
 push A
 ; --- End String Literal 'a' on stack ---
 call @stacks_show_from_stack
-:_5_do_end
+:_1_do_end
 ldm A $next
 push A
 ldi A 1
@@ -244,7 +115,7 @@ push A
 call @eq
 pop A
 tste A Z
-jmpf :_6_do_end
+jmpf :_2_do_end
 call @~SelectVertexB
 ; --- String Literal 'b' pushed to stack ---
 ldi A 0
@@ -253,7 +124,7 @@ ldi A \b
 push A
 ; --- End String Literal 'b' on stack ---
 call @stacks_show_from_stack
-:_6_do_end
+:_2_do_end
 ldm A $next
 push A
 ldi A 2
@@ -261,7 +132,7 @@ push A
 call @eq
 pop A
 tste A Z
-jmpf :_7_do_end
+jmpf :_3_do_end
 call @~SelectVertexC
 ; --- String Literal 'c' pushed to stack ---
 ldi A 0
@@ -270,7 +141,7 @@ ldi A \c
 push A
 ; --- End String Literal 'c' on stack ---
 call @stacks_show_from_stack
-:_7_do_end
+:_3_do_end
 ldm A $CurrentPX
 push A
 ldm A $TargetVX
@@ -305,15 +176,15 @@ push A
 call @plus
 pop A
 sto A $step
-jmp :_4_while_condition
-:_4_while_end
+jmp :_0_while_condition
+:_0_while_end
 ldi A 0
 push A
 call @stacks_timer_print
-ldi A 300
+ldi A 600
 push A
 call @stacks_sleep
-ldi A 3 ; PID of the current process ending
+ldi A 2 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
 @~SelectVertexA
 ldm A $VertexAX
@@ -347,5 +218,100 @@ push A
 pop A
 sto A $TargetVY
 ret
-. &ready2 1
-. &ready3 1
+.PROCES 3 64
+:~proc_entry_3 ; Default entry point for process 3
+ldi A 0
+push A
+call @sio_channel_on
+ldi A 1
+push A
+call @stacks_timer_set
+ldi A 1
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
+ldi A 1
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
+ldi A 1
+push A
+. $previous 1
+pop A
+sto A $previous
+ldi A 2
+push A
+. $next 1
+pop A
+sto A $next
+:_4_while_condition
+ldm A $next
+push A
+ldi A 700
+push A
+call @ne
+pop A
+tste A Z
+jmpf :_4_while_end
+ldm A $previous
+push A
+ldm A $next
+push A
+call @stacks_gcd
+. $cfactor 1
+pop A
+sto A $cfactor
+ldi A 1
+push A
+ldm A $cfactor
+push A
+call @eq
+pop A
+tste A Z
+jmpf :_5_do_end
+ldm A $previous
+push A
+ldm A $next
+push A
+ldi A 1
+push A
+call @plus
+call @plus
+. $r 1
+pop A
+sto A $r
+jmp :nextnumber
+:_5_do_end
+ldm A $previous
+push A
+ldm A $cfactor
+push A
+call @divide
+pop A
+sto A $r
+:nextnumber
+ldm A $r
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
+ldm A $r
+push A
+pop A
+sto A $previous
+ldm A $next
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $next
+jmp :_4_while_condition
+:_4_while_end
+ldi A 1
+push A
+call @stacks_timer_print
+ldi A 600
+push A
+call @stacks_sleep
+ldi A 3 ; PID of the current process ending
+int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block

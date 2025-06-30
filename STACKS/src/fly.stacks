@@ -1,27 +1,31 @@
-0 CHANNEL ON
-0 TIMER SET
+PROCESS 1
+
+      0 CHANNEL ON
+      0 TIMER SET
 
 
 
-1 PLOT
-1 PLOT
-1 AS previous
+      1 PLOT
+      1 PLOT
+      1 AS previous
 
-2 AS next
+      2 AS next
 
-{next 700 !=} DO
-      previous next GCD AS cfactor
-      1 cfactor == DO
-            previous next 1 + + AS r
-            GOTO nextnumber
+      {next 700 !=} DO
+            previous next GCD AS cfactor
+            1 cfactor == DO
+                  previous next 1 + + AS r
+                  GOTO nextnumber
+            END
+
+            previous cfactor / AS r
+
+            LABEL nextnumber
+            r PLOT
+            r AS previous 
+            next 1 + AS next
+
       END
-
-      previous cfactor / AS r
-
-      LABEL nextnumber
-      r PLOT
-      r AS previous 
-      next 1 + AS next
+      0 TIMER PRINT
 
 END
-0 TIMER PRINT

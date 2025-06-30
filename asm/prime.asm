@@ -39,7 +39,7 @@ push A
 . $start 1
 pop A
 sto A $start
-ldi A 128
+ldi A 256
 push A
 ldm A $start
 push A
@@ -87,8 +87,12 @@ ldm A $index
 push A
 ldi A &workingList
 push A
-call @stacks_array_length
-call @ne
+call @stacks_array_read
+call @dup
+call @multiply
+ldm A $max
+push A
+call @lt
 pop A
 tste A Z
 jmpf :_2_while_end
@@ -170,9 +174,23 @@ jmp :_4_while_condition
 :_3_do_end
 ldm A $index
 push A
+ldi A &workingList
+push A
+call @stacks_array_read
+ldi A 0
+push A
+call @ne
 pop A
-int ~SYSCALL_PRINT_NUMBER
-int ~SYSCALL_PRINT_NL
+tste A Z
+jmpf :_7_do_end
+; --- String Literal '.' pushed to stack ---
+ldi A 0
+push A
+ldi A \.
+push A
+; --- End String Literal '.' on stack ---
+call @stacks_show_from_stack
+:_7_do_end
 ldm A $index
 push A
 ldi A 1
@@ -187,7 +205,7 @@ push A
 . $counter 1
 pop A
 sto A $counter
-:_7_while_condition
+:_8_while_condition
 ldm A $counter
 push A
 ldi A &workingList
@@ -196,7 +214,7 @@ call @stacks_array_length
 call @lt
 pop A
 tste A Z
-jmpf :_7_while_end
+jmpf :_8_while_end
 ldm A $counter
 push A
 ldi A &workingList
@@ -207,7 +225,7 @@ push A
 call @ne
 pop A
 tste A Z
-jmpf :_8_do_end
+jmpf :_9_do_end
 ldm A $counter
 push A
 ldi A &workingList
@@ -216,7 +234,7 @@ call @stacks_array_read
 pop A
 int ~SYSCALL_PRINT_NUMBER
 int ~SYSCALL_PRINT_NL
-:_8_do_end
+:_9_do_end
 ldm A $counter
 push A
 ldi A 1
@@ -224,8 +242,8 @@ push A
 call @plus
 pop A
 sto A $counter
-jmp :_7_while_condition
-:_7_while_end
+jmp :_8_while_condition
+:_8_while_end
 ldi A 1
 push A
 ldi A &klaar
@@ -233,6 +251,6 @@ push A
 call @stacks_shared_var_write
 ldi A 2 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
-. &workingList 130
-% &workingList 0 130
+. &workingList 258
+% &workingList 0 258
 . &klaar 1
