@@ -1,0 +1,171 @@
+PROCESS 1 32
+    0 TIMER SET
+    SHARED ARRAY workingList 2048
+
+    SHARED VAR P2index
+    0 AS P2index    # 0 = no number to check, otherwise check the number at index - 1
+    2 STARTPROCESS
+
+    SHARED VAR P3index
+    0 AS P3index    # 0 = no number to check, otherwise check the number at index -1
+    3 STARTPROCESS
+
+    SHARED VAR P4index
+    0 AS P4index    # 0 = no number to check, otherwise check the number at index -1
+    4 STARTPROCESS
+
+
+
+
+    # Creating the start list of numbers
+    2 AS start
+    2048 start + AS max
+
+    {start max < } DO
+        start AS workingList    # add to the array
+        start 1 + AS start
+        '.' SHOW
+    END
+
+
+    # Start the process
+    0 AS index
+    {index [workingList] DUP * max < } DO
+        index [workingList] 0 != DO
+            # index [workingList] PRINT
+            LABEL try
+
+            P4index 0 == DO
+                index 1 + AS P4index
+                4 PRINT
+                GOTO done
+            END
+
+            P3index 0 == DO
+                index 1 + AS P3index
+                3 PRINT
+                GOTO done
+            END
+
+            P2index 0 == DO
+                index 1 + AS P2index
+                2 PRINT
+                GOTO done
+            END
+            
+            1 WAIT
+            GOTO try
+        END
+
+        LABEL done
+        index 1 + AS index
+        #1 WAIT
+    END
+
+    {P2index 0 !=} DO
+        1 WAIT
+    END
+    2 STOPPROCESS
+    DROP
+
+    {P3index 0 !=} DO
+        1 WAIT
+    END 
+    3 STOPPROCESS
+    DROP
+
+    {P4index 0 !=} DO
+        1 WAIT
+    END 
+    4 STOPPROCESS
+    DROP
+
+    0 AS counter
+    {counter workingList <} DO
+        counter [workingList] 0 !=  DO
+            counter [workingList] PRINT
+        END
+        counter 1 + AS counter
+    END
+
+    0 TIMER PRINT
+
+END
+
+
+PROCESS 2 32
+
+    LABEL lus
+    {P2index 0 ==} DO
+        # just WAIT
+        1 WAIT
+    END
+
+    P2index 1 - [workingList] AS value
+    P2index AS nextIndex
+    {nextIndex workingList !=} DO
+        nextIndex [workingList] AS nextValue
+        nextValue 0 != DO 
+            nextValue value % 0 == DO
+                0 nextIndex AS [workingList] 
+            END   
+        END 
+        nextIndex 1 + AS nextIndex         
+    END
+
+    0 AS P2index
+    GOTO lus
+
+END
+
+
+PROCESS 3 32
+
+    LABEL lus
+    {P3index 0 ==} DO
+        # just WAIT
+        1 WAIT
+    END
+
+    P3index 1 - [workingList] AS value
+    P3index AS nextIndex
+    {nextIndex workingList !=} DO
+        nextIndex [workingList] AS nextValue
+        nextValue 0 != DO 
+            nextValue value % 0 == DO
+                0 nextIndex AS [workingList] 
+            END   
+        END 
+        nextIndex 1 + AS nextIndex         
+    END
+
+    0 AS P3index
+    GOTO lus
+
+END      
+
+
+PROCESS 4 32
+
+    LABEL lus
+    {P4index 0 ==} DO
+        # just WAIT
+        1 WAIT
+    END
+
+    P4index 1 - [workingList] AS value
+    P4index AS nextIndex
+    {nextIndex workingList !=} DO
+        nextIndex [workingList] AS nextValue
+        nextValue 0 != DO 
+            nextValue value % 0 == DO
+                0 nextIndex AS [workingList] 
+            END   
+        END 
+        nextIndex 1 + AS nextIndex         
+    END
+
+    0 AS P4index
+    GOTO lus
+
+END      

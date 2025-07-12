@@ -849,7 +849,7 @@ ret
     ; Heap is unlocked, acquire lock
     sto K $kernel_heap_lock_pid  ; Store current PID (K) as lock owner
     ldi A 0                      ; Set return status to 0 (success)
-    ; Fall through to _syscall_write_status_and_rti
+    jmp :_syscall_write_status_and_rti ; Common exit path
 
 :_lock_heap_is_locked
     ; Heap was already locked.

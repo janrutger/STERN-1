@@ -1,6 +1,6 @@
 PROCESS 1 32
     0 TIMER SET
-    SHARED ARRAY workingList 256
+    SHARED ARRAY workingList 2048
     SHARED VAR klaar
     0 AS klaar
 
@@ -17,7 +17,7 @@ END
 
 PROCESS 2 128
     2 AS start
-    256 start + AS max
+    2048 start + AS max
 
     {start max < } DO
         start AS workingList    # add to the array

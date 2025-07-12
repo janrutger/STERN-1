@@ -21,8 +21,8 @@ equ ~$SHARED_HEAP_END_ADDRESS 11263 ; $SHARED_HEAP_START_ADDRESS + $SHARED_HEAP_
 # Used by STRLEN to store calculated length
 # These are kept for now, assuming CHARAT and STRLEN might be implemented later
 # based on stack strings or might be removed if not needed.
-. $_str_op_idx_val 1    
-. $_str_op_len_val 1    
+#. $_str_op_idx_val 1    
+#. $_str_op_len_val 1    
 
 # --- Temporary variable for HASH ---
 . $_hash_accumulator 1
@@ -971,7 +971,7 @@ ret
 
     tst K 0                     ; Test if K is 0 (lock acquisition successful)
     jmpt :_ssvw_lock_acquired   ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
+    int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
     jmp :_ssvw_retry_lock       ; And try again
 
     ; Lock acquired successfully
@@ -1015,7 +1015,7 @@ ret
 
     tst K 0                     ; Test if K is 0 (lock acquisition successful)
     jmpt :_ssvr_lock_acquired   ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
+    int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
     jmp :_ssvr_retry_lock       ; And try again
 
     ; Lock acquired successfully
@@ -1132,7 +1132,7 @@ ret
     ldx K $mem_start ; K = syscall_retval
     tst K 0
     jmpt :_sal_lock_acquired    ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
+    int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
     jmp :_sal_retry_lock        ; And try again
 
     ; --- Lock Acquired ---
@@ -1245,7 +1245,7 @@ ret
     ldx K $mem_start ; K = syscall_retval
     tst K 0
     jmpt :_saw_lock_acquired    ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
+    int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
     jmp :_saw_retry_lock        ; And try again
 
     ; --- Lock Acquired ---
@@ -1353,7 +1353,7 @@ ret
     ldx K $mem_start ; K = syscall_retval
     tst K 0
     jmpt :_saa_lock_acquired    ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
+    int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
     jmp :_saa_retry_lock        ; And try again
 
     ; --- Lock Acquired ---
@@ -1455,7 +1455,7 @@ ret
     ldx K $mem_start ; K = syscall_retval
     tst K 0
     jmpt :_sar_lock_acquired    ; If successful, jump to critical section
-    ; int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
+    int ~SYSCALL_YIELD          ; Otherwise, yield the CPU
     jmp :_sar_retry_lock        ; And try again
 
     ; --- Lock Acquired ---

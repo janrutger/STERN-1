@@ -1,13 +1,38 @@
 PROCESS 1
-    
-    2 STARTPROCESS
-    3 STARTPROCESS
+    2 TIMER SET
+    SHARED VAR proc2
+    0 AS proc2
+    SHARED VAR proc3
+    0 AS proc3
+
+    0 AS loop
+
+    4 STARTPROCESS 
+    DROP
+    2 STARTPROCESS 
+    DROP
+    3 STARTPROCESS 
+    DROP
+
 
     LABEL lus
+        proc2 1 == DO
+            2 STOPPROCESS
+            . AS proc2
+            loop 1 + AS loop
+        END
+        proc3 1 == DO
+            3 STOPPROCESS
+            . AS proc3
+            loop 1 + AS loop
+        END
+        '.' SHOW
         1 WAIT
-    GOTO lus
+        loop 2 != GOTO lus
 
-
+    4 STOPPROCESS
+    DROP
+    2 TIMER PRINT
 END
 
 
@@ -15,7 +40,6 @@ END
 PROCESS 2 64
     0 CHANNEL ON
     1 TIMER SET
-
 
 
     1 PLOT
@@ -37,10 +61,19 @@ PROCESS 2 64
         r PLOT
         r AS previous 
         next 1 + AS next
+        #'#' SHOW
+
 
     END
     1 TIMER PRINT
     300 WAIT
+
+    LABEL lus
+        1 AS proc2
+        1 WAIT
+    GOTO lus
+
+    
 
 END
 
@@ -61,7 +94,7 @@ PROCESS 3 64
     10 AS CurrentPY
     
 
-    5000 AS steps
+    10000 AS steps
     0   AS step
 
 
@@ -88,22 +121,22 @@ PROCESS 3 64
     #'activating xy-plotter on channel 1...' SHOW
     1 CHANNEL ON    
 
-
     {step steps <} DO
         #step PRINT
+        
 
         `rand 3 % AS next 
         next 0 == DO
             SelectVertexA
-            'a' SHOW
+            #'a' SHOW
         END
         next 1 == DO
             SelectVertexB
-            'b' SHOW
+            #'b' SHOW
         END
         next 2 == DO
             SelectVertexC
-            'c' SHOW
+            #'c' SHOW
         END
 
         CurrentPX TargetVX + 2 / AS CurrentPX
@@ -113,10 +146,25 @@ PROCESS 3 64
 
         #step PRINT
         step 1 + AS step
+
     END
 
 0 TIMER PRINT
 300 WAIT
-   
+
+
+
+LABEL lus
+    1 AS proc3
+    1 WAIT
+GOTO lus
+
+END
+
+PROCESS 4 16
+    LABEL lus
+        `rand DROP `rand DROP
+        1 WAIT
+    GOTO lus
 
 END

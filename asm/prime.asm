@@ -39,7 +39,7 @@ push A
 . $start 1
 pop A
 sto A $start
-ldi A 256
+ldi A 2048
 push A
 ldm A $start
 push A
@@ -251,6 +251,6 @@ push A
 call @stacks_shared_var_write
 ldi A 2 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
-. &workingList 258
-% &workingList 0 258
+. &workingList 2050
+% &workingList 0 2050
 . &klaar 1
