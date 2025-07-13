@@ -28,7 +28,7 @@ PROCESS 1 32
     END
 
 
-    # Start the process
+    # Start the processing
     0 AS index
     {index [workingList] DUP * max < } DO
         index [workingList] 0 != DO

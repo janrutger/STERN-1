@@ -1,21 +1,7 @@
-PROCESS 1 32
+PROCESS 1 512
     0 TIMER SET
     SHARED ARRAY workingList 2048
-    SHARED VAR klaar
-    0 AS klaar
 
-    2 STARTPROCESS
-
-    {klaar 0 ==} DO
-        1 WAIT
-    END
-
-    0 TIMER PRINT
-
-END
-
-
-PROCESS 2 128
     2 AS start
     2048 start + AS max
 
@@ -31,16 +17,14 @@ PROCESS 2 128
     #{index workingList != } DO
      {index [workingList] DUP * max < } DO
     
+        index [workingList] AS value
         index 1 + AS nextIndex
         index [workingList] 0 != DO
             {nextIndex workingList !=} DO
-                nextIndex [workingList] 0 != DO 
-                    nextIndex [workingList] index [workingList] % 0 == DO
-                        # '.' SHOW
-                        # nextIndex [workingList] PRINT
+                nextIndex [workingList] AS nextValue
+                nextValue 0 != DO 
+                    nextValue value % 0 == DO
                         0 nextIndex AS [workingList] 
-                        
-                    
                     END   
                 END 
                 nextIndex 1 + AS nextIndex         
@@ -48,7 +32,6 @@ PROCESS 2 128
         END
 
         index [workingList] 0 != DO
-            # index [workingList] PRINT
             '.' SHOW
         END
 
@@ -65,8 +48,9 @@ PROCESS 2 128
         counter 1 + AS counter
     END
 
-    1 AS klaar
-    # 1 WAIT
+
+    0 TIMER PRINT
 
 END
+
 

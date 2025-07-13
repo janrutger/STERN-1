@@ -51,9 +51,9 @@ def assembly_code():
         # Assemble ROMs specified in configs
         # assembler.assemble("ChaosGame3.asm", boot["start_prog"], "ChaosGame3.bin", True)
         # assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
-        # assembler.assemble("network_test0.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
-        # assembler.assemble("network_test1.asm", boot["start_prog"], "processes1.bin", True)
-        assembler.assemble("prime2.asm", boot["start_prog"], "processes0.bin", True)
+        assembler.assemble("prime.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
+        assembler.assemble("prime2.asm", boot["start_prog"], "processes1.bin", True)
+        # assembler.assemble("prime.asm", boot["start_prog"], "processes0.bin", True)
         # assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
         print("Assembly complete.")
     except Exception as e:
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # Base directory for relative paths (like disk dirs)
     base_dir = os.path.dirname(os.path.abspath(__file__))
     boot = {
-        "num_instances_to_run": 1, # Configurable: 1 for development, 2 for multi-instance
+        "num_instances_to_run": 2, # Configurable: 1 for development, 2 for multi-instance
         "start_loader": 0,
         "start_kernel": 1024,
         "intVectors": 3072, # New Interrupt Vector Table start address
