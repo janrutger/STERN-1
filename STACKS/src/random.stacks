@@ -1,0 +1,71 @@
+PROCESS 1 512
+    0 TIMER SET
+    SHARED ARRAY list 1000
+    SHARED ARRAY totals 100
+
+    0 AS start
+    1000 AS end
+    'init lists ' SHOW
+    {start end <} DO
+        0 AS list
+        start 1 + AS start
+    END
+
+    0 AS start
+    100  AS end
+    {start end <} DO
+        0 AS totals
+        start 1 + AS start
+    END
+    0 TIMER PRINT
+
+    0 AS start
+    50000 AS end
+
+    'generate randoms ' SHOW
+    {start end <} DO
+        `rand AS number
+        number [list] 1 + number AS [list]
+
+        start 1 + AS start
+    END
+    0 TIMER PRINT
+
+    0 AS counter
+    'calc totals ' SHOW
+    {counter list <} DO
+        counter [list] [totals] 1 + counter [list] AS [totals]
+        counter 1 + AS counter
+    END
+    0 TIMER PRINT
+
+    0 CHANNEL ON
+    0 AS counter
+
+    #{counter totals <} DO
+    #    counter [totals] 0 != DO
+    #        counter [totals] PLOT
+    #    END
+    #    counter 1 + AS counter
+    #END
+
+    {counter totals <} DO
+        counter [totals] PLOT
+        counter 1 + AS counter
+    END
+
+    'plot done..... ' SHOW
+    0 TIMER PRINT
+
+    0 AS counter
+    0 AS sum
+    {counter totals <} DO
+        sum counter [totals] + AS sum
+        counter 1 + AS counter
+    END
+    'total counted points : ' SHOW sum PRINT
+
+
+    RAWIN DROP
+
+END

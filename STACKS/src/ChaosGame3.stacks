@@ -1,0 +1,83 @@
+PROCESS 1 64
+    0 TIMER SET
+    10 AS VertexAX
+    10 AS VertexAY
+    
+    630 AS VertexBX
+    10  AS VertexBY
+
+    320 AS VertexCX
+    470 AS VertexCY
+
+    10 AS CurrentPX
+    10 AS CurrentPY
+
+    0 AS a
+    0 AS b
+    0 AS c
+    
+
+    5000 AS steps
+    0   AS step
+
+
+    FUNCTION SelectVertexA
+        VertexAX AS TargetVX
+        VertexAY AS TargetVY
+    END
+
+    FUNCTION SelectVertexB
+        VertexBX AS TargetVX
+        VertexBY AS TargetVY
+    END
+
+    FUNCTION SelectVertexC
+        VertexCX AS TargetVX
+        VertexCY AS TargetVY
+    END
+
+
+
+
+
+
+    #'activating xy-plotter on channel 1...' SHOW
+    1 CHANNEL ON    
+
+    {step steps <} DO
+        #step PRINT
+        
+
+        #`rand 3 % AS next 
+        `rand 3 * 999 / AS next
+        next 0 == DO
+            SelectVertexA
+            a 1 + AS a
+        END
+        next 1 == DO
+            SelectVertexB
+            b 1 + AS b
+        END
+        next 2 == DO
+            SelectVertexC
+            c 1 + AS c
+        END
+
+        CurrentPX TargetVX + 2 / AS CurrentPX
+        CurrentPY TargetVY + 2 / AS CurrentPY
+
+        CurrentPX CurrentPY DRAW
+
+        '.' SHOW
+        step 1 + AS step
+
+    END
+
+0 TIMER PRINT
+'a is : ' SHOW a PRINT
+'b is : ' SHOW b PRINT
+'c is : ' SHOW c PRINT
+
+300 WAIT
+
+END
