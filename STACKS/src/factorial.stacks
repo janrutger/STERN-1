@@ -1,0 +1,13 @@
+PROCESS 1 64
+20 AS start
+1 AS result
+
+{start 1 !=} DO 
+    result start * AS result
+    start 1 - AS start
+END
+
+result PRINT
+
+
+END

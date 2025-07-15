@@ -370,14 +370,26 @@ class Parser:
             # after a .PROCES directive.
             if func_name in self.functions:
                 self.emitter.enter_function_definition_emission() # Signal start of function code
-                self.emitter.emitLine("@~" + func_name)
+                self.emitter.emitLine("@~" + func_name) # Mark start of function
+
+                # Allocate a local variable for the return address within the function's scope
+                return_addr_var = f"$ret_{func_name}"
+                self.symbols.add(return_addr_var) # Track it as a local symbol
+                # Emit: Reserve one word for the return address
+                self.emitter.emitLine(f". {return_addr_var} 1 ; Reserve space for return address")
+
+                # Emit: Function Prologue - Save return address to this local var
+                self.emitter.emitLine(f"pop A ; Pop return address into A")
+                self.emitter.emitLine(f"sto A {return_addr_var} ; Save return address")
                 self._print_info(f"Defining function '{func_name}'. STERN-1: Emit '@~{func_name}'.")
                 self.match(TokenType.IDENT)
                 self.nl()
                 while not self.checkToken(TokenType.END):
                     self.statement()
                 self.match(TokenType.END)
-                self.emitter.emitLine("ret")
+                self.emitter.emitLine(f"ldm A {return_addr_var} ; Epilogue: Load return address")
+                self.emitter.emitLine("push A ; Epilogue: Push return address")
+                self.emitter.emitLine("ret ; Epilogue: Return")
                 self.emitter.exit_function_definition_emission() # Signal end of function code
                 self._print_info(f"End of function '{func_name}'. STERN-1: Emit 'ret' (function code collected).")
                 self.nl()

@@ -1,7 +1,7 @@
 PROCESS 1 512
     0 TIMER SET
     SHARED ARRAY list 1000
-    SHARED ARRAY totals 100
+    ARRAY totals 100
 
     0 AS start
     1000 AS end
@@ -42,12 +42,6 @@ PROCESS 1 512
     0 CHANNEL ON
     0 AS counter
 
-    #{counter totals <} DO
-    #    counter [totals] 0 != DO
-    #        counter [totals] PLOT
-    #    END
-    #    counter 1 + AS counter
-    #END
 
     {counter totals <} DO
         counter [totals] PLOT

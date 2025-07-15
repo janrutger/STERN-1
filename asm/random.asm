@@ -3,6 +3,8 @@
 ldi A 0
 push A
 call @stacks_timer_set
+. $totals 102
+% $totals 0 102
 ldi A 0
 push A
 . $start 1
@@ -82,7 +84,7 @@ tste A Z
 jmpf :_1_while_end
 ldi A 0
 push A
-ldi A &totals
+ldi A $totals
 push A
 call @stacks_array_append
 ldm A $start
@@ -231,7 +233,7 @@ push A
 ldi A &list
 push A
 call @stacks_array_read
-ldi A &totals
+ldi A $totals
 push A
 call @stacks_array_read
 ldi A 1
@@ -242,7 +244,7 @@ push A
 ldi A &list
 push A
 call @stacks_array_read
-ldi A &totals
+ldi A $totals
 push A
 call @stacks_array_write
 ldm A $counter
@@ -267,7 +269,7 @@ sto A $counter
 :_4_while_condition
 ldm A $counter
 push A
-ldi A &totals
+ldi A $totals
 push A
 call @stacks_array_length
 call @lt
@@ -276,7 +278,7 @@ tste A Z
 jmpf :_4_while_end
 ldm A $counter
 push A
-ldi A &totals
+ldi A $totals
 push A
 call @stacks_array_read
 pop B
@@ -340,7 +342,7 @@ sto A $sum
 :_5_while_condition
 ldm A $counter
 push A
-ldi A &totals
+ldi A $totals
 push A
 call @stacks_array_length
 call @lt
@@ -351,7 +353,7 @@ ldm A $sum
 push A
 ldm A $counter
 push A
-ldi A &totals
+ldi A $totals
 push A
 call @stacks_array_read
 call @plus
@@ -428,5 +430,3 @@ ldi A 1 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
 . &list 1002
 % &list 0 1002
-. &totals 102
-% &totals 0 102
