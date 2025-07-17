@@ -51,7 +51,7 @@ def assembly_code():
         # Assemble ROMs specified in configs
         # assembler.assemble("ChaosGame3.asm", boot["start_prog"], "ChaosGame3.bin", True)
         # assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
-        assembler.assemble("factorial.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
+        assembler.assemble("ChaosGame3.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
         assembler.assemble("fly.asm", boot["start_prog"], "processes1.bin", True)
         # assembler.assemble("prime.asm", boot["start_prog"], "processes0.bin", True)
         # assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)

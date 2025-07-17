@@ -265,6 +265,9 @@ call @stacks_sleep
 ldi A 1 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
 @~SelectVertexA
+. $ret_SelectVertexA 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexA ; Save return address
 ldm A $VertexAX
 push A
 . $TargetVX 1
@@ -275,8 +278,13 @@ push A
 . $TargetVY 1
 pop A
 sto A $TargetVY
-ret
+ldm A $ret_SelectVertexA ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return
 @~SelectVertexB
+. $ret_SelectVertexB 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexB ; Save return address
 ldm A $VertexBX
 push A
 pop A
@@ -285,8 +293,13 @@ ldm A $VertexBY
 push A
 pop A
 sto A $TargetVY
-ret
+ldm A $ret_SelectVertexB ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return
 @~SelectVertexC
+. $ret_SelectVertexC 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexC ; Save return address
 ldm A $VertexCX
 push A
 pop A
@@ -295,4 +308,6 @@ ldm A $VertexCY
 push A
 pop A
 sto A $TargetVY
-ret
+ldm A $ret_SelectVertexC ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return

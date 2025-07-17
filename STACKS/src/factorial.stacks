@@ -1,10 +1,10 @@
 PROCESS 1 64
-20 AS start
+16 AS number
 1 AS result
 
-{start 1 !=} DO 
-    result start * AS result
-    start 1 - AS start
+{number 1 !=} DO 
+    result number * AS result
+    number  1 - AS number
 END
 
 result PRINT
