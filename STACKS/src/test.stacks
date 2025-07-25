@@ -7,8 +7,6 @@ PROCESS 1
 
     0 AS loop
 
-    4 STARTPROCESS 
-    DROP
     2 STARTPROCESS 
     DROP
     3 STARTPROCESS 
@@ -26,12 +24,11 @@ PROCESS 1
             . AS proc3
             loop 1 + AS loop
         END
-        '.' SHOW
+        #'.' SHOW
         1 WAIT
         loop 2 != GOTO lus
 
-    4 STOPPROCESS
-    DROP
+
     2 TIMER PRINT
 END
 
@@ -63,7 +60,7 @@ PROCESS 2 64
         next 1 + AS next
         #'#' SHOW
 
-
+    1 WAIT
     END
     1 TIMER PRINT
     300 WAIT
@@ -93,6 +90,10 @@ PROCESS 3 64
     10 AS CurrentPX
     10 AS CurrentPY
     
+
+    0 AS a
+    0 AS b
+    0 AS c
 
     10000 AS steps
     0   AS step
@@ -125,18 +126,19 @@ PROCESS 3 64
         #step PRINT
         
 
-        `rand 3 % AS next 
+        #`rand 3 % AS next 
+        `rand 3 * 999 / AS next
         next 0 == DO
             SelectVertexA
-            #'a' SHOW
+            a 1 + AS a
         END
         next 1 == DO
             SelectVertexB
-            #'b' SHOW
+            b 1 + AS b
         END
         next 2 == DO
             SelectVertexC
-            #'c' SHOW
+            c 1 + AS c
         END
 
         CurrentPX TargetVX + 2 / AS CurrentPX
@@ -150,6 +152,9 @@ PROCESS 3 64
     END
 
 0 TIMER PRINT
+'a is : ' SHOW a PRINT
+'b is : ' SHOW b PRINT
+'c is : ' SHOW c PRINT
 300 WAIT
 
 
@@ -161,10 +166,3 @@ GOTO lus
 
 END
 
-PROCESS 4 16
-    LABEL lus
-        `rand DROP `rand DROP
-        1 WAIT
-    GOTO lus
-
-END

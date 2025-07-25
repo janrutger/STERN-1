@@ -18,12 +18,6 @@ push A
 . $loop 1
 pop A
 sto A $loop
-ldi A 4
-push A
-pop A
-int ~SYSCALL_START_PROCESS
-push A
-call @drop
 ldi A 2
 push A
 pop A
@@ -85,13 +79,6 @@ call @plus
 pop A
 sto A $loop
 :_1_do_end
-; --- String Literal '.' pushed to stack ---
-ldi A 0
-push A
-ldi A \.
-push A
-; --- End String Literal '.' on stack ---
-call @stacks_show_from_stack
 ldi A 1
 push A
 call @stacks_sleep
@@ -105,12 +92,6 @@ tste A Z
 jmpf :_2_goto_end
 jmp :lus
 :_2_goto_end
-ldi A 4
-push A
-pop A
-int ~SYSCALL_STOP_PROCESS
-push A
-call @drop
 ldi A 2
 push A
 call @stacks_timer_print
@@ -203,6 +184,9 @@ push A
 call @plus
 pop A
 sto A $next
+ldi A 1
+push A
+call @stacks_sleep
 jmp :_3_while_condition
 :_3_while_end
 ldi A 1
@@ -268,6 +252,21 @@ push A
 . $CurrentPY 1
 pop A
 sto A $CurrentPY
+ldi A 0
+push A
+. $a 1
+pop A
+sto A $a
+ldi A 0
+push A
+. $b 1
+pop A
+sto A $b
+ldi A 0
+push A
+. $c 1
+pop A
+sto A $c
 ldi A 10000
 push A
 . $steps 1
@@ -293,7 +292,10 @@ jmpf :_5_while_end
 call @rand
 ldi A 3
 push A
-call @mod
+call @multiply
+ldi A 999
+push A
+call @divide
 . $next 1
 pop A
 sto A $next
@@ -306,6 +308,13 @@ pop A
 tste A Z
 jmpf :_6_do_end
 call @~SelectVertexA
+ldm A $a
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $a
 :_6_do_end
 ldm A $next
 push A
@@ -316,6 +325,13 @@ pop A
 tste A Z
 jmpf :_7_do_end
 call @~SelectVertexB
+ldm A $b
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $b
 :_7_do_end
 ldm A $next
 push A
@@ -326,6 +342,13 @@ pop A
 tste A Z
 jmpf :_8_do_end
 call @~SelectVertexC
+ldm A $c
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $c
 :_8_do_end
 ldm A $CurrentPX
 push A
@@ -366,6 +389,78 @@ jmp :_5_while_condition
 ldi A 0
 push A
 call @stacks_timer_print
+; --- String Literal 'a is : ' pushed to stack ---
+ldi A 0
+push A
+ldi A \space
+push A
+ldi A \:
+push A
+ldi A \space
+push A
+ldi A \s
+push A
+ldi A \i
+push A
+ldi A \space
+push A
+ldi A \a
+push A
+; --- End String Literal 'a is : ' on stack ---
+call @stacks_show_from_stack
+ldm A $a
+push A
+pop A
+int ~SYSCALL_PRINT_NUMBER
+int ~SYSCALL_PRINT_NL
+; --- String Literal 'b is : ' pushed to stack ---
+ldi A 0
+push A
+ldi A \space
+push A
+ldi A \:
+push A
+ldi A \space
+push A
+ldi A \s
+push A
+ldi A \i
+push A
+ldi A \space
+push A
+ldi A \b
+push A
+; --- End String Literal 'b is : ' on stack ---
+call @stacks_show_from_stack
+ldm A $b
+push A
+pop A
+int ~SYSCALL_PRINT_NUMBER
+int ~SYSCALL_PRINT_NL
+; --- String Literal 'c is : ' pushed to stack ---
+ldi A 0
+push A
+ldi A \space
+push A
+ldi A \:
+push A
+ldi A \space
+push A
+ldi A \s
+push A
+ldi A \i
+push A
+ldi A \space
+push A
+ldi A \c
+push A
+; --- End String Literal 'c is : ' on stack ---
+call @stacks_show_from_stack
+ldm A $c
+push A
+pop A
+int ~SYSCALL_PRINT_NUMBER
+int ~SYSCALL_PRINT_NL
 ldi A 300
 push A
 call @stacks_sleep
@@ -382,6 +477,9 @@ jmp :lus
 ldi A 3 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
 @~SelectVertexA
+. $ret_SelectVertexA 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexA ; Save return address
 ldm A $VertexAX
 push A
 . $TargetVX 1
@@ -392,8 +490,13 @@ push A
 . $TargetVY 1
 pop A
 sto A $TargetVY
-ret
+ldm A $ret_SelectVertexA ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return
 @~SelectVertexB
+. $ret_SelectVertexB 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexB ; Save return address
 ldm A $VertexBX
 push A
 pop A
@@ -402,8 +505,13 @@ ldm A $VertexBY
 push A
 pop A
 sto A $TargetVY
-ret
+ldm A $ret_SelectVertexB ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return
 @~SelectVertexC
+. $ret_SelectVertexC 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexC ; Save return address
 ldm A $VertexCX
 push A
 pop A
@@ -412,19 +520,8 @@ ldm A $VertexCY
 push A
 pop A
 sto A $TargetVY
-ret
-.PROCES 4 16
-:~proc_entry_4 ; Default entry point for process 4
-:lus
-call @rand
-call @drop
-call @rand
-call @drop
-ldi A 1
-push A
-call @stacks_sleep
-jmp :lus
-ldi A 4 ; PID of the current process ending
-int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
+ldm A $ret_SelectVertexC ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return
 . &proc2 1
 . &proc3 1

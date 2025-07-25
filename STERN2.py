@@ -8,8 +8,8 @@ import sys # For sys.exit
 # Import necessary components from your STERN-1 project
 from stern_computer import SternComputer # Import the new class
 from assembler1c import Assembler # Use your latest assembler
-from FileIO import readFile, writeBin # Need writeBin if assembling per instance
-from stringtable import makechars
+#from FileIO import readFile, writeBin # Need writeBin if assembling per instance
+#from stringtable import makechars
 from networkHub import NetworkHub
 
 # --- Configuration ---
@@ -51,7 +51,7 @@ def assembly_code():
         # Assemble ROMs specified in configs
         # assembler.assemble("ChaosGame3.asm", boot["start_prog"], "ChaosGame3.bin", True)
         # assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
-        assembler.assemble("ChaosGame3.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
+        assembler.assemble("test.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
         assembler.assemble("fly.asm", boot["start_prog"], "processes1.bin", True)
         # assembler.assemble("prime.asm", boot["start_prog"], "processes0.bin", True)
         # assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     max_connections = boot.get("hub_max_connections", 0)
     receive_queues = []
     send_queue = None
-    if max_connections != 0:
+    if max_connections != 0 or boot["num_instances_to_run"] > 1 :
         manager = multiprocessing.Manager()  # Create the manager first
         send_queue = manager.Queue()    # Create the single send queue
         # Create the receive queues and add them to the list

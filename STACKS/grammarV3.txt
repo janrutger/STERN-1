@@ -19,7 +19,9 @@ statement  ::=  "LABEL" ident nl
 			|	INTEGER CHANNEL ON | OFF
 
 			
-			|   "{" (expression | st) "}" "DO" nl {statement} nl "END" nl # While {expession} is true, DO-block is executed
+			|   "{" (expression | st) "}" "DO" nl 		# While {expession} is true, DO-block is executed
+					{statement} nl 
+				"END" nl 
 
 			# Process Management (YIELD is excluded as per request)
 			|   expression "STARTPROCESS" nl
@@ -29,10 +31,10 @@ statement  ::=  "LABEL" ident nl
 									| "PLOT" nl
 									| "DRAW" nl
 									| "WAIT"  nl           
-									| "AS" (ident | '['ident']') nl # Assign to var or array element
+									| "AS" (ident | '['ident']') nl 	# Assign to var or array element
 									| "DO"   nl {statement} nl "END" nl # when TOS is 0 (true) do DO-block
 									| "GOTO" ident nl					# when TOS is 0 (true) do GOTO
-									|  nl ) # Expression can stand alone (values left on stack)
+									|  nl ) 					# Expression can stand alone (values left on stack)
 
 
 
