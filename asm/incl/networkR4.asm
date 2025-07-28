@@ -65,6 +65,39 @@ equ ~ack_status_noresend 2
     sto M $NET_SND_BUFFER_ADRES
 ret
 
+# NEW CODE
+
+# Network Receive Interrupt Service Routine
+# Triggered when NIC has received data 
+@read_nic_isr
+    # expected packetnumber is in A (passed by interrupt mechanism)
+    # Store it in K (K will hold the expected_packet_num)
+    ld K A
+
+    ldi I ~packetnumber_in_register
+    stx M $NIC_baseadres
+
+    # Compare expected_packet_num (K) 
+    # with packetnumber_in_register (M)
+    tste K M 
+    jmpt :_read_isr_handles_expected_number         ; K == M (Expected packet)
+    tstg M K
+    jmpt :_read_isr_acks_old_number                 ; K < M (Old packet)
+    # jmp :_read_nic_isr_handle_out_of_sequence_src ; K > M (Out of sequence)
+rti
+
+:_read_isr_handles_expected_number
+    nop
+rti
+
+:_read_isr_acks_old_number
+    nop
+rti
+
+
+
+
+#### OLD CODE ####
 
 # write data to nic, ~send_status=1
 # wait for ACK ~send_status=0
