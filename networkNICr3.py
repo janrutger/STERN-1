@@ -74,18 +74,19 @@ class VirtualNIC:
         self.receive_status_register = BaseAdres      # 0
         self.src_register = BaseAdres + 1             # 1
         self.data_in_register = BaseAdres + 2         # 2
-        self.packetnumber_in_register = BaseAdres + 8 # 8 - Tells CPU which packet # was received
-        self.service_id_in_register = BaseAdres + 10  # 10
+        self.packetnumber_in_register = BaseAdres + 3 # 3 - Tells CPU which packet # was received
+        self.service_id_in_register = BaseAdres + 4   # 4
 
         # Send side (CPU -> NIC)
-        self.send_status_register = BaseAdres + 3     # 3
-        self.dst_register = BaseAdres + 4             # 4
-        self.data_out_register = BaseAdres + 5        # 5
-        self.ack_status_register = BaseAdres + 6      # 6 - For CPU to specify ACK status
-        self.message_type_register = BaseAdres + 7    # 7 - For CPU to specify DATA or ACK
-        # NOTE: Address 8 is used for both IN and OUT packet numbers, a common hardware pattern.
-        self.packetnumber_out_register = BaseAdres + 8 # 8 - For CPU to specify which packet # to ACK
-        self.service_id_out_register = BaseAdres + 9  # 9
+        self.send_status_register = BaseAdres + 5     # 5
+        self.dst_register = BaseAdres + 6             # 6
+        self.data_out_register = BaseAdres + 7        # 7
+        self.ack_status_register = BaseAdres + 8      # 8 - For CPU to specify ACK status
+        self.message_type_register = BaseAdres + 9    # 9 - For CPU to specify DATA or ACK
+        # NOTE: Address 8 is used for both IN and OUT packet numbers, 
+        #       a common hardware pattern.
+        self.packetnumber_out_register = BaseAdres + 3 # 3 - For CPU to specify which packet # to ACK
+        self.service_id_out_register = BaseAdres + 10  # 10
 
         # Initialize status registers
         self.mainmem.write(self.receive_status_register, str(NIC_STATUS_IDLE))
