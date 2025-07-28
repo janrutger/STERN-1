@@ -145,9 +145,9 @@ class VirtualNIC:
                         self.mainmem.write(self.service_id_in_register, str(rcv_service_id))
                         self.mainmem.write(self.packetnumber_in_register, str(rcv_packet_num)) # Tell CPU which packet this is
                         self.mainmem.write(self.receive_status_register, str(NIC_STATUS_DATA_WAITING))
-                        self.interrupts.interrupt(NIC_RX_INTERRUPT_NUM, 0)
-                        if rcv_packet_num == expected_packet_num:
-                            peer_state['next_packet_expected'] += 1 # Only advance on new packets
+                        self.interrupts.interrupt(NIC_RX_INTERRUPT_NUM, expected_packet_num)
+                        # if rcv_packet_num == expected_packet_num:
+                        #     peer_state['next_packet_expected'] += 1 # Only advance on new packets
 
                     else:
                         # Packet arrived too early (gap in sequence). Discard it silently.
@@ -212,6 +212,11 @@ class VirtualNIC:
 
                 self.send_queue.put(hub_message)
                 print(f"NIC {self.instance_id}: Sent CPU-initiated ACK for packet {packet_num_to_ack} to {dst_nic_id}")
+
+                peer_state = self._get_or_create_peer_state(dst_nic_id)
+                expected_packet_num = peer_state['next_packet_expected']
+                if packet_num_to_ack == expected_packet_num:
+                            peer_state['next_packet_expected'] += 1 # Only advance on new packets
 
             # Reset status for both DATA and ACK sends
             self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
