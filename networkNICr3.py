@@ -7,7 +7,8 @@ DATA_TYPE = 0
 ACK_TYPE  = 1
 
 # --- NIC Status Constants (for CPU communication) ---
-NIC_STATUS_IDLE = 0
+NIC_STATUS_IDLE = 0         # NIC can check the incomming queue
+NIC_STATUS_SEND_ACK = 2     # Host wants to send an ACK, by NIC and set to NIC_STATUS_IDLE
 NIC_STATUS_SEND_REQUEST = 1 # Host wants to send a packet
 NIC_STATUS_DATA_WAITING = 1 # Data has arrived and is waiting for the host
 
@@ -116,8 +117,34 @@ class VirtualNIC:
 
     def update(self):
         """Main update loop for the NIC, called periodically."""
-        # --- 1. Handle Incoming Messages from the Hub ---
-        # Only try to receive a new packet if the CPU has processed the previous one.
+        # --- 1. Check if an ACK message of the previous message must be send ---
+        if int(self.mainmem.read(self.receive_status_register)) == NIC_STATUS_SEND_ACK:
+            message_type_to_send = ACK_TYPE
+            dst_nic_id = int(self.mainmem.read(self.src_register))
+            packet_num_to_ack = int(self.mainmem.read(self.packetnumber_out_register))
+            ack_status = int(self.mainmem.read(self.ack_status_register))
+
+
+            # Message format for Hub: (receiver, sender, payload)
+            # Payload: (ACK_TYPE, packet_num_, ack_status)
+            protocol_payload = (ACK_TYPE, packet_num_to_ack, ack_status)
+            hub_message = (dst_nic_id, self.instance_id, protocol_payload)
+
+            self.send_queue.put(hub_message)
+            print(f"NIC {self.instance_id}: Sent ACK for packet {packet_num_to_ack} to {dst_nic_id}")
+            
+            peer_state = self._get_or_create_peer_state(dst_nic_id)
+            expecte_packet_to_ack = peer_state['next_packet_expected']
+            if packet_num_to_ack == expecte_packet_to_ack:
+                peer_state['next_packet_expected'] += 1 # Only advance on new packets
+            
+            # Reset receive status to idle
+            self.mainmem.write(self.receive_status_register, str(NIC_STATUS_IDLE))
+
+
+        # --- 2. Handle Incoming Messages from the Hub ---
+        # Only try to receive a new packet if the CPU has processed the previous one
+        # and the ACK is send
         if int(self.mainmem.read(self.receive_status_register)) == NIC_STATUS_IDLE:
             try:
                 # Hub provides (original_sender_id, message_body) on the receive_queue.
@@ -132,30 +159,23 @@ class VirtualNIC:
 
                     # --- BEHAVIOR CHANGE: The CPU/ISR is now responsible for sending the ACK ---
 
-                    if rcv_packet_num == expected_packet_num or rcv_packet_num < expected_packet_num:
-                        # On a correct or duplicate packet, notify the CPU so it can handle it.
-                        # The ISR will be responsible for sending the ACK/re-ACK.
-                        if rcv_packet_num < expected_packet_num:
-                            print(f"NIC {self.instance_id}: Received DUPLICATE DATA packet {rcv_packet_num}. Notifying CPU to re-ACK.")
-                        else: # Correct packet
-                            print(f"NIC {self.instance_id}: Received expected DATA packet {rcv_packet_num} from {original_sender_id}.")
+                    # The outer 'if' already confirmed the receive buffer is idle.
+                    # The ISR will be responseble for set the correct register when
+                    # ACK must be send.
+                    if rcv_packet_num < expected_packet_num:
+                        print(f"NIC {self.instance_id}: Received DUPLICATE DATA packet {rcv_packet_num} from {original_sender_id} ")
+                    else: # Correct packet
+                        print(f"NIC {self.instance_id}:  Received expected DATA packet {rcv_packet_num} from {original_sender_id}.")
 
-                        # The outer 'if' already confirmed the receive buffer is idle.
-                        self.mainmem.write(self.src_register, str(original_sender_id))
-                        self.mainmem.write(self.data_in_register, str(rcv_data))
-                        self.mainmem.write(self.service_id_in_register, str(rcv_service_id))
-                        self.mainmem.write(self.packetnumber_in_register, str(rcv_packet_num)) # Tell CPU which packet this is
-                        self.mainmem.write(self.receive_status_register, str(NIC_STATUS_DATA_WAITING))
-                        self.interrupts.interrupt(NIC_RX_INTERRUPT_NUM, expected_packet_num)
-                        # if rcv_packet_num == expected_packet_num:
-                        #     peer_state['next_packet_expected'] += 1 # Only advance on new packets
-
-                    else:
-                        # Packet arrived too early (gap in sequence). Discard it silently.
-                        # The sender's timeout mechanism will handle retransmission of the missing packet.
-                        print(f"NIC {self.instance_id}: Discarding out-of-sequence packet {rcv_packet_num}. Expected {expected_packet_num}.")
-
-                elif msg_type == ACK_TYPE:
+                    
+                    self.mainmem.write(self.src_register, str(original_sender_id))
+                    self.mainmem.write(self.data_in_register, str(rcv_data))
+                    self.mainmem.write(self.service_id_in_register, str(rcv_service_id))
+                    self.mainmem.write(self.packetnumber_in_register, str(rcv_packet_num)) # Tell CPU which packet this is
+                    self.mainmem.write(self.receive_status_register, str(NIC_STATUS_DATA_WAITING))
+                    self.interrupts.interrupt(NIC_RX_INTERRUPT_NUM, expected_packet_num)
+                    
+                elif msg_type == ACK_TYPE: 
                     # Unpack: (ACK_TYPE, acked_packet_num, status)
                     _, acked_packet_num, _ = message_body
                     buffer_key = (original_sender_id, acked_packet_num)
@@ -171,9 +191,9 @@ class VirtualNIC:
             except Exception as e:
                 print(f"NIC {self.instance_id}: FATAL error processing incoming message: {e}")
 
-        # --- 2. Handle Outgoing Messages from the CPU ---
+        # --- 3. Handle Outgoing Messages from the CPU ---
         if int(self.mainmem.read(self.send_status_register)) == NIC_STATUS_SEND_REQUEST:
-            # CPU can request to send DATA or an ACK
+            # CPU can request to send DATA
             message_type_to_send = int(self.mainmem.read(self.message_type_register))
             dst_nic_id = int(self.mainmem.read(self.dst_register))
 
@@ -190,7 +210,7 @@ class VirtualNIC:
                 hub_message = (dst_nic_id, self.instance_id, protocol_payload)
 
                 # Store for retransmission
-                buffer_key = (dst_nic_id, packet_num_to_send)
+                buffer_key = (dst_nic_id, packet_num_to_send) #dst and packet_num to be unique
                 self.resend_buffer[buffer_key] = {
                     'hub_message': hub_message,
                     'send_time': time.time()
@@ -200,37 +220,23 @@ class VirtualNIC:
                 print(f"NIC {self.instance_id}: Sent NEW DATA packet {packet_num_to_send} to {dst_nic_id}")
 
                 peer_state['next_packet_to_send'] += 1
-
-            elif message_type_to_send == ACK_TYPE:
-                # This is a fire-and-forget ACK sent by the ISR
-                packet_num_to_ack = int(self.mainmem.read(self.packetnumber_out_register))
-                ack_status = int(self.mainmem.read(self.ack_status_register))
-
-                # Hub expects: (receiver, sender, payload)
-                # Payload: (ACK_TYPE, packet_num_acked, status)
-                protocol_payload = (ACK_TYPE, packet_num_to_ack, ack_status)
-                hub_message = (dst_nic_id, self.instance_id, protocol_payload)
-
-                self.send_queue.put(hub_message)
-                print(f"NIC {self.instance_id}: Sent CPU-initiated ACK for packet {packet_num_to_ack} to {dst_nic_id}")
-
-                peer_state = self._get_or_create_peer_state(dst_nic_id)
-                expected_packet_num = peer_state['next_packet_expected']
-                if packet_num_to_ack == expected_packet_num:
-                            peer_state['next_packet_expected'] += 1 # Only advance on new packets
-
-            # Reset status for both DATA and ACK sends
+            else:
+                # an unsupported messagetype
+                print(f"NIC {self.instance_id}: Sent by CPU-initiated, unsupported message type {message_type_to_send}")
+            
+            # Reset status for DATA and unsupported messagetypes
             self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
 
 
-        # --- 3. Handle Retransmissions for Timed-out Packets ---
+        # --- 4. Handle Retransmissions for Timed-out Packets ---
         current_time = time.time()
         for buffer_key, packet_info in list(self.resend_buffer.items()):
             if current_time - packet_info['send_time'] > RETRANSMISSION_TIMEOUT:
                 hub_message_to_resend = packet_info['hub_message']
-                dst_id, _, payload = hub_message_to_resend
-                packet_num = payload[1]
 
+                dst_id, _, payload = hub_message_to_resend  # used for printing
+                packet_num = payload[1]                     # used for prinintg
                 print(f"NIC {self.instance_id}: TIMEOUT for packet {packet_num} to {dst_id}. Resending.")
+                
                 self.send_queue.put(hub_message_to_resend)
                 packet_info['send_time'] = current_time # Reset the timer for this packet

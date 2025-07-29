@@ -87,10 +87,18 @@ ret
 rti
 
 :_read_isr_handles_expected_number
+    # Must place the incomming message on the network_receive_buffer
+    # scr-adres, Service-ID and payload (data+procesID)
+    # When succeed signal the NIC to send an 
+    # ACK message: packetnumber, scr-adres (becomes Destination)
+
+
     nop
 rti
 
 :_read_isr_acks_old_number
+    # Just ACK the old message: 
+    # packetnumber, scr-adres (becomes Destination)
     nop
 rti
 
