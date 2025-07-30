@@ -33,7 +33,7 @@ equ ~SERVICE0_BUFFER_MASK 15 ; for andi operation (size - 1)
 . $_sh0_temp_buffer_base 1 ; temp var for service handler 0
 
 @network_message_dispatcher
-    call @read_nic_message
+    call @read_nic_message      ; NOTE: MAYBE an SYSCALL
     ; Expects from @read_nic_message:
     ; A = src_addr, B = data, C = service_id.
     ; Status bit:
@@ -52,7 +52,7 @@ equ ~SERVICE0_BUFFER_MASK 15 ; for andi operation (size - 1)
     ldx M $SERVICE_JUMP_TABLE_ADRES
 
     ld I M 
-    callx $mem_start
+    callx $mem_start        ; starting the service routine
 
     # After the service handler successfully returns,
     # jump to the dispatcher's exit point.
@@ -68,7 +68,7 @@ ret
 
 
 @service_handler_0
-; Called with A = src_addr, B = data, C = service_id (which is 0)
+    ; Called with A = src_addr, B = data, C = service_id (which is 0)
     ; Decodes PID from payload, stores value in the correct process buffer.
     ; Payload = (value * 10) + pid (where pid is 0-4)
     ; If a buffer is full, it discards the oldest item.
@@ -138,13 +138,17 @@ ret
     ;             B = data_to_echo
     ;             C = service_id (which is 1)
 
-    ; Prepare for @send_data_packet_sub:
+    ; This service handler runs in kernel mode. It can directly call other
+    ; kernel routines like @send_nic_message to queue a reply.
+    ; A user process would need to use a SYSCALL to achieve the same result.
+    ;
     ; A should be dst_addr (it's already the incoming src_addr)
     ; B should be data (it's already the incoming data)
     ; C should be the service_id for the *outgoing* packet.
-    ; Let's send the echo back with service_id 0 (targeting "current program" on the sender).
+    ; We send the echo back with service_id 0, the standard reply service.
     ldi C 0 
-    call @send_data_packet_sub 
+    call @send_nic_message
+
 ret
 
 . $_rs0d_temp_buffer_base 1 ; temp var for read service 0

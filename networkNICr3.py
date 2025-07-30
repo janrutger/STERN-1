@@ -213,11 +213,12 @@ class VirtualNIC:
                 buffer_key = (dst_nic_id, packet_num_to_send) #dst and packet_num to be unique
                 self.resend_buffer[buffer_key] = {
                     'hub_message': hub_message,
-                    'send_time': time.time()
+                    'send_time': time.time() - RETRANSMISSION_TIMEOUT
                 }
 
-                self.send_queue.put(hub_message)
-                print(f"NIC {self.instance_id}: Sent NEW DATA packet {packet_num_to_send} to {dst_nic_id}")
+                # do not send it any more, The retranmission routine will take care of it
+                #self.send_queue.put(hub_message)
+                #print(f"NIC {self.instance_id}: Sent NEW DATA packet {packet_num_to_send} to {dst_nic_id}")
 
                 peer_state['next_packet_to_send'] += 1
             else:
@@ -228,7 +229,7 @@ class VirtualNIC:
             self.mainmem.write(self.send_status_register, str(NIC_STATUS_IDLE))
 
 
-        # --- 4. Handle Retransmissions for Timed-out Packets ---
+        # --- 4. Handle (Re)transmissions for (Timed-out) Packets ---
         current_time = time.time()
         for buffer_key, packet_info in list(self.resend_buffer.items()):
             if current_time - packet_info['send_time'] > RETRANSMISSION_TIMEOUT:
