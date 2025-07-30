@@ -84,7 +84,7 @@ class VirtualNIC:
         self.data_out_register = BaseAdres + 7        # 7
         self.ack_status_register = BaseAdres + 8      # 8 - For CPU to specify ACK status
         self.message_type_register = BaseAdres + 9    # 9 - For CPU to specify DATA or ACK
-        # NOTE: Address 8 is used for both IN and OUT packet numbers, 
+        # NOTE: Address 3 is used for both IN and OUT packet numbers, 
         #       a common hardware pattern.
         self.packetnumber_out_register = BaseAdres + 3 # 3 - For CPU to specify which packet # to ACK
         self.service_id_out_register = BaseAdres + 10  # 10
@@ -134,8 +134,8 @@ class VirtualNIC:
             print(f"NIC {self.instance_id}: Sent ACK for packet {packet_num_to_ack} to {dst_nic_id}")
             
             peer_state = self._get_or_create_peer_state(dst_nic_id)
-            expecte_packet_to_ack = peer_state['next_packet_expected']
-            if packet_num_to_ack == expecte_packet_to_ack:
+            expected_packet_to_ack = peer_state['next_packet_expected']
+            if packet_num_to_ack == expected_packet_to_ack:
                 peer_state['next_packet_expected'] += 1 # Only advance on new packets
             
             # Reset receive status to idle
