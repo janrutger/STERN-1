@@ -1,688 +1,527 @@
 .PROCES 1 64
 :~proc_entry_1 ; Default entry point for process 1
+ldi A 2
+push A
+call @stacks_timer_set
 ldi A 0
 push A
-ldi A &counter
+ldi A &proc2
 push A
 call @stacks_shared_var_write
-; --- String Literal 'controller starting test processes... ' pushed to stack ---
 ldi A 0
 push A
-ldi A \space
+ldi A &proc3
 push A
-ldi A \.
+call @stacks_shared_var_write
+ldi A 0
 push A
-ldi A \.
-push A
-ldi A \.
-push A
-ldi A \s
-push A
-ldi A \e
-push A
-ldi A \s
-push A
-ldi A \s
-push A
-ldi A \e
-push A
-ldi A \c
-push A
-ldi A \o
-push A
-ldi A \r
-push A
-ldi A \p
-push A
-ldi A \space
-push A
-ldi A \t
-push A
-ldi A \s
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \space
-push A
-ldi A \g
-push A
-ldi A \n
-push A
-ldi A \i
-push A
-ldi A \t
-push A
-ldi A \r
-push A
-ldi A \a
-push A
-ldi A \t
-push A
-ldi A \s
-push A
-ldi A \space
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \l
-push A
-ldi A \l
-push A
-ldi A \o
-push A
-ldi A \r
-push A
-ldi A \t
-push A
-ldi A \n
-push A
-ldi A \o
-push A
-ldi A \c
-push A
-; --- End String Literal 'controller starting test processes... ' on stack ---
-call @stacks_show_from_stack
-ldm A &counter
-push A
+. $loop 1
 pop A
-int ~SYSCALL_PRINT_NUMBER
-int ~SYSCALL_PRINT_NL
+sto A $loop
 ldi A 2
 push A
 pop A
 int ~SYSCALL_START_PROCESS
 push A
+call @drop
 ldi A 3
 push A
 pop A
 int ~SYSCALL_START_PROCESS
 push A
-ldi A 4
+call @drop
+:lus
+ldm A &proc2
+push A
+ldi A 1
+push A
+call @eq
+pop A
+tste A Z
+jmpf :_0_do_end
+ldi A 2
 push A
 pop A
-int ~SYSCALL_START_PROCESS
+int ~SYSCALL_STOP_PROCESS
 push A
-ldi A 300
+ldi A &proc2
+push A
+call @stacks_shared_var_write
+ldm A $loop
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $loop
+:_0_do_end
+ldm A &proc3
+push A
+ldi A 1
+push A
+call @eq
+pop A
+tste A Z
+jmpf :_1_do_end
+ldi A 3
+push A
+pop A
+int ~SYSCALL_STOP_PROCESS
+push A
+ldi A &proc3
+push A
+call @stacks_shared_var_write
+ldm A $loop
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $loop
+:_1_do_end
+ldi A 1
 push A
 call @stacks_sleep
+ldm A $loop
+push A
+ldi A 2
+push A
+call @ne
+pop A
+tste A Z
+jmpf :_2_goto_end
+jmp :lus
+:_2_goto_end
+ldi A 2
+push A
+call @stacks_timer_print
 ldi A 1 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
 .PROCES 2 64
 :~proc_entry_2 ; Default entry point for process 2
-:writerLoop
-ldm A &counter
+ldi A 0
+push A
+call @sio_channel_on
+ldi A 1
+push A
+call @stacks_timer_set
+ldi A 1
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
+ldi A 1
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
+ldi A 1
+push A
+. $previous 1
+pop A
+sto A $previous
+ldi A 2
+push A
+. $next 1
+pop A
+sto A $next
+:_3_while_condition
+ldm A $next
+push A
+ldi A 700
+push A
+call @ne
+pop A
+tste A Z
+jmpf :_3_while_end
+ldm A $previous
+push A
+ldm A $next
+push A
+call @stacks_gcd
+. $cfactor 1
+pop A
+sto A $cfactor
+ldi A 1
+push A
+ldm A $cfactor
+push A
+call @eq
+pop A
+tste A Z
+jmpf :_4_do_end
+ldm A $previous
+push A
+ldm A $next
 push A
 ldi A 1
 push A
 call @plus
-call @dup
-ldi A &counter
+call @plus
+. $r 1
+pop A
+sto A $r
+jmp :nextnumber
+:_4_do_end
+ldm A $previous
+push A
+ldm A $cfactor
+push A
+call @divide
+pop A
+sto A $r
+:nextnumber
+ldm A $r
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
+ldm A $r
+push A
+pop A
+sto A $previous
+ldm A $next
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $next
+ldi A 1
+push A
+call @stacks_sleep
+jmp :_3_while_condition
+:_3_while_end
+ldi A 1
+push A
+call @stacks_timer_print
+ldi A 300
+push A
+call @stacks_sleep
+:lus
+ldi A 1
+push A
+ldi A &proc2
 push A
 call @stacks_shared_var_write
-ldi A &sharedArray
-push A
-call @stacks_array_append
-; --- String Literal 'writer wrote: ' pushed to stack ---
-ldi A 0
-push A
-ldi A \space
-push A
-ldi A \:
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \o
-push A
-ldi A \r
-push A
-ldi A \w
-push A
-ldi A \space
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \i
-push A
-ldi A \r
-push A
-ldi A \w
-push A
-; --- End String Literal 'writer wrote: ' on stack ---
-call @stacks_show_from_stack
-ldm A &counter
-push A
-pop A
-int ~SYSCALL_PRINT_NUMBER
-int ~SYSCALL_PRINT_NL
 ldi A 1
 push A
 call @stacks_sleep
-ldi A 1
-push A
-call @stacks_sleep
-ldm A &counter
-push A
-ldi A 5
-push A
-call @lt
-pop A
-tste A Z
-jmpf :_0_goto_end
-jmp :writerLoop
-:_0_goto_end
-; --- String Literal 'writer finished.' pushed to stack ---
-ldi A 0
-push A
-ldi A \.
-push A
-ldi A \d
-push A
-ldi A \e
-push A
-ldi A \h
-push A
-ldi A \s
-push A
-ldi A \i
-push A
-ldi A \n
-push A
-ldi A \i
-push A
-ldi A \f
-push A
-ldi A \space
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \i
-push A
-ldi A \r
-push A
-ldi A \w
-push A
-; --- End String Literal 'writer finished.' on stack ---
-call @stacks_show_from_stack
+jmp :lus
 ldi A 2 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
 .PROCES 3 64
 :~proc_entry_3 ; Default entry point for process 3
-:readerLoop
-; --- String Literal 'reader sees counter: ' pushed to stack ---
 ldi A 0
 push A
-ldi A \space
+call @stacks_timer_set
+ldi A 10
 push A
-ldi A \:
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \n
-push A
-ldi A \u
-push A
-ldi A \o
-push A
-ldi A \c
-push A
-ldi A \space
-push A
-ldi A \s
-push A
-ldi A \e
-push A
-ldi A \e
-push A
-ldi A \s
-push A
-ldi A \space
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \d
-push A
-ldi A \a
-push A
-ldi A \e
-push A
-ldi A \r
-push A
-; --- End String Literal 'reader sees counter: ' on stack ---
-call @stacks_show_from_stack
-ldm A &counter
-push A
+. $VertexAX 1
 pop A
-int ~SYSCALL_PRINT_NUMBER
-int ~SYSCALL_PRINT_NL
-; --- String Literal 'reader sees array len: ' pushed to stack ---
+sto A $VertexAX
+ldi A 10
+push A
+. $VertexAY 1
+pop A
+sto A $VertexAY
+ldi A 630
+push A
+. $VertexBX 1
+pop A
+sto A $VertexBX
+ldi A 10
+push A
+. $VertexBY 1
+pop A
+sto A $VertexBY
+ldi A 320
+push A
+. $VertexCX 1
+pop A
+sto A $VertexCX
+ldi A 470
+push A
+. $VertexCY 1
+pop A
+sto A $VertexCY
+ldi A 10
+push A
+. $CurrentPX 1
+pop A
+sto A $CurrentPX
+ldi A 10
+push A
+. $CurrentPY 1
+pop A
+sto A $CurrentPY
 ldi A 0
 push A
-ldi A \space
-push A
-ldi A \:
-push A
-ldi A \n
-push A
-ldi A \e
-push A
-ldi A \l
-push A
-ldi A \space
-push A
-ldi A \y
-push A
-ldi A \a
-push A
-ldi A \r
-push A
-ldi A \r
-push A
-ldi A \a
-push A
-ldi A \space
-push A
-ldi A \s
-push A
-ldi A \e
-push A
-ldi A \e
-push A
-ldi A \s
-push A
-ldi A \space
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \d
-push A
-ldi A \a
-push A
-ldi A \e
-push A
-ldi A \r
-push A
-; --- End String Literal 'reader sees array len: ' on stack ---
-call @stacks_show_from_stack
-ldi A &sharedArray
-push A
-call @stacks_array_length
+. $a 1
 pop A
-int ~SYSCALL_PRINT_NUMBER
-int ~SYSCALL_PRINT_NL
+sto A $a
+ldi A 0
+push A
+. $b 1
+pop A
+sto A $b
+ldi A 0
+push A
+. $c 1
+pop A
+sto A $c
+ldi A 10000
+push A
+. $steps 1
+pop A
+sto A $steps
+ldi A 0
+push A
+. $step 1
+pop A
+sto A $step
 ldi A 1
 push A
-call @stacks_sleep
-ldi A 1
+call @sio_channel_on
+:_5_while_condition
+ldm A $step
 push A
-call @stacks_sleep
-ldm A &counter
-push A
-ldi A 5
+ldm A $steps
 push A
 call @lt
 pop A
 tste A Z
-jmpf :_1_goto_end
-jmp :readerLoop
-:_1_goto_end
-; --- String Literal 'reader finished.' pushed to stack ---
-ldi A 0
+jmpf :_5_while_end
+call @rand
+ldi A 3
 push A
-ldi A \.
+call @multiply
+ldi A 999
 push A
-ldi A \d
-push A
-ldi A \e
-push A
-ldi A \h
-push A
-ldi A \s
-push A
-ldi A \i
-push A
-ldi A \n
-push A
-ldi A \i
-push A
-ldi A \f
-push A
-ldi A \space
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \d
-push A
-ldi A \a
-push A
-ldi A \e
-push A
-ldi A \r
-push A
-; --- End String Literal 'reader finished.' on stack ---
-call @stacks_show_from_stack
-ldi A 3 ; PID of the current process ending
-int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
-.PROCES 4 64
-:~proc_entry_4 ; Default entry point for process 4
-ldi A 0
-push A
-. $localVar 1
+call @divide
+. $next 1
 pop A
-sto A $localVar
-. $localArray 7
-% $localArray 0 7
-; --- String Literal 'local tester starting.' pushed to stack ---
+sto A $next
+ldm A $next
+push A
 ldi A 0
 push A
-ldi A \.
-push A
-ldi A \g
-push A
-ldi A \n
-push A
-ldi A \i
-push A
-ldi A \t
-push A
-ldi A \r
-push A
-ldi A \a
-push A
-ldi A \t
-push A
-ldi A \s
-push A
-ldi A \space
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \s
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \space
-push A
-ldi A \l
-push A
-ldi A \a
-push A
-ldi A \c
-push A
-ldi A \o
-push A
-ldi A \l
-push A
-; --- End String Literal 'local tester starting.' on stack ---
-call @stacks_show_from_stack
-ldi A 100
-push A
+call @eq
 pop A
-sto A $localVar
-ldm A $localVar
+tste A Z
+jmpf :_6_do_end
+call @~SelectVertexA
+ldm A $a
 push A
 ldi A 1
 push A
 call @plus
 pop A
-sto A $localVar
-; --- String Literal 'local var is: ' pushed to stack ---
-ldi A 0
+sto A $a
+:_6_do_end
+ldm A $next
 push A
-ldi A \space
-push A
-ldi A \:
-push A
-ldi A \s
-push A
-ldi A \i
-push A
-ldi A \space
-push A
-ldi A \r
-push A
-ldi A \a
-push A
-ldi A \v
-push A
-ldi A \space
-push A
-ldi A \l
-push A
-ldi A \a
-push A
-ldi A \c
-push A
-ldi A \o
-push A
-ldi A \l
-push A
-; --- End String Literal 'local var is: ' on stack ---
-call @stacks_show_from_stack
-ldm A $localVar
-push A
-pop A
-int ~SYSCALL_PRINT_NUMBER
-int ~SYSCALL_PRINT_NL
-ldi A 11
-push A
-ldi A $localArray
-push A
-call @stacks_array_append
-ldi A 22
-push A
-ldi A $localArray
-push A
-call @stacks_array_append
-ldi A 33
-push A
-ldi A $localArray
-push A
-call @stacks_array_append
-; --- String Literal 'local array length is 3 : ' pushed to stack ---
-ldi A 0
-push A
-ldi A \space
-push A
-ldi A \:
-push A
-ldi A \space
-push A
-ldi A \3
-push A
-ldi A \space
-push A
-ldi A \s
-push A
-ldi A \i
-push A
-ldi A \space
-push A
-ldi A \h
-push A
-ldi A \t
-push A
-ldi A \g
-push A
-ldi A \n
-push A
-ldi A \e
-push A
-ldi A \l
-push A
-ldi A \space
-push A
-ldi A \y
-push A
-ldi A \a
-push A
-ldi A \r
-push A
-ldi A \r
-push A
-ldi A \a
-push A
-ldi A \space
-push A
-ldi A \l
-push A
-ldi A \a
-push A
-ldi A \c
-push A
-ldi A \o
-push A
-ldi A \l
-push A
-; --- End String Literal 'local array length is 3 : ' on stack ---
-call @stacks_show_from_stack
-ldi A $localArray
-push A
-call @stacks_array_length
-pop A
-int ~SYSCALL_PRINT_NUMBER
-int ~SYSCALL_PRINT_NL
-; --- String Literal 'local array -1- is 22 : ' pushed to stack ---
-ldi A 0
-push A
-ldi A \space
-push A
-ldi A \:
-push A
-ldi A \space
-push A
-ldi A \2
-push A
-ldi A \2
-push A
-ldi A \space
-push A
-ldi A \s
-push A
-ldi A \i
-push A
-ldi A \space
-push A
-ldi A \-
-push A
-ldi A \1
-push A
-ldi A \-
-push A
-ldi A \space
-push A
-ldi A \y
-push A
-ldi A \a
-push A
-ldi A \r
-push A
-ldi A \r
-push A
-ldi A \a
-push A
-ldi A \space
-push A
-ldi A \l
-push A
-ldi A \a
-push A
-ldi A \c
-push A
-ldi A \o
-push A
-ldi A \l
-push A
-; --- End String Literal 'local array -1- is 22 : ' on stack ---
-call @stacks_show_from_stack
 ldi A 1
 push A
-ldi A $localArray
-push A
-call @stacks_array_read
+call @eq
 pop A
-int ~SYSCALL_PRINT_NUMBER
-int ~SYSCALL_PRINT_NL
-; --- String Literal 'local tester finished.' pushed to stack ---
+tste A Z
+jmpf :_7_do_end
+call @~SelectVertexB
+ldm A $b
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $b
+:_7_do_end
+ldm A $next
+push A
+ldi A 2
+push A
+call @eq
+pop A
+tste A Z
+jmpf :_8_do_end
+call @~SelectVertexC
+ldm A $c
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $c
+:_8_do_end
+ldm A $CurrentPX
+push A
+ldm A $TargetVX
+push A
+call @plus
+ldi A 2
+push A
+call @divide
+pop A
+sto A $CurrentPX
+ldm A $CurrentPY
+push A
+ldm A $TargetVY
+push A
+call @plus
+ldi A 2
+push A
+call @divide
+pop A
+sto A $CurrentPY
+ldm A $CurrentPX
+push A
+ldm A $CurrentPY
+push A
+pop B
+pop A
+int ~SYSCALL_DRAW_XY_POINT
+ldm A $step
+push A
+ldi A 1
+push A
+call @plus
+pop A
+sto A $step
+jmp :_5_while_condition
+:_5_while_end
 ldi A 0
 push A
-ldi A \.
+call @stacks_timer_print
+; --- String Literal 'a is : ' pushed to stack ---
+ldi A 0
 push A
-ldi A \d
+ldi A \space
 push A
-ldi A \e
+ldi A \:
 push A
-ldi A \h
+ldi A \space
 push A
 ldi A \s
 push A
 ldi A \i
 push A
-ldi A \n
-push A
-ldi A \i
-push A
-ldi A \f
-push A
 ldi A \space
-push A
-ldi A \r
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \s
-push A
-ldi A \e
-push A
-ldi A \t
-push A
-ldi A \space
-push A
-ldi A \l
 push A
 ldi A \a
 push A
+; --- End String Literal 'a is : ' on stack ---
+call @stacks_show_from_stack
+ldm A $a
+push A
+pop A
+int ~SYSCALL_PRINT_NUMBER
+int ~SYSCALL_PRINT_NL
+; --- String Literal 'b is : ' pushed to stack ---
+ldi A 0
+push A
+ldi A \space
+push A
+ldi A \:
+push A
+ldi A \space
+push A
+ldi A \s
+push A
+ldi A \i
+push A
+ldi A \space
+push A
+ldi A \b
+push A
+; --- End String Literal 'b is : ' on stack ---
+call @stacks_show_from_stack
+ldm A $b
+push A
+pop A
+int ~SYSCALL_PRINT_NUMBER
+int ~SYSCALL_PRINT_NL
+; --- String Literal 'c is : ' pushed to stack ---
+ldi A 0
+push A
+ldi A \space
+push A
+ldi A \:
+push A
+ldi A \space
+push A
+ldi A \s
+push A
+ldi A \i
+push A
+ldi A \space
+push A
 ldi A \c
 push A
-ldi A \o
-push A
-ldi A \l
-push A
-; --- End String Literal 'local tester finished.' on stack ---
+; --- End String Literal 'c is : ' on stack ---
 call @stacks_show_from_stack
-ldi A 4 ; PID of the current process ending
+ldm A $c
+push A
+pop A
+int ~SYSCALL_PRINT_NUMBER
+int ~SYSCALL_PRINT_NL
+ldi A 300
+push A
+call @stacks_sleep
+:lus
+ldi A 1
+push A
+ldi A &proc3
+push A
+call @stacks_shared_var_write
+ldi A 1
+push A
+call @stacks_sleep
+jmp :lus
+ldi A 3 ; PID of the current process ending
 int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block
-. &counter 1
-. &sharedArray 12
-% &sharedArray 0 12
+@~SelectVertexA
+. $ret_SelectVertexA 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexA ; Save return address
+ldm A $VertexAX
+push A
+. $TargetVX 1
+pop A
+sto A $TargetVX
+ldm A $VertexAY
+push A
+. $TargetVY 1
+pop A
+sto A $TargetVY
+ldm A $ret_SelectVertexA ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return
+@~SelectVertexB
+. $ret_SelectVertexB 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexB ; Save return address
+ldm A $VertexBX
+push A
+pop A
+sto A $TargetVX
+ldm A $VertexBY
+push A
+pop A
+sto A $TargetVY
+ldm A $ret_SelectVertexB ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return
+@~SelectVertexC
+. $ret_SelectVertexC 1 ; Reserve space for return address
+pop A ; Pop return address into A
+sto A $ret_SelectVertexC ; Save return address
+ldm A $VertexCX
+push A
+pop A
+sto A $TargetVX
+ldm A $VertexCY
+push A
+pop A
+sto A $TargetVY
+ldm A $ret_SelectVertexC ; Epilogue: Load return address
+push A ; Epilogue: Push return address
+ret ; Epilogue: Return
+. &proc2 1
+. &proc3 1

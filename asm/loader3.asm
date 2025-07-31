@@ -18,7 +18,7 @@
 % $prog_start 4096
 
 . $random_seed 1
-% $random_seed 12345 
+% $random_seed 54321
 
 # define a buffer for incomming keystrokes
 . $KBD_BUFFER 16
@@ -44,7 +44,7 @@
 
 INCLUDE printing
 INCLUDE serialIO
-include networkR3
+include networkR4
 INCLUDE random
 INCLUDE errors
 

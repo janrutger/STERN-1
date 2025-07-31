@@ -35,3 +35,26 @@
     ldi A 1000
     dmod B A
 ret
+
+# For calling directly from STACKs language
+# result placed on the STACKS stack
+@rand
+    pop L
+    ldm A $random_seed
+    ldm B $rand_a
+    mul A B
+
+    ldm B $rand_c
+    add A B
+    
+    ldm B $rand_m
+
+    dmod A B 
+    sto B $random_seed
+
+    # returns a value [0 .. 999]
+    ldi A 1000
+    dmod B A
+    push A
+    push L
+ret

@@ -8,8 +8,8 @@ import sys # For sys.exit
 # Import necessary components from your STERN-1 project
 from stern_computer import SternComputer # Import the new class
 from assembler1c import Assembler # Use your latest assembler
-from FileIO import readFile, writeBin # Need writeBin if assembling per instance
-from stringtable import makechars
+#from FileIO import readFile, writeBin # Need writeBin if assembling per instance
+#from stringtable import makechars
 from networkHub import NetworkHub
 
 # --- Configuration ---
@@ -51,9 +51,9 @@ def assembly_code():
         # Assemble ROMs specified in configs
         # assembler.assemble("ChaosGame3.asm", boot["start_prog"], "ChaosGame3.bin", True)
         # assembler.assemble("ChaosGame4.asm", boot["start_prog"], "ChaosGame4.bin", True)
-        # assembler.assemble("program0.asm", boot["start_prog"], "program0.bin", True) # Example if needed
-        # assembler.assemble("program1.asm", boot["start_prog"], "program1.bin", True)
-        assembler.assemble("test.asm", boot["start_prog"], "processes.bin", True)
+        assembler.assemble("test.asm", boot["start_prog"], "processes0.bin", True) # Example if needed
+        assembler.assemble("fly.asm", boot["start_prog"], "processes1.bin", True)
+        # assembler.assemble("prime.asm", boot["start_prog"], "processes0.bin", True)
         # assembler.assemble("spritewalker.asm", boot["start_prog"], "spritewalker.bin", True)
         print("Assembly complete.")
     except Exception as e:
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     max_connections = boot.get("hub_max_connections", 0)
     receive_queues = []
     send_queue = None
-    if max_connections != 0:
+    if max_connections != 0 or boot["num_instances_to_run"] > 1 :
         manager = multiprocessing.Manager()  # Create the manager first
         send_queue = manager.Queue()    # Create the single send queue
         # Create the receive queues and add them to the list
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0",
         "window_title": "STERN-1 (Instance 1)",
         "kernel_start_adres": boot["start_kernel"], # Use boot config for kernel start
-        "start_rom": "processes.bin",
+        "start_rom": "processes0.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[0],
         # Add other specific settings if needed
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         "disk_dir": "./disk0", # Use a separate disk dir for instance 2
         "window_title": "STERN-1 (Instance 2)",
         "kernel_start_adres": boot["start_kernel"], # Use boot config for kernel start
-        "start_rom": "processes.bin",
+        "start_rom": "processes1.bin",
         "send_queue": send_queue,
         "receive_queue": receive_queues[1],
         # Add other specific settings if needed

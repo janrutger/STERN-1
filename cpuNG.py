@@ -1,4 +1,4 @@
-# /home/janrutger/git/STERN-1/cpu.py
+# /home/janrutger/git/STERN-1/cpuNG.py
 from decoder import decode
 from time import sleep
 from CPUmonitor1 import CpuMonitor
@@ -229,6 +229,9 @@ class Cpu:
                     self.registers[op1] = val1 - val2
                 case 53:    # SUBI r val
                     self.registers[op1] = int(self.registers[op1]) - op2
+                case 54:    # SUBR r val (Subtract Reverse: r = val - r)
+                    # op2 is already an int from decode
+                    self.registers[op1] = op2 - int(self.registers[op1])
                 case 60:    # MUL r1 r2
                     val1 = int(self.registers[op1])
                     val2 = int(self.registers[op2])

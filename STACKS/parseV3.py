@@ -370,14 +370,26 @@ class Parser:
             # after a .PROCES directive.
             if func_name in self.functions:
                 self.emitter.enter_function_definition_emission() # Signal start of function code
-                self.emitter.emitLine("@~" + func_name)
+                self.emitter.emitLine("@~" + func_name) # Mark start of function
+
+                # Allocate a local variable for the return address within the function's scope
+                return_addr_var = f"$ret_{func_name}"
+                self.symbols.add(return_addr_var) # Track it as a local symbol
+                # Emit: Reserve one word for the return address
+                self.emitter.emitLine(f". {return_addr_var} 1 ; Reserve space for return address")
+
+                # Emit: Function Prologue - Save return address to this local var
+                self.emitter.emitLine(f"pop A ; Pop return address into A")
+                self.emitter.emitLine(f"sto A {return_addr_var} ; Save return address")
                 self._print_info(f"Defining function '{func_name}'. STERN-1: Emit '@~{func_name}'.")
                 self.match(TokenType.IDENT)
                 self.nl()
                 while not self.checkToken(TokenType.END):
                     self.statement()
                 self.match(TokenType.END)
-                self.emitter.emitLine("ret")
+                self.emitter.emitLine(f"ldm A {return_addr_var} ; Epilogue: Load return address")
+                self.emitter.emitLine("push A ; Epilogue: Push return address")
+                self.emitter.emitLine("ret ; Epilogue: Return")
                 self.emitter.exit_function_definition_emission() # Signal end of function code
                 self._print_info(f"End of function '{func_name}'. STERN-1: Emit 'ret' (function code collected).")
                 self.nl()
@@ -462,27 +474,34 @@ class Parser:
                 service_id_token = self.curToken
                 self.nextToken() # Consume service_id (NUMBER)
 
+                if not self.checkToken(TokenType.NUMBER):
+                    self.abort(f"Expected reply PID (NUMBER) after service ID, got {self.curToken.kind.name if self.curToken else 'None'}")
+                reply_pid_token = self.curToken
+                self.nextToken() # Consume reply_pid (NUMBER)
+
                 # Generate a unique label for the assembly stub for this WRITE connection
                 stub_label = f"@~conn_{conn_name_token.text}_write_{self.LabelNum()}"
                 self.connection_details[conn_name_token.text] = {
                     'type': 'WRITE',
                     'dst': dst_addr_token.text,
                     'service_id': service_id_token.text,
-                    'stub_label': stub_label # Store the label to call
+                    'stub_label': stub_label, # Store the label to call
+                    'reply_pid': reply_pid_token.text, # Store the reply_pid
                 }
-                self._print_info(f"  Type: WRITE, Dst: {dst_addr_token.text}, ServiceID: {service_id_token.text}, Stub: {stub_label}")
+                self._print_info(f"  Type: WRITE, Dst: {dst_addr_token.text}, ServiceID: {service_id_token.text}, ReplyPID: {reply_pid_token.text}, Stub: {stub_label}")
 
-                # Emit the assembly stub for this specific WRITE connection
-                ## original_context = self.emitter.context
-                ## self.emitter.context = "functions" # Place stub in functions section for organization
-                # Stubs are emitted inline with the current process code.
+                # Emit the assembly stub out-of-line. This stub is called via a CPU 'call' instruction.
+                # The stub's job is to set up registers for the runtime helper and call it.
+                # The CPU's 'call'/'ret' pair handles the return address automatically.
+                # The value to be sent is expected to be in register B when this stub is called.
+                self.emitter.enter_function_definition_emission()
                 self.emitter.emitLine(f"{stub_label}")
-                self.emitter.emitLine(f"  pop B")         # Value to send is popped from STACKS stack into B
-                self.emitter.emitLine(f"  ldi A {dst_addr_token.text}")  # Dst NIC ID into A
-                self.emitter.emitLine(f"  ldi C {service_id_token.text}") # Service ID into C
-                self.emitter.emitLine(f"  call @stacks_network_write") # Call generic runtime helper
-                self.emitter.emitLine(f"  ret")
-                ## self.emitter.context = original_context
+                self.emitter.emitLine(f"  ldi A {dst_addr_token.text}")         # Dst NIC ID into A
+                self.emitter.emitLine(f"  ldi C {service_id_token.text}")       # Service ID into C
+                self.emitter.emitLine(f"  ldi K {reply_pid_token.text}")        # NEW: Reply PID into K
+                self.emitter.emitLine(f"  call @stacks_network_write")          # Call runtime helper. It expects value in B.
+                self.emitter.emitLine(f"  ret")                                 # Return to caller.
+                self.emitter.exit_function_definition_emission()
                 self.nl()
             else:
                 self.abort(f"Expected READ or WRITE after CONNECTION, got {self.curToken.kind.name if self.curToken else 'None'}")
@@ -523,9 +542,19 @@ class Parser:
                 self.nextToken() # Consume PRINT
                 self.nl()
             elif self.checkToken(TokenType.PLOT): # PLOT is now active
-                self.emitter.emitLine("call @plot") # Call the runtime routine
+                #self.emitter.emitLine("call @plot") # Call the runtime routine
+                self.emitter.emitLine("pop B")      # get Y value
+                self.emitter.emitLine("int ~SYSCALL_PLOT_Y_POINT")
                 self._print_trace("PLOT operation: Emitted call @plot.")
                 self.nextToken() # Consume PLOT
+                self.nl()
+            elif self.checkToken(TokenType.DRAW):
+                # self.emitter.emitLine("call @draw") # Call the new runtime routine
+                self.emitter.emitLine("pop B")      # get Y value
+                self.emitter.emitLine("pop A")      # get X value
+                self.emitter.emitLine("int ~SYSCALL_DRAW_XY_POINT")
+                self._print_trace("DRAW operation: Emitted call @draw.")
+                self.nextToken() # Consume DRAW
                 self.nl()
             elif self.checkToken(TokenType.WAIT):
                 self.emitter.emitLine("call @stacks_sleep")
@@ -613,6 +642,9 @@ class Parser:
                         if connection_info['type'] == 'READ':
                             self.abort(f"Cannot use AS with '{target_name}'. It is a READ connection. AS is for assignment/sending.")
                         # Value is on stack. Connection stub expects it there.
+                        # Pop the value from the STACKS data stack into B before calling the stub.
+                        self.emitter.emitLine("pop B") # Pop value from STACKS data stack (CPU stack) into B
+                        
                         self.emitter.emitLine(f"call {connection_info['stub_label']}")
                         self._print_info(f"AS: Emitted call to {connection_info['stub_label']} to send value via WRITE connection '{target_name}'.")
                         self.match(TokenType.IDENT) # Consume connection_name
@@ -784,7 +816,7 @@ class Parser:
             self.emitter.emitLine("call @divide")
         elif self.checkToken(TokenType.PCT):
             self.emitter.emitLine("call @mod")
-            self._print_trace("RPN MODULO. STERN-1: call @mod_op (pop 2, mod, push 1).")
+            #self._print_trace("RPN MODULO. STERN-1: call @mod_op (pop 2, mod, push 1).")
         elif self.checkToken(TokenType.BANG): # Factorial '!'
             # self.emitter.emitLine("call @factorial")
             self._print_info("RPN FACTORIAL. STERN-1: call @factorial_op (pop 1, fact, push 1).")
@@ -881,6 +913,9 @@ class Parser:
             if details['type'] == 'READ':
                 # The user-defined service routine (e.g., @myServiceRoutine) is called.
                 # It's expected to push value and status onto STACKS stack.
+                # Pass current PID in A to the service routine.
+                self.emitter.emitLine(f"call @get_mypid") # Pushes current PID to STACKS stack
+                self.emitter.emitLine(f"pop A")           # Pops PID from stack into A
                 self.emitter.emitLine(f"call {details['routine']}")
                 self._print_info(f"Executing READ connection '{ident_name}' by calling {details['routine']}.")
             elif details['type'] == 'WRITE':

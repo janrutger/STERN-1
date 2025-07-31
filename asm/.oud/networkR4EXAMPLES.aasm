@@ -1,0 +1,237 @@
+# Existing definitions (for context)
+. $NET_SND_BUFFER 64
+equ ~net_send_buffer_size 64
+equ ~net_snd_buffer_wrap 63
+equ ~net_snd_message_size 3
+
+. $NET_SND_BUFFER_ADRES 1
+. $NET_SND_READ_PNTR 1
+. $NET_SND_WRITE_PNTR 1
+
+equ ~send_status_register 5
+equ ~dst_register 6
+equ ~data_out_register 7
+equ ~ack_status_register 8
+equ ~message_type_register 9
+equ ~packetnumber_out_register 3 # Note: This is read by NIC, not written by CPU for new sends
+equ ~service_id_out_register 10
+
+equ ~data_type  0
+equ ~ack_type  1
+
+equ ~nic_status_idle  0
+equ ~nic_status_send_ack 2
+equ ~nic_status_send_request 1
+
+equ ~ack_status_ack   0
+equ ~ack_status_nack  1
+equ ~ack_status_noresend 2
+
+. $tmpstore 1 # Already defined
+
+# --- NEW STATUS CODES FOR send_nic_message (kernel buffer add) ---
+equ ~send_buffer_add_success 0   ; Message successfully placed in kernel buffer
+equ ~send_buffer_add_no_space 1  ; Not enough space in the kernel send buffer
+
+# --- NEW GLOBAL/TMP STORAGE for arguments to @send_nic_message (add to buffer) ---
+. $send_buffer_add_dst_tmp 1    ; Temporary storage for destination
+. $send_buffer_add_data_tmp 1   ; Temporary storage for data
+. $send_buffer_add_service_tmp 1 ; Temporary storage for service ID
+
+
+@send_nic_message
+# API (for kernel/applications to add to send buffer):
+# Places a message into the kernel's internal network send buffer.
+# It DOES NOT send to the NIC directly. Another routine (@kernel_process_send_buffer)
+# handles moving messages from this buffer to the NIC.
+#
+# Arguments (in registers on call):
+#   A: Destination NIC ID
+#   B: Data byte
+#   C: Service ID
+# Returns:
+#   A: Status code (~send_buffer_add_success or ~send_buffer_add_no_space)
+# Modifies: A, B, C, I, L, M, X. (Uses temporary storage)
+
+    # --- 1. Check for buffer space in kernel's send buffer ---
+    # Save incoming arguments before calling check routine
+    sto A $send_buffer_add_dst_tmp
+    sto B $send_buffer_add_data_tmp
+    sto C $send_buffer_add_service_tmp
+
+    call @check_nic_send_buffer_space
+    # Check return status in A from @check_nic_send_buffer_space
+    tste A ~send_buffer_add_no_space # Note: using new status constant for clarity
+    jmpt :_send_nic_message_no_space # If A == ~send_buffer_add_no_space
+
+    # --- 2. Buffer has space, write message to kernel buffer ---
+    # Reload arguments from temporary storage
+    ldm A $send_buffer_add_dst_tmp
+    ldm B $send_buffer_add_data_tmp
+    ldm C $send_buffer_add_service_tmp
+
+    # Get current write pointer into I
+    ldm I $NET_SND_WRITE_PNTR
+
+    # Store Destination NIC ID (from A)
+    stx A $NET_SND_BUFFER_ADRES
+
+    # Increment I, wrap, then store Data byte (from B)
+    addi I 1
+    andi I ~net_snd_buffer_wrap
+    stx B $NET_SND_BUFFER_ADRES
+
+    # Increment I, wrap, then store Service ID (from C)
+    addi I 1
+    andi I ~net_snd_buffer_wrap
+    stx C $NET_SND_BUFFER_ADRES
+
+    # Advance the $NET_SND_WRITE_PNTR by the message size
+    ldm M $NET_SND_WRITE_PNTR
+    addi M ~net_snd_message_size
+    andi M ~net_snd_buffer_wrap
+    sto M $NET_SND_WRITE_PNTR
+
+    ldi A ~send_buffer_add_success # Set return status to success
+    jmp :_send_nic_message_add_end
+
+:_send_nic_message_no_space
+    ldi A ~send_buffer_add_no_space # Set return status to no space
+    jmp :_send_nic_message_add_end
+
+:_send_nic_message_add_end
+ret
+
+
+@check_nic_send_buffer_space
+# API:
+# Checks if there is space in the kernel's network send buffer for a new message.
+# Arguments: None
+# Returns:
+#   A: Status code (~send_buffer_add_success if space, ~send_buffer_add_no_space if full)
+# Modifies: A, L, M, X.
+
+    # Load read and write pointers
+    ldm M $NET_SND_READ_PNTR    ; M = read_ptr
+    ldm L $NET_SND_WRITE_PNTR   ; L = write_ptr
+
+    # Calculate available space (L)
+    tste M L                    ; Test if M (read_ptr) == L (write_ptr)
+    jmpt :_check_send_buffer_empty_calc
+:_check_send_buffer_not_empty_calc
+    # Buffer is not empty. Calculate bytes from write_ptr to read_ptr.
+    # This is the number of currently available bytes.
+    sub M L                     ; M = read_ptr - write_ptr
+    addi M ~net_snd_buffer_size ; Add buffer size to handle negative result if read_ptr < write_ptr
+    andi M ~net_snd_buffer_wrap ; Wrap to get the actual distance (available bytes)
+    ld L M                      ; Move result to L (available_bytes)
+    jmp :_check_send_buffer_compare_space
+
+:_check_send_buffer_empty_calc
+    # Buffer is empty. 
+    ldi L ~net_send_buffer_wrap ; Load buffer size into L
+
+
+:_check_send_buffer_compare_space
+    # L now holds the available bytes.
+    # We need ~net_snd_message_size bytes.
+    # If L (available bytes) is less than ~net_snd_message_size, then no space.
+    ldi X ~net_snd_message_size
+    tstg X L                            ; Is message_size (X) > available_bytes (L)?
+    jmpt :_check_send_buffer_no_space   ; If X > L, then no space.
+
+    # There is space
+    ldi A ~send_buffer_add_success
+    jmp :_check_send_buffer_end
+
+:_check_send_buffer_no_space
+    ldi A ~send_buffer_add_no_space
+    jmp :_check_send_buffer_end
+
+:_check_send_buffer_end
+ret
+
+
+@kernel_process_send_buffer
+# API (internal kernel routine):
+# Checks the kernel's internal send buffer. If a message is pending and the NIC
+# is ready (send_status_register is NIC_STATUS_IDLE), it dequeues the message
+# and writes it to the NIC's memory-mapped send registers, then triggers the NIC.
+#
+# Arguments: None
+# Returns:
+#   A: Status code (e.g., 0 for success/processed, 1 for buffer empty, 2 for NIC busy)
+# Modifies: A, B, C, I, L, M, X.
+
+    # --- 1. Check if the NIC's send registers are IDLE ---
+    ldi I ~send_status_register
+    ldx M $NIC_baseadres
+    ldi L ~nic_status_idle
+    tste M L
+    jmpf :_kernel_process_send_buffer_nic_busy # If M != L, NIC is busy (already processing a send)
+
+    # --- 2. Check if the kernel's send buffer is empty ---
+    ldm M $NET_SND_READ_PNTR
+    ldm L $NET_SND_WRITE_PNTR
+    tste M L
+    jmpt :_kernel_process_send_buffer_empty # If M == L, buffer is empty
+
+    # --- 3. Buffer has a message and NIC is IDLE, dequeue and send to NIC ---
+    # Get current read pointer into I
+    ldm I $NET_SND_READ_PNTR
+
+    # Read Destination NIC ID (into A)
+    ldx A $NET_SND_BUFFER_ADRES
+
+    # Increment I, wrap, then read Data byte (into B)
+    addi I 1
+    andi I ~net_snd_buffer_wrap
+    ldx B $NET_SND_BUFFER_ADRES
+
+    # Increment I, wrap, then read Service ID (into C)
+    addi I 1
+    andi I ~net_snd_buffer_wrap
+    ldx C $NET_SND_BUFFER_ADRES
+
+    # Advance the $NET_SND_READ_PNTR by the message size
+    ldm M $NET_SND_READ_PNTR
+    addi M ~net_snd_message_size
+    andi M ~net_snd_buffer_wrap
+    sto M $NET_SND_READ_PNTR
+
+    # --- 4. Write message to NIC's memory-mapped registers ---
+    # Write Destination
+    ldi I ~dst_register
+    stx A $NIC_baseadres
+
+    # Write Data
+    ldi I ~data_out_register
+    stx B $NIC_baseadres
+
+    # Write Service ID
+    ldi I ~service_id_out_register
+    stx C $NIC_baseadres
+
+    # Set message type to DATA
+    ldi L ~data_type
+    ldi I ~message_type_register
+    stx L $NIC_baseadres
+
+    # --- 5. Trigger NIC to send ---
+    ldi L ~nic_status_send_request
+    ldi I ~send_status_register
+    stx L $NIC_baseadres
+
+    ldi A 0 # Return 0 for success
+    jmp :_kernel_process_send_buffer_end
+
+:_kernel_process_send_buffer_empty
+    ldi A 1 # Return 1 for buffer empty
+    jmp :_kernel_process_send_buffer_end
+
+:_kernel_process_send_buffer_nic_busy
+    ldi A 2 # Return 2 for NIC busy
+    jmp :_kernel_process_send_buffer_end
+
+:_kernel_process_send_buffer_end
+ret

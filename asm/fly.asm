@@ -1,91 +1,94 @@
-@main
-call @stacks_runtime_init
-. $previous 1
-. $next 1
-. $cfactor 1
-. $r 1
+.PROCES 1 64
+:~proc_entry_1 ; Default entry point for process 1
 ldi A 0
-call @push_A
+push A
 call @sio_channel_on
 ldi A 0
-call @push_A
+push A
 call @stacks_timer_set
 ldi A 1
-call @push_A
-call @plot
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
 ldi A 1
-call @push_A
-call @plot
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
 ldi A 1
-call @push_A
-call @pop_A
+push A
+. $previous 1
+pop A
 sto A $previous
 ldi A 2
-call @push_A
-call @pop_A
+push A
+. $next 1
+pop A
 sto A $next
 :_0_while_condition
 ldm A $next
-call @push_A
+push A
 ldi A 700
-call @push_A
+push A
 call @ne
-call @pop_A
+pop A
 tste A Z
 jmpf :_0_while_end
 ldm A $previous
-call @push_A
+push A
 ldm A $next
-call @push_A
+push A
 call @stacks_gcd
-call @pop_A
+. $cfactor 1
+pop A
 sto A $cfactor
 ldi A 1
-call @push_A
+push A
 ldm A $cfactor
-call @push_A
+push A
 call @eq
-call @pop_A
+pop A
 tste A Z
 jmpf :_1_do_end
 ldm A $previous
-call @push_A
+push A
 ldm A $next
-call @push_A
+push A
 ldi A 1
-call @push_A
+push A
 call @plus
 call @plus
-call @pop_A
+. $r 1
+pop A
 sto A $r
 jmp :nextnumber
 :_1_do_end
 ldm A $previous
-call @push_A
+push A
 ldm A $cfactor
-call @push_A
+push A
 call @divide
-call @pop_A
+pop A
 sto A $r
 :nextnumber
 ldm A $r
-call @push_A
-call @plot
+push A
+pop B
+int ~SYSCALL_PLOT_Y_POINT
 ldm A $r
-call @push_A
-call @pop_A
+push A
+pop A
 sto A $previous
 ldm A $next
-call @push_A
+push A
 ldi A 1
-call @push_A
+push A
 call @plus
-call @pop_A
+pop A
 sto A $next
 jmp :_0_while_condition
 :_0_while_end
 ldi A 0
-call @push_A
+push A
 call @stacks_timer_print
-ret
-INCLUDE  stacks_runtime
+ldi A 1 ; PID of the current process ending
+int ~SYSCALL_STOP_PROCESS ; Implicit stop at end of process block

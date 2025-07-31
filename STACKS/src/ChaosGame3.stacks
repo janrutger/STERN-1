@@ -1,82 +1,4 @@
-PROCESS 1
-    2 TIMER SET
-    SHARED VAR proc2
-    0 AS proc2
-    SHARED VAR proc3
-    0 AS proc3
-
-    0 AS loop
-
-    2 STARTPROCESS 
-    DROP
-    3 STARTPROCESS 
-    DROP
-
-
-    LABEL lus
-        proc2 1 == DO
-            2 STOPPROCESS
-            . AS proc2
-            loop 1 + AS loop
-        END
-        proc3 1 == DO
-            3 STOPPROCESS
-            . AS proc3
-            loop 1 + AS loop
-        END
-        #'.' SHOW
-        1 WAIT
-        loop 2 != GOTO lus
-
-
-    2 TIMER PRINT
-END
-
-
-
-PROCESS 2 64
-    0 CHANNEL ON
-    1 TIMER SET
-
-
-    1 PLOT
-    1 PLOT
-    1 AS previous
-
-    2 AS next
-
-    {next 700 !=} DO
-        previous next GCD AS cfactor
-        1 cfactor == DO
-                previous next 1 + + AS r
-                GOTO nextnumber
-        END
-
-        previous cfactor / AS r
-
-        LABEL nextnumber
-        r PLOT
-        r AS previous 
-        next 1 + AS next
-        #'#' SHOW
-
-    1 WAIT
-    END
-    1 TIMER PRINT
-    300 WAIT
-
-    LABEL lus
-        1 AS proc2
-        1 WAIT
-    GOTO lus
-
-    
-
-END
-
-
-
-PROCESS 3 64
+PROCESS 1 64
     0 TIMER SET
     10 AS VertexAX
     10 AS VertexAY
@@ -89,13 +11,13 @@ PROCESS 3 64
 
     10 AS CurrentPX
     10 AS CurrentPY
-    
 
     0 AS a
     0 AS b
     0 AS c
+    
 
-    10000 AS steps
+    5000 AS steps
     0   AS step
 
 
@@ -146,7 +68,7 @@ PROCESS 3 64
 
         CurrentPX CurrentPY DRAW
 
-        #step PRINT
+        '.' SHOW
         step 1 + AS step
 
     END
@@ -155,14 +77,7 @@ PROCESS 3 64
 'a is : ' SHOW a PRINT
 'b is : ' SHOW b PRINT
 'c is : ' SHOW c PRINT
+
 300 WAIT
 
-
-
-LABEL lus
-    1 AS proc3
-    1 WAIT
-GOTO lus
-
 END
-

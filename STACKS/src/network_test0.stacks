@@ -1,0 +1,31 @@
+PROCESS 1 128
+'stern 0 sleeping ' SHOW
+
+# make sure the remote is running
+100 WAIT
+'after sleep ' SHOW
+
+zender CONNECTION WRITE 0 1 1
+ontvanger CONNECTION READ readService0
+
+
+'sending ' SHOW
+22 AS zender
+'send ' SHOW
+100 WAIT
+
+# { ontvanger DUP 1 == } DO
+#     # The read failed (status was 1), so the data value is a placeholder.
+#     # Drop it to keep the stack clean while we wait.
+#     DROP
+# END
+# 
+'received ' SHOW
+# . PRINT
+# 50 WAIT
+
+LABEL lusje
+    1 PRINT
+GOTO lusje
+
+END

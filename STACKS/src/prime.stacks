@@ -1,0 +1,56 @@
+PROCESS 1 512
+    0 TIMER SET
+    SHARED ARRAY workingList 2048
+
+    2 AS start
+    2048 start + AS max
+
+    {start max < } DO
+        start AS workingList    # add to the array
+        start 1 + AS start
+        '.' SHOW
+    END
+
+
+
+    0 AS index
+    #{index workingList != } DO
+     {index [workingList] DUP * max < } DO
+    
+        index [workingList] AS value
+        index 1 + AS nextIndex
+        index [workingList] 0 != DO
+            {nextIndex workingList !=} DO
+                nextIndex [workingList] AS nextValue
+                nextValue 0 != DO 
+                    nextValue value % 0 == DO
+                        0 nextIndex AS [workingList] 
+                    END   
+                END 
+                nextIndex 1 + AS nextIndex         
+            END
+        END
+
+        index [workingList] 0 != DO
+            '.' SHOW
+        END
+
+        # index PRINT
+        index 1 + AS index
+    END
+
+
+    0 AS counter
+    {counter workingList <} DO
+        counter [workingList] 0 !=  DO
+            counter [workingList] PRINT
+        END
+        counter 1 + AS counter
+    END
+
+
+    0 TIMER PRINT
+
+END
+
+

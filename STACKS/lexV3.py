@@ -265,6 +265,7 @@ class TokenType(enum.Enum):
 
     SHARED = 138       # New
     VAR = 139          # New
+    DRAW = 140         # New
 
     PLUS = 201
     MINUS = 202

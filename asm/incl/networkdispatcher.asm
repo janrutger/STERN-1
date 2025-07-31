@@ -8,20 +8,32 @@
 . $MAX_SERVICE_ID 1                 
 % $MAX_SERVICE_ID 1
 
-; Buffer for data received by service 0 (16 positions)
-. $SERVICE0_DATA_BUFFER 16      
-. $SERVICE0_WRITE_PNTR 1        
-. $SERVICE0_DATA_BUFFER_ADRES 1
-% $SERVICE0_WRITE_PNTR 0 
+; --- Service 0 Data Buffers (Per-Process) ---
+equ ~MAX_PROCESSES 5
+equ ~SERVICE0_BUFFER_SIZE 16
+equ ~SERVICE0_BUFFER_MASK 15 ; for andi operation (size - 1)
 
-. $SERVICE0_READ_PNTR 1         
-% $SERVICE0_READ_PNTR 0        
+; --- Buffers ---
+. $SERVICE0_DATA_BUFFER_P0 16 ; ~SERVICE0_BUFFER_SIZE
+. $SERVICE0_DATA_BUFFER_P1 16 ; ~SERVICE0_BUFFER_SIZE
+. $SERVICE0_DATA_BUFFER_P2 16 ; ~SERVICE0_BUFFER_SIZE
+. $SERVICE0_DATA_BUFFER_P3 16 ; ~SERVICE0_BUFFER_SIZE
+. $SERVICE0_DATA_BUFFER_P4 16 ; ~SERVICE0_BUFFER_SIZE
 
-% $SERVICE0_DATA_BUFFER_ADRES $SERVICE0_DATA_BUFFER
+; --- Jump table to get buffer base address ---
+. $SERVICE0_DATA_BUFFER_JUMP_TABLE 5 ; ~MAX_PROCESSES
+% $SERVICE0_DATA_BUFFER_JUMP_TABLE $SERVICE0_DATA_BUFFER_P0 $SERVICE0_DATA_BUFFER_P1 $SERVICE0_DATA_BUFFER_P2 $SERVICE0_DATA_BUFFER_P3 $SERVICE0_DATA_BUFFER_P4
 
+; --- Read/Write Pointers (one for each process) ---
+. $SERVICE0_WRITE_PNTRS 5 ; ~MAX_PROCESSES
+. $SERVICE0_READ_PNTRS  5 ; ~MAX_PROCESSES
+% $SERVICE0_WRITE_PNTRS 0 0 0 0 0
+% $SERVICE0_READ_PNTRS  0 0 0 0 0
+
+. $_sh0_temp_buffer_base 1 ; temp var for service handler 0
 
 @network_message_dispatcher
-    call @read_nic_message
+    call @read_nic_message      ; NOTE: MAYBE an SYSCALL
     ; Expects from @read_nic_message:
     ; A = src_addr, B = data, C = service_id.
     ; Status bit:
@@ -40,7 +52,7 @@
     ldx M $SERVICE_JUMP_TABLE_ADRES
 
     ld I M 
-    callx $mem_start
+    callx $mem_start        ; starting the service routine
 
     # After the service handler successfully returns,
     # jump to the dispatcher's exit point.
@@ -56,56 +68,68 @@ ret
 
 
 @service_handler_0
-; Called with A = src_addr, B = data, C = service_id (which is 0)
-    ; Stores only the data (from B) into a ring buffer.
-    ; If the buffer is full, it advances the read pointer, discarding the oldest item,
-    ; to make space for the new item, thus keeping the most recent data in order.
+    ; Called with A = src_addr, B = data, C = service_id (which is 0)
+    ; Decodes PID from payload, stores value in the correct process buffer.
+    ; Payload = (value * 10) + pid (where pid is 0-4)
+    ; If a buffer is full, it discards the oldest item.
 
-    ; Check if the buffer is full.
-    ; A buffer is full if (write_pointer + 1) % size == read_pointer.
+    ; --- Decode PID and Value ---
+    ldi K 10                    ; K = 10
+    dmod B K                    ; B = B / 10 (value), K = B % 10 (pid)
+    ; Now B holds the value to store, K holds the target PID.
 
-    ldm M $SERVICE0_WRITE_PNTR  
-    ldm L $SERVICE0_READ_PNTR   
+    ; --- Validate PID (in K) ---
+    ld M K                      ; M = PID
+    ldi L ~MAX_PROCESSES        ; L = 5
+    tstg L M                    ; is ~MAX_PROCESSES > PID? (i.e. is PID < 5)
+    jmpf :_sh0_invalid_pid      ; if not, pid is invalid.
 
-    ; K = current write_pointer (copy for calculation)
-    ; K = potential next write_pointer
-    ; K = (potential next write_pointer) % 16
-    ld K M                      
-    addi K 1                    
-    andi K 15                   
+    ; --- Get pointers for the PID in K ---
+    ld I K ; I = PID
+    ldx M $SERVICE0_WRITE_PNTRS ; M = write_pntr[pid]
+    ldx L $SERVICE0_READ_PNTRS  ; L = read_pntr[pid]
 
-    ; Is (next_write_pntr) == read_pntr?
-    ; If true, buffer is full
-    tste K L                    
-    jmpt :s0_buffer_is_full     
+    ; --- Check if buffer is full ---
+    ; (write_pointer + 1) % size == read_pointer (for the specific PID)
+    ld C M                      ; C = current write_pointer
+    addi C 1                    ; C = potential next write_pointer
+    andi C ~SERVICE0_BUFFER_MASK ; C = (potential next write_pointer) % size
+    tste C L                    ; Is (next_write_pntr) == read_pntr?
+    jmpt :_sh0_buffer_is_full   ; If true, buffer is full
 
-:s0_proceed_with_write
+:_sh0_proceed_with_write
     ; Buffer is not full OR space has been made.
-    ; Get current write pointer value into I, and increment it in memory
-    inc I $SERVICE0_WRITE_PNTR
+    ; --- Write the value (in B) to the correct buffer ---
+    ld I K ; I = PID (from K)
+    ldx L $SERVICE0_DATA_BUFFER_JUMP_TABLE ; L = base address of buffer for PID
+    sto L $_sh0_temp_buffer_base ; Store base address in temp var
 
-    ; Store data (B) using I as the index
-    stx B $SERVICE0_DATA_BUFFER_ADRES      
+    ld I K ; I = PID
+    ldx C $SERVICE0_WRITE_PNTRS ; C = write offset for PID
+    ld I C ; Load offset into I for stx
+    stx B $_sh0_temp_buffer_base ; M[base_addr + offset] = value
 
-    ; Finalize the $SERVICE0_WRITE_PNTR update in memory (wrap-around)
-    ldm M $SERVICE0_WRITE_PNTR
-    andi M 15 
-    sto M $SERVICE0_WRITE_PNTR
+    ; --- Increment and update the write pointer for the PID ---
+    ld I K ; I = PID (from K)
+    ldx C $SERVICE0_WRITE_PNTRS ; C = current write_pntr[pid]
+    addi C 1
+    andi C ~SERVICE0_BUFFER_MASK
+    stx C $SERVICE0_WRITE_PNTRS ; write_pntr[pid] = new pointer
 ret
 
-:s0_buffer_is_full
-    ; Buffer is full. Advance the read pointer to discard the oldest item.
-    ; inc I $SERVICE0_READ_PNTR will load current read_pntr into I and inc in memory
-    inc I $SERVICE0_READ_PNTR   
-    ldm M $SERVICE0_READ_PNTR   
-    andi M 15               
-    ; Store wrapped new read_pntr    
-    sto M $SERVICE0_READ_PNTR   
+:_sh0_buffer_is_full
+    ; Buffer is full. Advance the read pointer for this PID to discard the oldest item.
+    ld I K ; I = PID
+    ldx L $SERVICE0_READ_PNTRS ; L = current read_pntr[pid]
+    addi L 1
+    andi L ~SERVICE0_BUFFER_MASK
+    stx L $SERVICE0_READ_PNTRS ; read_pntr[pid] = new pointer
+    jmp :_sh0_proceed_with_write
 
-    ; Now proceed to write the new data
-    jmp :s0_proceed_with_write  
-
-
+:_sh0_invalid_pid
+    ; The PID decoded from the packet (in K) is out of range.
+    ; This is a protocol error. For now, just return without doing anything.
+ret
 
 
 @service_handler_echo
@@ -114,68 +138,82 @@ ret
     ;             B = data_to_echo
     ;             C = service_id (which is 1)
 
-    ; Prepare for @send_data_packet_sub:
+    ; This service handler runs in kernel mode. It can directly call other
+    ; kernel routines like @send_nic_message to queue a reply.
+    ; A user process would need to use a SYSCALL to achieve the same result.
+    ;
     ; A should be dst_addr (it's already the incoming src_addr)
     ; B should be data (it's already the incoming data)
     ; C should be the service_id for the *outgoing* packet.
-    ; Let's send the echo back with service_id 0 (targeting "current program" on the sender).
+    ; We send the echo back with service_id 0, the standard reply service.
     ldi C 0 
-    call @send_data_packet_sub 
+    call @send_nic_message
+
 ret
 
-
-
-
+. $_rs0d_temp_buffer_base 1 ; temp var for read service 0
 
 @read_service0_data
-    ; Reads a byte from the SERVICE0_DATA_BUFFER.
+    ; Reads a byte from the appropriate SERVICE0_DATA_BUFFER for the PID in A.
+    ; Expects:
+    ;   In Register A: The PID of the calling process.
     ; Returns:
-    ;   In Register A: data byte if available. (Content of A is undefined if buffer is empty and status bit is 0)
+    ;   In Register A: data byte if available. (Content of A is undefined if buffer is empty)
     ;   Status bit: 1 if data was read and is in A.
     ;               0 if buffer is empty.
-    ; This routine should be called from the main program.
-    ; It is the consumer for data produced by @service_handler_0.
 
     ; Disable interrupts to ensure atomic access to pointers
     di 
 
-    ldm M $SERVICE0_READ_PNTR  
-    ldm L $SERVICE0_WRITE_PNTR 
+    ; Save calling PID from A into K for later use
+    ld K A ; K = PID
 
-    ; Is read_pointer == write_pointer?
-    tste M L 
-        ; If M == L (empty), tste sets status bit to 1.
-        ; If M != L (data), tste sets status bit to 0.
+    ; --- Validate PID ---
+    ldi M ~MAX_PROCESSES
+    tstg M K ; Is ~MAX_PROCESSES > K? (i.e. is K < ~MAX_PROCESSES)
+    jmpf :_rs0d_invalid_pid_or_empty
 
-    ; Jump if status bit is 1 (meaning M == L, buffer is empty)
-    jmpt :s0_buffer_empty_set_status 
+    ; --- Get pointers for the PID in K ---
+    ld I K ; I = PID
+    ldx M $SERVICE0_READ_PNTRS  ; M = read_pntr[K]
+    ldx L $SERVICE0_WRITE_PNTRS ; L = write_pntr[K]
 
-    ; Buffer is not empty, data is available
-    ; I = old $SERVICE0_READ_PNTR value, $SERVICE0_READ_PNTR is incremented in memory
-    inc I $SERVICE0_READ_PNTR
-    ldx A $SERVICE0_DATA_BUFFER_ADRES 
-    
-    ; Wrap-around for $SERVICE0_READ_PNTR (which is already incremented in memory)
-    ldm M $SERVICE0_READ_PNTR
-    andi M 15              
-    ; Store the wrapped pointer value back       
-    sto M $SERVICE0_READ_PNTR     
+    ; --- Is buffer empty? ---
+    tste M L
+    ; If M == L (empty), tste sets status bit to 1.
+    jmpt :_rs0d_buffer_empty ; Jump if status bit is 1 (buffer is empty)
+
+    ; --- Buffer is not empty, data is available for PID in K ---
+    ; Get buffer base address for PID
+    ld I K
+    ldx C $SERVICE0_DATA_BUFFER_JUMP_TABLE ; C = base address of buffer for PID
+    sto C $_rs0d_temp_buffer_base
+
+    ; Get read offset (for PID in K) and read data into A
+    ld I K
+    ldx L $SERVICE0_READ_PNTRS ; L = read offset for PID
+    ld I L ; Load offset into I for ldx
+    ldx A $_rs0d_temp_buffer_base ; A = M[base_addr + offset] (the data)
+
+    ; --- Increment and update the read pointer for the PID (in K) ---
+    ld I K ; I = PID
+    ldx M $SERVICE0_READ_PNTRS ; M = current read_pntr[K]
+    addi M 1
+    andi M ~SERVICE0_BUFFER_MASK
+    stx M $SERVICE0_READ_PNTRS ; read_pntr[K] = new pointer
 
     ; Set status bit to 1 (data available)
     ldi M 1 
-    ; Sets status bit to 1 because M (1) is not equal to 0.
     tst M 1 
-    jmp :s0_read_done
+    jmp :_rs0d_done
 
-:s0_buffer_empty_set_status
-    ; We jumped here because M == L, and tste M L set the status bit to 1.
-    ; We need to set status bit to 0 to indicate buffer empty.
+:_rs0d_invalid_pid_or_empty
+:_rs0d_buffer_empty
+    ; Set status bit to 0 to indicate buffer empty.
     ldi M 0 
-    ; Sets status bit to 0 because M (0) is equal to 0.
     tst M 1 
-    ; Register A's content is not guaranteed here / can be considered garbage.
 
-:s0_read_done
+:_rs0d_done
     ; Enable interrupts
     ei 
 ret

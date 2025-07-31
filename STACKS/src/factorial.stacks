@@ -1,0 +1,13 @@
+PROCESS 1 64
+16 AS number
+1 AS result
+
+{number 1 !=} DO 
+    result number * AS result
+    number  1 - AS number
+END
+
+result PRINT
+
+
+END
