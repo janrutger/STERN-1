@@ -143,8 +143,6 @@ rti
 #   C: service_id (undefined if buffer was empty)
 #   Status bit:
 #       - SET (true) if the buffer was empty (A will be \null).
-    # Disable interrupts to ensure atomic access to the buffer and pointers
-    di
 # Modifies: A, B, C, I, L, M. Updates $NET_RCV_READ_PNTR.
 #
 
@@ -192,8 +190,6 @@ rti
 
 :read_nic_msg_buffer_empty
     # Buffer is empty (status bit is SET from tste M L).
-    # Re-enable interrupts
-    ei
     # Set A to \null to indicate no message.
     ldi A \null
     # B and C are undefined in this case.
@@ -327,8 +323,6 @@ equ ~send_buffer_add_no_space 1  ; Not enough space in the kernel send buffer
 # handles moving messages from this buffer to the NIC.
 #
 # Arguments (in registers on call):
-    # Disable interrupts to ensure atomic access to the buffer and pointers
-    di
 #   A: Destination NIC ID
 #   B: Data byte
 #   C: Service ID
@@ -376,8 +370,6 @@ equ ~send_buffer_add_no_space 1  ; Not enough space in the kernel send buffer
     addi M ~net_snd_message_size
     andi M ~net_snd_buffer_wrap
     sto M $NET_SND_WRITE_PNTR
-    # Re-enable interrupts
-    ei
 
     ldi A ~send_buffer_add_success ; Set return status to success
     jmp :_send_nic_message_add_end
