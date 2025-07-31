@@ -443,7 +443,8 @@ ret
 # Returns:
 #   A: Status code (e.g., 0 for success/processed, 1 for buffer empty, 2 for NIC busy)
 # Modifies: A, B, C, I, L, M, X.
-
+# this operation must be atomic, so i added di/ei 
+    di
     # --- 1. Check if the NIC's send registers are IDLE ---
     ldi I ~send_status_register
     ldx M $NIC_baseadres
@@ -515,6 +516,7 @@ ret
     jmp :_kernel_process_send_buffer_end
 
 :_kernel_process_send_buffer_end
+ei
 ret
 
 
@@ -522,3 +524,6 @@ ret
 
 
 ##### END OF NEW CODE #####
+@send_data_packet_sub
+    # Stub, is still called by stern_runtime.asm, work in progress (i hope)
+ret

@@ -33,13 +33,15 @@ equ ~SERVICE0_BUFFER_MASK 15 ; for andi operation (size - 1)
 . $_sh0_temp_buffer_base 1 ; temp var for service handler 0
 
 @network_message_dispatcher
-    call @read_nic_message      ; NOTE: MAYBE an SYSCALL
+    # make this atomic di/ei
+    di
+    call @read_nic_message      
+
     ; Expects from @read_nic_message:
     ; A = src_addr, B = data, C = service_id.
     ; Status bit:
     ;   - SET (true) if the buffer was empty (A will be \null).
     ;   - CLEARED (false) if a message was successfully read.
-
     ; Jump if status bit is SET (true), meaning no message was read
     jmpt :nmd_no_message 
 
@@ -64,6 +66,7 @@ equ ~SERVICE0_BUFFER_MASK 15 ; for andi operation (size - 1)
     call @fatal_error
 
 :nmd_no_message
+    ei
 ret
 
 

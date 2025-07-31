@@ -1485,18 +1485,44 @@ ret
     ;   - Register C: service_id_out
     ;   - Register K: reply_pid (the PID of the process on the sender host expecting the reply)
 
+
+    # temp memory registers
+    . $reg_A_cp 1
+    . $reg_B_cp 1
+    . $reg_C_cp 1
+
     ; Encode the payload: (value * 10) + reply_pid
     ; Value is in B, reply_pid is in K. Result should go back into B.
     muli B 10   ; B = B * 10
     add B K     ; B = B + K (encoded payload)
 
-    ; @send_data_packet_sub (from networkdispatcher.asm) expects:
+    ; @send_data_packet_sub (from networkR4.asm) expects:
     ;   A: dst_addr
     ;   B: data_to_send
     ;   C: service_id_out
 
-    ; from networkdispatcher.asm
-    call @send_data_packet_sub 
+    ; from networkR4.asm
+    ; call @send_data_packet_sub    ; OLD code
+    # save register values, for resend purpose
+    sto A $reg_A_cp
+    sto B $reg_B_cp
+    sto C $reg_C_cp
+
+    :stacks_network_write_loop
+
+        call @send_nic_message      ; Call the new routine
+        # check the result in A=0 at succes, A=1 when fails 
+        tst A 0                            ; test for succes
+        jmpt :stacks_network_write_done
+        int ~SYSCALL_YIELD                 ; Yield and ...
+        # Restore the registers, before ..
+        ldm A $reg_A_cp
+        ldm B $reg_B_cp
+        ldm C $reg_C_cp
+        jmp :stacks_network_write_loop    ; retry after failing
+
+    :stacks_network_write_done
+    
 ret
 
 # a simple name, for better use in the Stacks language

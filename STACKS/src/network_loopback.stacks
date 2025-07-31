@@ -1,0 +1,17 @@
+PROCESS 1 64
+
+reader CONNECTION readService0
+
+# writer convention: dst-adrs, network-service, dest-pid
+writer CONNECTION 0 1 1
+
+42 AS writer
+
+reader 
+
+
+
+
+
+
+END

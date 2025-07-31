@@ -145,8 +145,32 @@ equ ~HEAP_LOCK_UNLOCKED -1     ; Value indicating the heap is not locked
     ; PID 1 is still running, or in another active/ready state.
     ; Kernel can perform other background tasks here if any, or just loop.
 
-    int ~SYSCALL_YIELD
+    ## setup the kernel multi proces network stack
+    ## for sending data: the kernel must call @kernel_process_send_buffer
+    ## on regular basis to make sure the packet from the sendbuffer will be send
+    ##
+    ## for receiving data: call @network_message_dispatcher
+    ##
 
+    ## the receiving part
+    call @network_message_dispatcher
+
+    ## the sending part
+    call @kernel_process_send_buffer
+    # check the exit code in A 
+    # for now, no receiving part yet, keep it simple
+    # when buffer is empty or NIC is busy, just YIELD
+    # when succes, start main loop (or go to the receive part)
+    tst A 0                     ; check for succes
+    jmpf :_kernel_loop_yields   ; if not yield
+
+    jmp :kernel_main_loop       ; or try next
+
+    # some where here we must do something for receiving messages
+
+
+    :_kernel_loop_yields
+        int ~SYSCALL_YIELD
     jmp :kernel_main_loop 
 
 :_kernel_system_halt
